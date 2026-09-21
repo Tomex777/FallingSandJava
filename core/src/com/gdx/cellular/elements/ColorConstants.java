@@ -71,6 +71,8 @@ public class ColorConstants {
 
     private static final Color OIL = new Color(55/255f, 60/255f, 73/255f, .8f);
 
+    private static final Color PETROL = new Color(205/255f, 166/255f, 72/255f, .8f);
+
     private static final Color ACID = new Color(0/255f, 255/255f, 0/255f, 1);
 
     private static final Color LAVA = new Color(255/255f, 165/255f, 0/255f, 1);
@@ -157,6 +159,8 @@ public class ColorConstants {
         elementColorMap.get(ElementType.WATER).add(WATER);
 
         elementColorMap.get(ElementType.OIL).add(OIL);
+
+        elementColorMap.get(ElementType.PETROL).add(PETROL);
 
         elementColorMap.get(ElementType.ACID).add(ACID);
 
