@@ -1,6 +1,6 @@
 package com.gdx.cellular.util;
 
-import com.badlogic.gdx.assets.AssetManager;
+import com.badlogic.gdx.Gdx;\nimport com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -15,7 +15,7 @@ public class Assets {
 
     static {
         assetManager = new AssetManager();
-        FileHandle texturesFolder = new FileHandle("elementtextures");
+        FileHandle texturesFolder = Gdx.files.internal("elementtextures");
         for (FileHandle fileHandle : texturesFolder.list()) {
             assetManager.load(texturesFolder.name() + "/" + fileHandle.name(), Pixmap.class);
         }
