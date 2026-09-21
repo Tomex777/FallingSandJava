@@ -6,6 +6,10 @@ on:
       - elementum
   workflow_dispatch:
 
+concurrency:
+  group: elementum-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -73,9 +77,12 @@ jobs:
             mkdir -p android/build/runtime-smoke
             adb install -r android/build/outputs/apk/debug/android-debug.apk
             adb logcat -c
+            adb shell settings put secure immersive_mode_confirmations confirmed || true
             adb shell am force-stop com.tomex.elementum
             adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
-            sleep 8
+            sleep 5
+            adb shell input tap 510 190 || true
+            sleep 3
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
             adb logcat -d > android/build/runtime-smoke/logcat.txt
             adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" > android/build/runtime-smoke/window.txt || true
