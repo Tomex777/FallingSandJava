@@ -123,6 +123,9 @@ public abstract class MovableSolid extends Solid {
 
     @Override
     protected boolean actOnNeighboringElement(Element neighbor, int modifiedMatrixX, int modifiedMatrixY, CellularMatrix matrix, boolean isFinal, boolean isFirst, Vector3 lastValidLocation, int depth) {
+        boolean acted = interactWith(neighbor, matrix);
+        if (acted) return true;
+
         if (neighbor instanceof EmptyCell || neighbor instanceof Particle) {
             setAdjacentNeighborsFreeFalling(matrix, depth, lastValidLocation);
             if (isFinal) {
