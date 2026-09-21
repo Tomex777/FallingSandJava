@@ -75,7 +75,7 @@ public abstract class Element {
     public abstract void step(CellularMatrix matrix);
 
     public boolean actOnOther(Element other, CellularMatrix matrix) {
-        return false;
+        return ReactionRegistry.react(this, other, matrix);
     }
 
     protected abstract boolean actOnNeighboringElement(Element neighbor, int modifiedMatrixX, int modifiedMatrixY, CellularMatrix matrix, boolean isFinal, boolean isFirst, Vector3 lastValidLocation, int depth);
