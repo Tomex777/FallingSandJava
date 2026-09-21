@@ -1,0 +1,25 @@
+name: Elementum core build
+
+on:
+  push:
+    branches:
+      - elementum
+  workflow_dispatch:
+
+jobs:
+  compile-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Compile core
+        run: |
+          chmod +x gradlew
+          ./gradlew core:compileJava --no-daemon --stacktrace
