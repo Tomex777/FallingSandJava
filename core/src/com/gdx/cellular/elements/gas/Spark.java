@@ -25,7 +25,7 @@ public class Spark extends Gas {
 
     @Override
     protected boolean actOnNeighboringElement(Element neighbor, int modifiedMatrixX, int modifiedMatrixY, CellularMatrix matrix, boolean isFinal, boolean isFirst, Vector3 lastValidLocation, int depth) {
-        boolean acted = actOnOther(neighbor, matrix);
+        boolean acted = interactWith(neighbor, matrix);
         if (acted) return true;
         if (neighbor instanceof EmptyCell) {
             if (isFinal) {
