@@ -219,9 +219,9 @@ public class ColorConstants {
         Pixmap stonePixmap = Assets.getPixmap("elementtextures/Stone.png");
         Pixmap woodPixmap = Assets.getPixmap("elementtextures/Wood.png");
         Pixmap brickPixmap = Assets.getPixmap("elementtextures/Brick.png");
-        materialsMap.put("STONE", new MaterialMap(stonePixmap));
-        materialsMap.put("WOOD", new MaterialMap(woodPixmap));
-        materialsMap.put("BRICK", new MaterialMap(brickPixmap));
+        if (stonePixmap != null) materialsMap.put("STONE", new MaterialMap(stonePixmap));
+        if (woodPixmap != null) materialsMap.put("WOOD", new MaterialMap(woodPixmap));
+        if (brickPixmap != null) materialsMap.put("BRICK", new MaterialMap(brickPixmap));
     }
 
     public static Color getColorByName(String name) {
