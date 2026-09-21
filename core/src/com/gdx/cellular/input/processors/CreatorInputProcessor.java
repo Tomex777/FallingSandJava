@@ -57,8 +57,8 @@ public class CreatorInputProcessor implements InputProcessor {
     }
 
     @Override
-    public boolean scrolled(int amount) {
-        inputManager.calculateNewBrushSize(amount * -2);
+    public boolean scrolled(float amountX, float amountY) {
+        inputManager.calculateNewBrushSize(Math.round(amountY * -2f));
         return true;
     }
 
@@ -90,6 +90,12 @@ public class CreatorInputProcessor implements InputProcessor {
             inputManager.setTouchedLastFrame(false);
             inputManager.touchUpLMB(matrix);
         }
+        return false;
+    }
+
+    @Override
+    public boolean touchCancelled(int screenX, int screenY, int pointer, int button) {
+        inputManager.setTouchedLastFrame(false);
         return false;
     }
 
