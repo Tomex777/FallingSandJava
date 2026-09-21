@@ -31,6 +31,7 @@ public enum ElementType {
     WOOD(Wood.class, ClassType.IMMOVABLESOLID, Wood::new),
     TITANIUM(Titanium.class, ClassType.IMMOVABLESOLID, Titanium::new),
     SPARK(Spark.class, ClassType.GAS, Spark::new),
+    LIGHTNING(Lightning.class, ClassType.GAS, Lightning::new),
     EXPLOSIONSPARK(ExplosionSpark.class, ClassType.GAS, ExplosionSpark::new),
     EMBER(Ember.class, ClassType.MOVABLESOLID, Ember::new),
     LAVA(Lava.class, ClassType.LIQUID, Lava::new),
