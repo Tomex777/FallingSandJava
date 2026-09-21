@@ -89,6 +89,10 @@ public class ColorConstants {
 
     private static final Color SPARK = new Color(89/255f, 35/255f, 13/255f, 1);
 
+    private static final Color LIGHTNING_1 = new Color(235/255f, 248/255f, 255/255f, 1);
+    private static final Color LIGHTNING_2 = new Color(174/255f, 221/255f, 255/255f, 1);
+    private static final Color LIGHTNING_3 = new Color(255/255f, 249/255f, 179/255f, 1);
+
     private static final Color STEAM_1 = new Color(204/255f, 204/255f, 204/255f, 0.8f);
     private static final Color STEAM_2 = new Color(204/255f, 204/255f, 204/255f, 0.1f);
     private static final Color STEAM_3 = new Color(204/255f, 204/255f, 204/255f, 0.45f);
@@ -179,6 +183,10 @@ public class ColorConstants {
         elementColorMap.get(ElementType.FLAMMABLEGAS).add(FLAMMABLE_GAS);
 
         elementColorMap.get(ElementType.SPARK).add(SPARK);
+
+        elementColorMap.get(ElementType.LIGHTNING).add(LIGHTNING_1);
+        elementColorMap.get(ElementType.LIGHTNING).add(LIGHTNING_2);
+        elementColorMap.get(ElementType.LIGHTNING).add(LIGHTNING_3);
 
         elementColorMap.get(ElementType.EXPLOSIONSPARK).add(Color.ORANGE);
 
