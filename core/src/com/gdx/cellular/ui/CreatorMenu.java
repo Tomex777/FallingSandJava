@@ -111,6 +111,13 @@ public class CreatorMenu {
             dropDownElementList.add(button).width(CELL_WIDTH).height(CELL_HEIGHT);
             dropDownElementList.row();
         });
+        dropDownElementList.add(new Label("Energy", skin)).width(CELL_WIDTH).height(CELL_HEIGHT);
+        dropDownElementList.row();
+        List<Button> energyButtons = createElementButtons(ElementType.getEnergies(), skin);
+        energyButtons.forEach(button -> {
+            dropDownElementList.add(button).width(CELL_WIDTH).height(CELL_HEIGHT);
+            dropDownElementList.row();
+        });
 
         // Mouse Mode Sublist
         dropDownMouseMode = new Table() {
