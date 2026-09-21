@@ -126,7 +126,7 @@ public abstract class Gas extends Element {
 
     @Override
     protected boolean actOnNeighboringElement(Element neighbor, int modifiedMatrixX, int modifiedMatrixY, CellularMatrix matrix, boolean isFinal, boolean isFirst, Vector3 lastValidLocation, int depth) {
-        boolean acted = actOnOther(neighbor, matrix);
+        boolean acted = interactWith(neighbor, matrix);
         if (acted) return true;
         if (neighbor instanceof EmptyCell || neighbor instanceof Particle) {
             if (isFinal) {
@@ -287,7 +287,7 @@ public abstract class Gas extends Element {
         Vector3 lastValidLocation = new Vector3(getMatrixX(), getMatrixY(), 0);
         for (int i = 0; i <= Math.abs(distance); i++) {
             Element neighbor = matrix.get(startingX + i * distanceModifier, startingY);
-            boolean acted = actOnOther(neighbor, matrix);
+            boolean acted = interactWith(neighbor, matrix);
             if (acted) return false;
             boolean isFirst = i == 0;
             boolean isFinal = i == Math.abs(distance);
