@@ -1,21 +1,28 @@
 package com.gdx.cellular.ui;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
 
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+
 /**
- * Minimal touch-first controls for Elementum on Android.
+ * Touch-first Android controls layered over the original simulation.
  *
- * This stage only controls selection/tool state. It does not render or alter
- * the cellular simulation itself.
+ * The controls only change input/tool state. Rendering, movement and cellular
+ * stepping stay in the original engine.
  */
 public class MobileControls {
 
@@ -23,31 +30,59 @@ public class MobileControls {
 
     private final InputManager inputManager;
     private final CellularMatrix matrix;
+    private final Skin skin;
+
+    private final Table quickBar;
+    private final Table materialGrid;
+    private final ScrollPane materialPicker;
+
+    private final Map<ElementType, TextButton> quickButtons = new EnumMap<>(ElementType.class);
+    private final Map<ElementType, TextButton> pickerButtons = new EnumMap<>(ElementType.class);
+
     private TextButton pauseButton;
-    private TextButton selectedMaterialButton;
+    private TextButton allMaterialsButton;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
         this.inputManager = inputManager;
         this.matrix = matrix;
+        this.skin = Skins.getSkin("uiskin");
         this.stage = new Stage(new ScreenViewport());
 
-        Table bar = new Table();
-        bar.setFillParent(true);
-        bar.bottom().left();
-        bar.pad(10f);
+        materialGrid = new Table();
+        materialGrid.top().left();
+        materialGrid.pad(8f);
+        buildMaterialPicker();
 
-        addMaterial(bar, "Sand", ElementType.SAND);
-        addMaterial(bar, "Water", ElementType.WATER);
-        addMaterial(bar, "Petrol", ElementType.PETROL);
-        addMaterial(bar, "Lightning", ElementType.LIGHTNING);
-        addMaterial(bar, "Oil", ElementType.OIL);
-        addMaterial(bar, "Lava", ElementType.LAVA);
+        materialPicker = new ScrollPane(materialGrid, skin);
+        materialPicker.setFadeScrollBars(false);
+        materialPicker.setScrollingDisabled(true, false);
+        materialPicker.setOverscroll(false, true);
+        materialPicker.setVisible(false);
+        stage.addActor(materialPicker);
 
-        addAction(bar, "−", () -> inputManager.calculateNewBrushSize(-2));
-        addAction(bar, "+", () -> inputManager.calculateNewBrushSize(2));
+        quickBar = new Table();
+        quickBar.bottom().left();
+        quickBar.setFillParent(true);
+        quickBar.pad(8f);
 
-        pauseButton = new TextButton("Pause", Skins.getSkin("uiskin"));
-        pauseButton.getLabel().setFontScale(0.85f);
+        addQuickMaterial("Sand", ElementType.SAND, 62f);
+        addQuickMaterial("Water", ElementType.WATER, 66f);
+        addQuickMaterial("Petrol", ElementType.PETROL, 68f);
+        addQuickMaterial("Lightning", ElementType.LIGHTNING, 86f);
+
+        allMaterialsButton = createButton("All");
+        allMaterialsButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                materialPicker.setVisible(!materialPicker.isVisible());
+            }
+        });
+        quickBar.add(allMaterialsButton).width(52f).height(58f).padRight(4f);
+
+        addAction("−", 40f, () -> inputManager.calculateNewBrushSize(-2));
+        addAction("+", 40f, () -> inputManager.calculateNewBrushSize(2));
+
+        pauseButton = createButton("Pause");
         pauseButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -55,51 +90,128 @@ public class MobileControls {
                 pauseButton.setText(inputManager.getIsPaused() ? "Play" : "Pause");
             }
         });
-        bar.add(pauseButton).height(54f).padRight(6f);
+        quickBar.add(pauseButton).width(68f).height(58f).padRight(4f);
 
-        addAction(bar, "Clear", () -> {
+        addAction("Clear", 60f, () -> {
             inputManager.clearMatrix(matrix);
             inputManager.clearBox2dActors();
         });
 
-        stage.addActor(bar);
+        stage.addActor(quickBar);
+        selectMaterial(ElementType.SAND);
+        layoutPicker();
     }
 
-    private void addMaterial(Table bar, String label, ElementType type) {
-        TextButton button = new TextButton(label, Skins.getSkin("uiskin"));
-        button.getLabel().setFontScale(0.85f);
-        button.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                inputManager.setCurrentlySelectedElement(type);
-                markSelected(button);
+    private void buildMaterialPicker() {
+        addCategory("Solids", ElementType.getSolids());
+        addCategory("Liquids", ElementType.getLiquids());
+        addCategory("Gases", ElementType.getGasses());
+        addCategory("Energy", ElementType.getEnergies());
+    }
+
+    private void addCategory(String title, List<ElementType> elements) {
+        Label heading = new Label(title, skin);
+        heading.setFontScale(0.9f);
+        materialGrid.add(heading).colspan(4).left().padTop(6f).padBottom(4f);
+        materialGrid.row();
+
+        int column = 0;
+        for (ElementType type : elements) {
+            TextButton button = createButton(displayName(type));
+            pickerButtons.put(type, button);
+            button.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    selectMaterial(type);
+                    materialPicker.setVisible(false);
+                }
+            });
+
+            materialGrid.add(button).width(132f).height(48f).pad(3f);
+            column++;
+            if (column == 4) {
+                materialGrid.row();
+                column = 0;
             }
-        });
-        bar.add(button).height(54f).padRight(6f);
-        if (type == ElementType.SAND) {
-            markSelected(button);
+        }
+
+        if (column != 0) {
+            materialGrid.row();
         }
     }
 
-    private TextButton addAction(Table bar, String label, Runnable action) {
-        TextButton button = new TextButton(label, Skins.getSkin("uiskin"));
-        button.getLabel().setFontScale(0.85f);
+    private void addQuickMaterial(String label, ElementType type, float width) {
+        TextButton button = createButton(label);
+        quickButtons.put(type, button);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectMaterial(type);
+            }
+        });
+        quickBar.add(button).width(width).height(58f).padRight(4f);
+    }
+
+    private void addAction(String label, float width, Runnable action) {
+        TextButton button = createButton(label);
         button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 action.run();
             }
         });
-        bar.add(button).height(54f).padRight(6f);
+        quickBar.add(button).width(width).height(58f).padRight(4f);
+    }
+
+    private TextButton createButton(String label) {
+        TextButton button = new TextButton(label, skin);
+        button.getLabel().setFontScale(0.82f);
         return button;
     }
 
-    private void markSelected(TextButton button) {
-        if (selectedMaterialButton != null) {
-            selectedMaterialButton.setColor(Color.WHITE);
+    private void selectMaterial(ElementType type) {
+        inputManager.setCurrentlySelectedElement(type);
+
+        for (TextButton button : quickButtons.values()) {
+            button.setColor(Color.WHITE);
         }
-        selectedMaterialButton = button;
-        selectedMaterialButton.setColor(Color.CYAN);
+        for (TextButton button : pickerButtons.values()) {
+            button.setColor(Color.WHITE);
+        }
+
+        TextButton quickButton = quickButtons.get(type);
+        if (quickButton != null) {
+            quickButton.setColor(Color.CYAN);
+        }
+
+        TextButton pickerButton = pickerButtons.get(type);
+        if (pickerButton != null) {
+            pickerButton.setColor(Color.CYAN);
+        }
+    }
+
+    private String displayName(ElementType type) {
+        switch (type) {
+            case FLAMMABLEGAS:
+                return "Flammable Gas";
+            case EXPLOSIONSPARK:
+                return "Explosion Spark";
+            case SLIMEMOLD:
+                return "Slime Mold";
+            case GUNPOWDER:
+                return "Gunpowder";
+            default:
+                String lower = type.name().toLowerCase();
+                return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+        }
+    }
+
+    private void layoutPicker() {
+        float width = stage.getViewport().getWorldWidth();
+        float height = stage.getViewport().getWorldHeight();
+        float pickerWidth = Math.max(280f, Math.min(width - 20f, 580f));
+        float pickerHeight = Math.max(120f, Math.min(height - 84f, 210f));
+        materialPicker.setBounds(10f, 76f, pickerWidth, pickerHeight);
     }
 
     public void draw() {
@@ -109,6 +221,7 @@ public class MobileControls {
 
     public void resize(int width, int height) {
         stage.getViewport().update(width, height, true);
+        layoutPicker();
     }
 
     public void dispose() {
