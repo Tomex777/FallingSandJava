@@ -134,7 +134,7 @@ public abstract class Liquid extends Element {
 
     @Override
     protected boolean actOnNeighboringElement(Element neighbor, int modifiedMatrixX, int modifiedMatrixY, CellularMatrix matrix, boolean isFinal, boolean isFirst, Vector3 lastValidLocation, int depth) {
-        boolean acted = actOnOther(neighbor, matrix);
+        boolean acted = interactWith(neighbor, matrix);
         if (acted) return true;
         if (neighbor instanceof EmptyCell || neighbor instanceof Particle) {
             setAdjacentNeighborsFreeFalling(matrix, depth, lastValidLocation);
@@ -275,7 +275,7 @@ public abstract class Liquid extends Element {
             if (neighbor == null) {
                 return true;
             }
-            boolean acted = actOnOther(neighbor, matrix);
+            boolean acted = interactWith(neighbor, matrix);
             if (acted) return false;
             boolean isFirst = i == 0;
             boolean isFinal = i == Math.abs(distance);
