@@ -3,6 +3,7 @@ package com.gdx.cellular.input;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -28,14 +29,6 @@ import com.gdx.cellular.ui.ModeActor;
 import com.gdx.cellular.util.TextInputHandler;
 import com.gdx.cellular.util.WeatherSystem;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 
 public class InputManager {
 
@@ -57,7 +50,6 @@ public class InputManager {
     private boolean paused = false;
     private final TextInputHandler saveLevelNameListener = new TextInputHandler(this, this::setFileNameForSave);
     private final TextInputHandler loadLevelNameListener = new TextInputHandler(this, this::setFileNameForLoad);
-    private final Path savePath = Paths.get("save/");
     private String fileNameForLevel;
     private boolean readyToSave = false;
     private boolean readyToLoad = false;
@@ -351,30 +343,31 @@ public class InputManager {
 
     private Array<Array<Element>> getRandomPolygonArray() {
         Array<Array<Element>> polygonElementArray = new Array<>();
-        try {
-            File folder = new File("customphysicsobjects");
-            File[] listOfFiles = folder.listFiles();
-            int index = (int) Math.floor(Math.random() * listOfFiles.length);
-            File selectedFile = listOfFiles[index];
-            Path filePath = Paths.get(selectedFile.toString());
-            List<String> object = Files.readAllLines(filePath, StandardCharsets.UTF_8);
-//            polygonElementArray.setSize(object.size());
-            for (int r = object.size() -1; r >= 0; r--) {
-                Array<Element> row = new Array<>();
-                polygonElementArray.add(row);
-                String line = object.get(r);
-                String[] splitLine = line.split(",");
-                for (int i = 0; i < splitLine.length; i++) {
-                    String element = splitLine[i].trim().toUpperCase();
-                    if (element.equals("NULL")) {
-                        row.add(null);
-                    } else {
-                        row.add(ElementType.valueOf(element).createElementByMatrix(0, 0));
-                    }
+        FileHandle folder = Gdx.files.internal("customphysicsobjects");
+        FileHandle[] listOfFiles = folder.list();
+
+        if (listOfFiles.length == 0) {
+            return polygonElementArray;
+        }
+
+        int index = (int) Math.floor(Math.random() * listOfFiles.length);
+        String[] object = listOfFiles[index].readString("UTF-8").split("\\r?\\n");
+
+        for (int r = object.length - 1; r >= 0; r--) {
+            if (object[r].trim().isEmpty()) continue;
+
+            Array<Element> row = new Array<>();
+            polygonElementArray.add(row);
+            String[] splitLine = object[r].split(",");
+
+            for (String value : splitLine) {
+                String element = value.trim().toUpperCase();
+                if (element.equals("NULL")) {
+                    row.add(null);
+                } else {
+                    row.add(ElementType.valueOf(element).createElementByMatrix(0, 0));
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
         return polygonElementArray;
     }
@@ -405,93 +398,92 @@ public class InputManager {
             paused = true;
             Gdx.input.getTextInput(saveLevelNameListener, "Save Level", "File Name", "");
         }
-        if (readyToSave) {
-            Path newPath = savePath.resolve(fileNameForLevel + ".ser");
-            if (!Files.exists(newPath)) {
-                try {
-                    Files.createDirectories(newPath.getParent());
-                    Files.createFile(newPath);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            readyToSave = false;
-            setIsPaused(false);
-            try (Writer out = Files.newBufferedWriter(newPath, StandardCharsets.UTF_8)) {
-                String lastClass;
-                String currentClass;
-                int currentClassCount;
-                StringBuilder builder = new StringBuilder();
-                for (int r = 0; r < matrix.outerArraySize; r++) {
-                    Array<Element> row = matrix.getRow(r);
-                    lastClass = row.get(0).getClass().getSimpleName();
-                    currentClassCount = 0;
-                    for (int e = 0; e < row.size; e++) {
-                        Element element = row.get(e);
-                        currentClass = element.getClass().getSimpleName();
-                        if (currentClass.equals(lastClass)) {
-                            currentClassCount++;
-                            lastClass = currentClass;
-                            if (e == row.size - 1) {
-                                builder.append(currentClassCount);
-                                builder.append(",");
-                                builder.append(lastClass);
-                                builder.append(",");
-                            }
-                            continue;
-                        }
-                        builder.append(currentClassCount);
-                        builder.append(",");
-                        builder.append(lastClass);
-                        builder.append(",");
-                        currentClassCount = 1;
-                        lastClass = currentClass;
-                    }
-                    builder.append("0,|,");
-                }
-                out.write(builder.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+
+        if (!readyToSave) {
+            return;
         }
+
+        readyToSave = false;
+        setIsPaused(false);
+
+        String lastClass;
+        String currentClass;
+        int currentClassCount;
+        StringBuilder builder = new StringBuilder();
+
+        for (int r = 0; r < matrix.outerArraySize; r++) {
+            Array<Element> row = matrix.getRow(r);
+            lastClass = row.get(0).getClass().getSimpleName();
+            currentClassCount = 0;
+
+            for (int e = 0; e < row.size; e++) {
+                Element element = row.get(e);
+                currentClass = element.getClass().getSimpleName();
+
+                if (currentClass.equals(lastClass)) {
+                    currentClassCount++;
+                    if (e == row.size - 1) {
+                        builder.append(currentClassCount).append(",").append(lastClass).append(",");
+                    }
+                    continue;
+                }
+
+                builder.append(currentClassCount).append(",").append(lastClass).append(",");
+                currentClassCount = 1;
+                lastClass = currentClass;
+            }
+            builder.append("0,|,");
+        }
+
+        FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
+        saveFile.parent().mkdirs();
+        saveFile.writeString(builder.toString(), false, "UTF-8");
     }
 
     public void load(CellularMatrix matrix) {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.L)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.L) && !readyToLoad) {
             paused = true;
             Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "File Name", "");
         }
-        if (readyToLoad) {
-            try {
-                readyToLoad = false;
-                matrix.clearAll();
-                setIsPaused(false);
-                Path newPath = savePath.resolve(fileNameForLevel + ".ser");
-                String level = Files.readAllLines(newPath, StandardCharsets.UTF_8).get(0);
-                String[] splitLevel = level.split(",");
-                Array<Element> row = matrix.getRow(0);
-                int lastElementIndex = 0;
-                int rowIndex = 0;
-                for (int i = 0; i < splitLevel.length; i += 2) {
-                    int count = Integer.parseInt((String) java.lang.reflect.Array.get(splitLevel, i));
-                    String clazz = ((String) java.lang.reflect.Array.get(splitLevel, i + 1)).toUpperCase();
-                    if (clazz.equals("|")) {
-                        rowIndex++;
-                        lastElementIndex = 0;
-                        if (rowIndex > matrix.outerArraySize - 1) {
-                            continue;
-                        }
-                        row = matrix.getRow(rowIndex);
-                        continue;
-                    }
-                    for (int k = 0; k < count; k++) {
-                        row.set(k + lastElementIndex, ElementType.valueOf(clazz).createElementByMatrix(k + lastElementIndex, rowIndex));
-                    }
-                    lastElementIndex += count;
+
+        if (!readyToLoad) {
+            return;
+        }
+
+        readyToLoad = false;
+        setIsPaused(false);
+
+        FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
+        if (!saveFile.exists()) {
+            return;
+        }
+
+        matrix.clearAll();
+        String level = saveFile.readString("UTF-8");
+        String[] splitLevel = level.split(",");
+        Array<Element> row = matrix.getRow(0);
+        int lastElementIndex = 0;
+        int rowIndex = 0;
+
+        for (int i = 0; i + 1 < splitLevel.length; i += 2) {
+            int count = Integer.parseInt(splitLevel[i]);
+            String clazz = splitLevel[i + 1].toUpperCase();
+
+            if (clazz.equals("|")) {
+                rowIndex++;
+                lastElementIndex = 0;
+                if (rowIndex > matrix.outerArraySize - 1) {
+                    break;
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+                row = matrix.getRow(rowIndex);
+                continue;
             }
+
+            for (int k = 0; k < count && k + lastElementIndex < row.size; k++) {
+                row.set(k + lastElementIndex,
+                        ElementType.valueOf(clazz).createElementByMatrix(k + lastElementIndex, rowIndex));
+            }
+            lastElementIndex += count;
         }
     }
 
