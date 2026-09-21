@@ -1,91 +1,43 @@
 buildscript {
-    
-
     repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
-        jcenter()
         google()
+        mavenCentral()
+        gradlePluginPortal()
     }
     dependencies {
-        classpath 'org.wisepersist:gwt-gradle-plugin:1.0.6'
-        
-
+        classpath 'com.android.tools.build:gradle:9.4.0'
     }
 }
 
 allprojects {
-    apply plugin: "eclipse"
-    apply plugin: "idea"
+    version = '1.0.0'
 
-    version = '1.0'
     ext {
-        appName = "CellularAutomaton"
-        gdxVersion = '1.9.9'
-        roboVMVersion = '2.3.6'
+        appName = "Elementum"
+        gdxVersion = '1.14.2'
         box2DLightsVersion = '1.4'
-        ashleyVersion = '1.7.0'
-        aiVersion = '1.8.0'
     }
 
     repositories {
-        mavenLocal()
-        mavenCentral()
-        jcenter()
         google()
-        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+        mavenCentral()
         maven { url "https://oss.sonatype.org/content/repositories/releases/" }
     }
 }
 
-project(":desktop") {
-    apply plugin: "java"
-
-
-    dependencies {
-        compile project(":core")
-        compile "com.badlogicgames.gdx:gdx-backend-lwjgl:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
-        compile "com.badlogicgames.gdx:gdx-box2d-platform:$gdxVersion:natives-desktop"
-        compile "org.locationtech.jts:jts-core:1.17.0"
-        compile "org.dyn4j:dyn4j:3.4.0"
-        
-    }
-}
-
-project(":html") {
-    apply plugin: "gwt"
-    apply plugin: "war"
-
-
-    dependencies {
-        compile project(":core")
-        compile "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx:$gdxVersion:sources"
-        compile "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion:sources"
-        compile "com.badlogicgames.gdx:gdx-box2d:$gdxVersion:sources"
-        compile "com.badlogicgames.gdx:gdx-box2d-gwt:$gdxVersion:sources"
-        compile "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion:sources"
-        
-    }
-}
-
 project(":core") {
-    apply plugin: "java"
+    apply plugin: "java-library"
 
+    java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     dependencies {
-        compile "com.badlogicgames.gdx:gdx:$gdxVersion"
-        compile "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
-        compile "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion"
-        compile "org.dyn4j:dyn4j:3.4.0"
-        compile "org.locationtech.jts:jts-core:1.17.0"
-        
+        api "com.badlogicgames.gdx:gdx:$gdxVersion"
+        api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
+        implementation "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion"
+        implementation "org.dyn4j:dyn4j:3.4.0"
+        implementation "org.locationtech.jts:jts-core:1.17.0"
     }
-}
-
-tasks.eclipse.doLast {
-    delete ".project"
 }
