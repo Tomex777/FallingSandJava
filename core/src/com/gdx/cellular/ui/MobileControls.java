@@ -23,7 +23,7 @@ public class MobileControls {
 
     private final InputManager inputManager;
     private final CellularMatrix matrix;
-    private final TextButton pauseButton;
+    private TextButton pauseButton;
     private TextButton selectedMaterialButton;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
