@@ -1,4 +1,4 @@
-name: Elementum core build
+name: Elementum Android build
 
 on:
   push:
@@ -7,19 +7,33 @@ on:
   workflow_dispatch:
 
 jobs:
-  compile-core:
+  build-android:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 8
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: '17'
 
-      - name: Compile core
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 36 SDK
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Build Elementum debug APK
         run: |
           chmod +x gradlew
-          ./gradlew core:compileJava --no-daemon --stacktrace
+          ./gradlew :core:compileJava :android:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload Elementum APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: elementum-debug-apk
+          path: android/build/outputs/apk/debug/android-debug.apk
+          if-no-files-found: error
