@@ -83,10 +83,14 @@ jobs:
             adb shell input tap 510 190 || true
             sleep 3
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
-            adb shell input tap 138 280
+            adb shell input tap 332 284
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker.png
+            adb shell input tap 332 284
+            adb shell input tap 178 284
             adb shell input swipe 330 70 330 160 500
             sleep 1
-            adb shell input tap 200 280
+            adb shell input tap 259 284
             adb shell input swipe 450 60 450 145 500
             sleep 2
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-interactions.png
