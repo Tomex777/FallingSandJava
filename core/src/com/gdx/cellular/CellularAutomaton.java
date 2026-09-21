@@ -196,7 +196,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 				}
 			}
 			for (int t = 0; t < threads.size(); t++) {
-				if (t % 2 == 0) {
+				if (t % 2 != 0) {
 					threads.get(t).join();
 				}
 			}
