@@ -1,5 +1,6 @@
 package com.gdx.cellular;
 
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.*;
@@ -16,6 +17,7 @@ import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
 import com.gdx.cellular.input.InputProcessors;
 import com.gdx.cellular.ui.MatrixActor;
+import com.gdx.cellular.ui.MobileControls;
 import com.gdx.cellular.util.ElementColumnStepper;
 import com.gdx.cellular.util.GameManager;
 
@@ -49,6 +51,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 	public InputProcessors inputProcessors;
 	public Stage matrixStage;
 	public GameManager gameManager;
+	private MobileControls mobileControls;
 
 	@Override
 	public void create () {
@@ -83,7 +86,18 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 		this.gameManager = new GameManager(this);
 		gameManager.createPlayer(matrix.innerArraySize/2, matrix.outerArraySize/2);
-		inputProcessors = new InputProcessors(inputManager, matrix, camera, gameManager);
+
+		if (Gdx.app.getType() == Application.ApplicationType.Android) {
+			mobileControls = new MobileControls(inputManager, matrix);
+		}
+
+		inputProcessors = new InputProcessors(
+				inputManager,
+				matrix,
+				camera,
+				gameManager,
+				mobileControls == null ? null : mobileControls.stage
+		);
 	}
 
 	@Override
@@ -120,6 +134,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 			b2dWorld.getBodies(bodies);
 			matrix.drawBox2d(shapeRenderer, bodies);
 			debugRenderer.render(b2dWorld, camera.combined);
+			if (mobileControls != null) {
+				mobileControls.draw();
+			}
 			return;
 		}
 
@@ -163,6 +180,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 		inputManager.drawMenu();
 		inputManager.drawCursor();
+		if (mobileControls != null) {
+			mobileControls.draw();
+		}
 
 		inputManager.weatherSystem.enact(this.matrix);
 		gameManager.stepPlayers(this.matrix);
@@ -173,6 +193,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrixStage.getViewport().update(width, height, true);
 		inputManager.cursorStage.getViewport().update(width, height, true);
 		inputManager.modeStage.getViewport().update(width, height, true);
+		if (mobileControls != null) {
+			mobileControls.resize(width, height);
+		}
 	}
 
 	private void incrementFrameCount() {
@@ -225,6 +248,9 @@ public class CellularAutomaton extends ApplicationAdapter {
     @Override
 	public void dispose () {
 		shapeRenderer.dispose();
+		if (mobileControls != null) {
+			mobileControls.dispose();
+		}
 	}
 
 }
