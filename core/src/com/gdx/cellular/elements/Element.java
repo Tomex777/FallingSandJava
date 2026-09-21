@@ -74,8 +74,14 @@ public abstract class Element {
 
     public abstract void step(CellularMatrix matrix);
 
+    public final boolean interactWith(Element other, CellularMatrix matrix) {
+        if (other == null) return false;
+        if (ReactionRegistry.react(this, other, matrix)) return true;
+        return actOnOther(other, matrix);
+    }
+
     public boolean actOnOther(Element other, CellularMatrix matrix) {
-        return ReactionRegistry.react(this, other, matrix);
+        return false;
     }
 
     protected abstract boolean actOnNeighboringElement(Element neighbor, int modifiedMatrixX, int modifiedMatrixY, CellularMatrix matrix, boolean isFinal, boolean isFirst, Vector3 lastValidLocation, int depth);
