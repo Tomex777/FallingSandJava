@@ -64,7 +64,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm || true
 
-      - name: Launch Elementum on Android emulator
+      - name: Launch and exercise Elementum
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -73,7 +73,6 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: |
-            set -e
             mkdir -p android/build/runtime-smoke
             adb install -r android/build/outputs/apk/debug/android-debug.apk
             adb logcat -c
@@ -84,12 +83,17 @@ jobs:
             adb shell input tap 510 190 || true
             sleep 3
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
+            adb shell input tap 138 280
+            adb shell input swipe 330 70 330 160 500
+            sleep 1
+            adb shell input tap 200 280
+            adb shell input swipe 450 60 450 145 500
+            sleep 2
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-interactions.png
             adb logcat -d > android/build/runtime-smoke/logcat.txt
             adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" > android/build/runtime-smoke/window.txt || true
-            adb shell pidof com.tomex.elementum
-            if grep -E "FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died" android/build/runtime-smoke/logcat.txt; then
-              exit 1
-            fi
+            test -n "$(adb shell pidof com.tomex.elementum)"
+            ! grep -E "FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died" android/build/runtime-smoke/logcat.txt
 
       - name: Upload runtime smoke evidence
         if: always()
