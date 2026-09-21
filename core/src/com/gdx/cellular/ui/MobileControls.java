@@ -46,10 +46,16 @@ public class MobileControls {
         addAction(bar, "−", () -> inputManager.calculateNewBrushSize(-2));
         addAction(bar, "+", () -> inputManager.calculateNewBrushSize(2));
 
-        pauseButton = addAction(bar, "Pause", () -> {
-            inputManager.togglePause();
-            pauseButton.setText(inputManager.getIsPaused() ? "Play" : "Pause");
+        pauseButton = new TextButton("Pause", Skins.getSkin("uiskin"));
+        pauseButton.getLabel().setFontScale(0.85f);
+        pauseButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.togglePause();
+                pauseButton.setText(inputManager.getIsPaused() ? "Play" : "Pause");
+            }
         });
+        bar.add(pauseButton).height(54f).padRight(6f);
 
         addAction(bar, "Clear", () -> {
             inputManager.clearMatrix(matrix);
