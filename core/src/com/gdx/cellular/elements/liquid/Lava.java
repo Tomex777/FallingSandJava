@@ -48,6 +48,9 @@ public class Lava extends Liquid {
 
     @Override
     public boolean actOnOther(Element other, CellularMatrix matrix) {
+        if (super.actOnOther(other, matrix)) {
+            return true;
+        }
         other.magmatize(matrix, this.magmatizeDamage);
         return false;
     }
