@@ -31,7 +31,7 @@ public enum ElementType {
     WOOD(Wood.class, ClassType.IMMOVABLESOLID, Wood::new),
     TITANIUM(Titanium.class, ClassType.IMMOVABLESOLID, Titanium::new),
     SPARK(Spark.class, ClassType.GAS, Spark::new),
-    LIGHTNING(Lightning.class, ClassType.GAS, Lightning::new),
+    LIGHTNING(Lightning.class, ClassType.ENERGY, Lightning::new),
     EXPLOSIONSPARK(ExplosionSpark.class, ClassType.GAS, ExplosionSpark::new),
     EMBER(Ember.class, ClassType.MOVABLESOLID, Ember::new),
     LAVA(Lava.class, ClassType.LIQUID, Lava::new),
@@ -58,6 +58,7 @@ public enum ElementType {
     public static List<ElementType> SOLIDS;
     public static List<ElementType> LIQUIDS;
     public static List<ElementType> GASSES;
+    public static List<ElementType> ENERGIES;
 
     ElementType(Class<? extends Element> clazz, ClassType classType, ElementFactory factory) {
         this.clazz = clazz;
@@ -130,6 +131,14 @@ public enum ElementType {
         return Collections.unmodifiableList(GASSES);
     }
 
+    public static List<ElementType> getEnergies() {
+        if (ENERGIES == null) {
+            ENERGIES = initializeList(ClassType.ENERGY);
+            ENERGIES.sort(Comparator.comparing(Enum::toString));
+        }
+        return Collections.unmodifiableList(ENERGIES);
+    }
+
     private static List<ElementType> initializeList(ClassType classType) {
         return Arrays.stream(ElementType.values())
                 .filter(elementType -> elementType.classType.equals(classType))
@@ -155,6 +164,7 @@ public enum ElementType {
         IMMOVABLESOLID,
         LIQUID,
         GAS,
+        ENERGY,
         PARTICLE,
         EMPTYCELL,
         PLAYER
