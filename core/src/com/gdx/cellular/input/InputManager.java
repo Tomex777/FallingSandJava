@@ -173,6 +173,13 @@ public class InputManager {
         setDrawMenuAndLocation(menuPosition.x, menuPosition.y);
     }
 
+    public void openCreatorMenuTopRight() {
+        Viewport viewport = creatorMenu.dropDownStage.getViewport();
+        float x = Math.max(0f, viewport.getWorldWidth() - 120f);
+        float y = Math.max(0f, viewport.getWorldHeight() - 160f);
+        setDrawMenuAndLocation(x, y);
+    }
+
     public void closeCreatorMenu() {
         drawMenu = false;
         Gdx.input.setInputProcessor(creatorInputProcessor);
