@@ -94,10 +94,11 @@ jobs:
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker-gases-energy.png
             adb shell input tap 332 284
             adb shell input tap 178 284
-            adb shell input swipe 330 70 330 160 500
+            adb shell input swipe 420 60 420 145 500
             sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-petrol.png
             adb shell input tap 259 284
-            adb shell input swipe 450 60 450 145 500
+            adb shell input swipe 420 60 420 145 500
             sleep 2
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-interactions.png
 
@@ -111,7 +112,7 @@ jobs:
             adb shell input tap 240 218
             sleep 1
             adb shell run-as com.tomex.elementum ls -l files/save > android/build/runtime-smoke/saves.txt
-            adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
+            adb shell run-as com.tomex.elementum test -s files/save/File_Nameelementum_qa.ser
 
             # Exercise pause/resume and clear, then confirm the saved scene reloads.
             adb shell input tap 485 284
@@ -126,7 +127,7 @@ jobs:
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-load-dialog.png
             adb shell input text elementum_qa
-            adb shell input keyevent KEYCODE_ENTER
+            adb shell input tap 240 218
             sleep 2
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-loaded.png
 
