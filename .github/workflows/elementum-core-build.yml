@@ -89,6 +89,7 @@ jobs:
             adb shell input tap 590 20
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-menu.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-tools-menu.png)" -gt 30000
             adb shell input tap 320 160
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-dismissed.png
@@ -97,6 +98,7 @@ jobs:
             adb shell input tap 520 70
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-mouse-modes.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-tools-mouse-modes.png)" -gt 40000
             adb shell input tap 400 90
             sleep 1
             adb shell input tap 332 284
@@ -127,6 +129,7 @@ jobs:
             adb shell input tap 520 130
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-dialog.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-save-dialog.png)" -gt 40000
             adb shell input text elementum_qa
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-name-entered.png
@@ -149,6 +152,7 @@ jobs:
             adb shell input tap 520 150
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-load-dialog.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-load-dialog.png)" -gt 40000
             adb shell input text elementum_qa
             adb shell input tap 240 218
             sleep 2
