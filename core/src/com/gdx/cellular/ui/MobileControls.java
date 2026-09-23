@@ -34,6 +34,7 @@ public class MobileControls {
     private final Skin skin;
 
     private final Table quickBar;
+    private final Table toolsBar;
     private final Table materialGrid;
     private final ScrollPane materialPicker;
 
@@ -73,7 +74,7 @@ public class MobileControls {
                 inputManager.openCreatorMenuAtScreen(Gdx.input.getX(), Gdx.input.getY());
             }
         });
-        Table toolsBar = new Table();
+        toolsBar = new Table();
         toolsBar.top().right();
         toolsBar.setFillParent(true);
         toolsBar.pad(8f);
@@ -235,6 +236,7 @@ public class MobileControls {
         if (stage.getViewport().getScreenWidth() != width || stage.getViewport().getScreenHeight() != height) {
             resize(width, height);
         }
+        toolsBar.setVisible(!inputManager.drawMenu && !materialPicker.isVisible());
         stage.act();
         stage.draw();
     }

@@ -87,10 +87,10 @@ jobs:
             adb shell input tap 590 20
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-menu.png
-            adb shell input tap 580 40
+            adb shell input tap 520 70
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-mouse-modes.png
-            adb shell input tap 460 30
+            adb shell input tap 400 10
             sleep 1
             adb shell input tap 332 284
             sleep 1
@@ -117,7 +117,7 @@ jobs:
             # Save the populated scene before clearing it so load can be checked.
             adb shell input tap 590 20
             sleep 1
-            adb shell input tap 580 90
+            adb shell input tap 520 130
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-dialog.png
             adb shell input text elementum_qa
@@ -139,7 +139,7 @@ jobs:
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-cleared.png
             adb shell input tap 590 20
             sleep 1
-            adb shell input tap 580 110
+            adb shell input tap 520 150
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-load-dialog.png
             adb shell input text elementum_qa
