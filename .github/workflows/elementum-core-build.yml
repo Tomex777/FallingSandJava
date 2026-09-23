@@ -94,6 +94,32 @@ jobs:
             adb shell input swipe 450 60 450 145 500
             sleep 2
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-interactions.png
+
+            # Exercise the pause/resume and clear controls, then capture what
+            # the sandbox looks like after a reset.
+            adb shell input tap 485 284
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-paused.png
+            adb shell input tap 485 284
+            sleep 1
+            adb shell input tap 545 284
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-cleared.png
+
+            # Exercise the Android text-input save/load path with a named scene.
+            adb shell input keyevent 39
+            sleep 1
+            adb shell input text elementum_qa
+            adb shell input keyevent 66
+            sleep 1
+            adb shell run-as com.tomex.elementum ls files/save > android/build/runtime-smoke/saves.txt || true
+            adb shell input keyevent 40
+            sleep 1
+            adb shell input text elementum_qa
+            adb shell input keyevent 66
+            sleep 2
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-loaded.png
+
             adb logcat -d > android/build/runtime-smoke/logcat.txt
             adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" > android/build/runtime-smoke/window.txt || true
             test -n "$(adb shell pidof com.tomex.elementum)"
