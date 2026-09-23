@@ -30,7 +30,9 @@ public class Lightning extends Gas {
         heated = true;
         heatFactor = 30;
         explosionResistance = 0;
-        lifeSpan = getRandomInt(3) + 2;
+        // Keep a strike visible for a few simulation beats. A 2–4 beat chain
+        // vanishes before it reads as a bolt, especially on a phone screen.
+        lifeSpan = getRandomInt(7) + 8;
     }
 
     @Override
