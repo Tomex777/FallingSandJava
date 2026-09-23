@@ -96,6 +96,7 @@ Status: exploratory audit in progress. App fixes remain deferred until this pass
 
 ## Change log
 
-- No app fixes have been made during this audit pass.
+- The findings in this file were captured before the first app-fix pass.
 - The workflow change that added pause/clear/save-load evidence capture is test-only.
 - The Lightning lifetime change is part of the existing baseline being audited, not a change made during this audit pass.
+- Run #53 (`96243b8`) rebuilt successfully, but the API 36 emulator startup capture again showed the simulation without the mobile toolbar, Tools button, or status labels. The screenshot was 2,833 bytes and the startup visibility assertion stopped the run before other interaction checks ran. This reproduces the intermittent overlay-render failure after the first overlay fix; investigate app initialization/rendering before changing the test to weaken the assertion.

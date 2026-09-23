@@ -98,6 +98,10 @@ public class CellularAutomaton extends ApplicationAdapter {
 				gameManager,
 				mobileControls == null ? null : mobileControls.stage
 		);
+		// The Android surface can arrive before LibGDX delivers its first resize
+		// callback. Initialize all stage viewports before the first frame so the
+		// mobile controls and status overlay have valid bounds on cold launch.
+		resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 	}
 
 	@Override

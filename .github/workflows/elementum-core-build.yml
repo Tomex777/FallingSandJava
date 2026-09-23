@@ -83,6 +83,8 @@ jobs:
             adb shell input tap 510 190 || true
             sleep 3
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
+            adb logcat -d > android/build/runtime-smoke/logcat-startup.txt
+            adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" > android/build/runtime-smoke/window-startup.txt || true
             test "$(stat -c%s android/build/runtime-smoke/elementum-startup.png)" -gt 5000
             adb shell input tap 590 20
             sleep 1
