@@ -85,7 +85,13 @@ jobs:
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
             adb shell input tap 332 284
             sleep 1
-            adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker.png
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker-solids.png
+            adb shell input swipe 300 220 300 95 500
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker-liquids.png
+            adb shell input swipe 300 220 300 95 500
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker-gases-energy.png
             adb shell input tap 332 284
             adb shell input tap 178 284
             adb shell input swipe 330 70 330 160 500
@@ -95,8 +101,17 @@ jobs:
             sleep 2
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-interactions.png
 
-            # Exercise the pause/resume and clear controls, then capture what
-            # the sandbox looks like after a reset.
+            # Save the populated scene before clearing it so load can be checked.
+            adb shell input keyevent KEYCODE_K
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-dialog.png
+            adb shell input text elementum_qa
+            adb shell input keyevent KEYCODE_ENTER
+            sleep 1
+            adb shell run-as com.tomex.elementum ls -l files/save > android/build/runtime-smoke/saves.txt
+            adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
+
+            # Exercise pause/resume and clear, then confirm the saved scene reloads.
             adb shell input tap 485 284
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-paused.png
@@ -105,18 +120,11 @@ jobs:
             adb shell input tap 545 284
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-cleared.png
-
-            # Exercise the Android text-input save/load path with a named scene.
-            adb shell input keyevent 39
+            adb shell input keyevent KEYCODE_L
             sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-load-dialog.png
             adb shell input text elementum_qa
-            adb shell input keyevent 66
-            sleep 1
-            adb shell run-as com.tomex.elementum ls files/save > android/build/runtime-smoke/saves.txt || true
-            adb shell input keyevent 40
-            sleep 1
-            adb shell input text elementum_qa
-            adb shell input keyevent 66
+            adb shell input keyevent KEYCODE_ENTER
             sleep 2
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-loaded.png
 
