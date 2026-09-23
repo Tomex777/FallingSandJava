@@ -33,6 +33,9 @@ public class ModeActor extends Actor {
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
+        if (getStage() != null) {
+            pixelY = (int) getStage().getViewport().getWorldHeight() - 23;
+        }
         this.modeLabel.setText("Current Mode: " + this.inputManager.getMouseMode().toString());
         this.modeLabel.setX(pixelX);
         this.modeLabel.setY(pixelY);

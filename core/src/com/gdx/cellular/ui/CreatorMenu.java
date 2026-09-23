@@ -25,6 +25,7 @@ public class CreatorMenu {
     private final int CELL_HEIGHT = 20;
 
     private final InputManager inputManager;
+    private final Viewport viewport;
     public Table dropDownTopLevelTable;
     public Table dropDownElementList;
     public Table dropDownMouseMode;
@@ -37,6 +38,7 @@ public class CreatorMenu {
 
     public CreatorMenu(InputManager inputManager, Viewport viewport) {
         this.inputManager = inputManager;
+        this.viewport = viewport;
         createDropdownStage(viewport);
     }
 
@@ -47,19 +49,10 @@ public class CreatorMenu {
         dropDownTopLevelTable = new Table() {
             @Override
             public void setPosition (float x, float y) {
-                int dropDownListY = (int) y;
-                if (CellularAutomaton.screenHeight - y < dropDownTopLevelTable.getRows() / 2f * CELL_HEIGHT) {
-                    dropDownListY = (int) (CellularAutomaton.screenHeight - (dropDownTopLevelTable.getRows() / 2f * CELL_HEIGHT));
-                } else if (y < dropDownTopLevelTable.getRows() / 2f * CELL_HEIGHT) {
-                    dropDownListY = (int) (dropDownTopLevelTable.getRows() / 2f * CELL_HEIGHT);
-                }
-                int dropDownListX = (int) x;
-                if (CellularAutomaton.screenWidth - x < CELL_WIDTH / 2f) {
-                    dropDownListX = (int) (CellularAutomaton.screenWidth - CELL_WIDTH / 2f);
-                } else if (x < CELL_WIDTH / 2f) {
-                    dropDownListX = (int) (CELL_WIDTH / 2f);
-                }
-                super.setPosition(dropDownListX, dropDownListY);
+                float tableHeight = dropDownTopLevelTable.getRows() * CELL_HEIGHT;
+                float maxX = Math.max(0f, viewport.getWorldWidth() - CELL_WIDTH);
+                float maxY = Math.max(0f, viewport.getWorldHeight() - tableHeight);
+                super.setPosition(Math.max(0f, Math.min(x, maxX)), Math.max(0f, Math.min(y, maxY)));
                 dropDownElementList.setPosition(-200, -200);
                 dropDownMouseMode.setPosition(-200, -200);
                 dropDownBodyType.setPosition(-200, -200);
@@ -79,6 +72,12 @@ public class CreatorMenu {
         dropDownTopLevelTable.row();
         Button bodyTypeList = createAccessSublistButton(skin, "Body Type", SelectedSubList.BODYTYPE);
         dropDownTopLevelTable.add(bodyTypeList).width(CELL_WIDTH).height(CELL_HEIGHT);
+        dropDownTopLevelTable.row();
+        dropDownTopLevelTable.add(createActionButton(skin, "Save", inputManager::requestSave))
+                .width(CELL_WIDTH).height(CELL_HEIGHT);
+        dropDownTopLevelTable.row();
+        dropDownTopLevelTable.add(createActionButton(skin, "Load", inputManager::requestLoad))
+                .width(CELL_WIDTH).height(CELL_HEIGHT);
 
 
         // Element Sublist
@@ -183,12 +182,16 @@ public class CreatorMenu {
     private Button createAccessSublistButton(Skin skin, String text, SelectedSubList subList) {
         Button button = new TextButton(text, skin);
         button.setColor(Color.GRAY);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectSublist(subList);
+            }
+        });
         button.addListener(new ClickListener(){
             @Override
             public void enter (InputEvent event, float x, float y, int pointer, Actor fromActor) {
-                hideSelectedList(selectedSubList);
-                selectedSubList = subList;
-                unhideSelectedSublist(selectedSubList);
+                selectSublist(subList);
                 button.setColor(Color.RED);
             }
             @Override
@@ -199,19 +202,35 @@ public class CreatorMenu {
         return button;
     }
 
+    private void selectSublist(SelectedSubList subList) {
+        hideSelectedList(selectedSubList);
+        selectedSubList = subList;
+        unhideSelectedSublist(selectedSubList);
+    }
+
+    private Button createActionButton(Skin skin, String text, Runnable action) {
+        Button button = new TextButton(text, skin);
+        button.setColor(Color.GRAY);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.closeCreatorMenu();
+                action.run();
+            }
+        });
+        return button;
+    }
+
     private void unhideSelectedSublist(SelectedSubList selectedSubList) {
         Table list = getList(selectedSubList);
         if (list != null) {
-            int dropDownListY = (int) dropDownTopLevelTable.getY();
-            if (CellularAutomaton.screenHeight - dropDownTopLevelTable.getY() < list.getRows() / 2f * CELL_HEIGHT) {
-                dropDownListY = (int) (CellularAutomaton.screenHeight - (list.getRows() / 2f * CELL_HEIGHT));
-            } else if (dropDownTopLevelTable.getY() < list.getRows() / 2f * CELL_HEIGHT) {
-                dropDownListY = (int) (list.getRows() / 2f * CELL_HEIGHT);
+            float dropDownListY = Math.max(0f, Math.min(dropDownTopLevelTable.getY(),
+                    viewport.getWorldHeight() - list.getRows() * CELL_HEIGHT));
+            float dropDownListX = dropDownTopLevelTable.getX() + CELL_WIDTH;
+            if (dropDownListX + CELL_WIDTH > viewport.getWorldWidth()) {
+                dropDownListX = dropDownTopLevelTable.getX() - CELL_WIDTH;
             }
-            int dropDownListX = (int) dropDownTopLevelTable.getX() + CELL_WIDTH;
-            if (CellularAutomaton.screenWidth - dropDownTopLevelTable.getX() < CELL_WIDTH * 1.5f) {
-                dropDownListX = (int) (dropDownTopLevelTable.getX() - CELL_WIDTH);
-            }
+            dropDownListX = Math.max(0f, dropDownListX);
             list.setPosition(dropDownListX, dropDownListY);
         }
     }

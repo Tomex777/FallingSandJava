@@ -1,5 +1,6 @@
 package com.gdx.cellular.ui;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -65,6 +66,20 @@ public class MobileControls {
         quickBar.setFillParent(true);
         quickBar.pad(8f);
 
+        TextButton toolsButton = createButton("Tools");
+        toolsButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.openCreatorMenuAtScreen(Gdx.input.getX(), Gdx.input.getY());
+            }
+        });
+        Table toolsBar = new Table();
+        toolsBar.top().right();
+        toolsBar.setFillParent(true);
+        toolsBar.pad(8f);
+        toolsBar.add(toolsButton).width(68f).height(42f);
+        stage.addActor(toolsBar);
+
         addQuickMaterial("Sand", ElementType.SAND, 62f);
         addQuickMaterial("Water", ElementType.WATER, 66f);
         addQuickMaterial("Petrol", ElementType.PETROL, 68f);
@@ -79,7 +94,7 @@ public class MobileControls {
         });
         quickBar.add(allMaterialsButton).width(52f).height(58f).padRight(4f);
 
-        addAction("−", 40f, () -> inputManager.calculateNewBrushSize(-2));
+        addAction("-", 40f, () -> inputManager.calculateNewBrushSize(-2));
         addAction("+", 40f, () -> inputManager.calculateNewBrushSize(2));
 
         pauseButton = createButton("Pause");
@@ -215,6 +230,11 @@ public class MobileControls {
     }
 
     public void draw() {
+        int width = Gdx.graphics.getWidth();
+        int height = Gdx.graphics.getHeight();
+        if (stage.getViewport().getScreenWidth() != width || stage.getViewport().getScreenHeight() != height) {
+            resize(width, height);
+        }
         stage.act();
         stage.draw();
     }

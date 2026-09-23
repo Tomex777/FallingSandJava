@@ -102,6 +102,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 	@Override
 	public void render () {
+        ensureViewportsMatchScreen();
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -126,14 +127,13 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 		boolean isPaused = inputManager.getIsPaused();
 		if (isPaused) {
-			matrix.useChunks = false;
-			useChunks = false;
 			matrixStage.draw();
 			matrix.drawPhysicsElementActors(shapeRenderer);
 			Array<Body> bodies = new Array<>();
 			b2dWorld.getBodies(bodies);
 			matrix.drawBox2d(shapeRenderer, bodies);
 			debugRenderer.render(b2dWorld, camera.combined);
+			inputManager.drawMenu();
 			if (mobileControls != null) {
 				mobileControls.draw();
 			}
@@ -195,6 +195,21 @@ public class CellularAutomaton extends ApplicationAdapter {
 		inputManager.modeStage.getViewport().update(width, height, true);
 		if (mobileControls != null) {
 			mobileControls.resize(width, height);
+		}
+	}
+
+	private void ensureViewportsMatchScreen() {
+		int width = Gdx.graphics.getWidth();
+		int height = Gdx.graphics.getHeight();
+		if (matrixStage.getViewport().getScreenWidth() != width
+				|| matrixStage.getViewport().getScreenHeight() != height
+				|| inputManager.cursorStage.getViewport().getScreenWidth() != width
+				|| inputManager.cursorStage.getViewport().getScreenHeight() != height
+				|| inputManager.modeStage.getViewport().getScreenWidth() != width
+				|| inputManager.modeStage.getViewport().getScreenHeight() != height
+				|| (mobileControls != null && (mobileControls.stage.getViewport().getScreenWidth() != width
+				|| mobileControls.stage.getViewport().getScreenHeight() != height))) {
+			resize(width, height);
 		}
 	}
 

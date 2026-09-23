@@ -194,7 +194,7 @@ public abstract class Element {
         if (!isEffectsFrame() || !shouldApplyHeat()) return false;
         for (int x = getMatrixX() - 1; x <= getMatrixX() + 1; x++) {
             for (int y = getMatrixY() - 1; y <= getMatrixY() + 1; y++) {
-                if (!(x == 0 && y == 0)) {
+                if (x != getMatrixX() || y != getMatrixY()) {
                     Element neighbor = matrix.get(x, y);
                     if (neighbor != null) {
                         neighbor.receiveHeat(matrix, heatFactor);

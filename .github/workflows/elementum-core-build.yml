@@ -83,15 +83,27 @@ jobs:
             adb shell input tap 510 190 || true
             sleep 3
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-startup.png)" -gt 5000
+            adb shell input tap 590 20
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-menu.png
+            adb shell input tap 580 40
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-mouse-modes.png
+            adb shell input tap 460 30
+            sleep 1
             adb shell input tap 332 284
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker-solids.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-material-picker-solids.png)" -gt 5000
             adb shell input swipe 300 220 300 95 500
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker-liquids.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-material-picker-liquids.png)" -gt 5000
             adb shell input swipe 300 220 300 95 500
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-material-picker-gases-energy.png
+            test "$(stat -c%s android/build/runtime-smoke/elementum-material-picker-gases-energy.png)" -gt 5000
             adb shell input tap 332 284
             adb shell input tap 178 284
             adb shell input swipe 420 60 420 145 500
@@ -103,7 +115,9 @@ jobs:
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-interactions.png
 
             # Save the populated scene before clearing it so load can be checked.
-            adb shell input keyevent KEYCODE_K
+            adb shell input tap 590 20
+            sleep 1
+            adb shell input tap 580 90
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-dialog.png
             adb shell input text elementum_qa
@@ -112,7 +126,7 @@ jobs:
             adb shell input tap 240 218
             sleep 1
             adb shell run-as com.tomex.elementum ls -l files/save > android/build/runtime-smoke/saves.txt
-            adb shell run-as com.tomex.elementum test -s files/save/File_Nameelementum_qa.ser
+            adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
 
             # Exercise pause/resume and clear, then confirm the saved scene reloads.
             adb shell input tap 485 284
@@ -123,18 +137,26 @@ jobs:
             adb shell input tap 545 284
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-cleared.png
-            adb shell input keyevent KEYCODE_L
+            adb shell input tap 590 20
+            sleep 1
+            adb shell input tap 580 110
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-load-dialog.png
             adb shell input text elementum_qa
             adb shell input tap 240 218
             sleep 2
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-loaded.png
+            adb shell input keyevent KEYCODE_HOME
+            sleep 2
+            adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
+            sleep 3
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-resumed.png
 
             adb logcat -d > android/build/runtime-smoke/logcat.txt
             adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" > android/build/runtime-smoke/window.txt || true
             test -n "$(adb shell pidof com.tomex.elementum)"
             ! grep -E "FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died" android/build/runtime-smoke/logcat.txt
+            ! grep -E "ANR in com\.tomex\.elementum|Input dispatching timed out.*com\.tomex\.elementum" android/build/runtime-smoke/logcat.txt
 
       - name: Upload runtime smoke evidence
         if: always()

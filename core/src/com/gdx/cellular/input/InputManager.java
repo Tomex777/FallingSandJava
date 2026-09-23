@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -18,6 +19,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.*;
 import com.gdx.cellular.CellularAutomaton;
 import com.gdx.cellular.CellularMatrix;
+import com.gdx.cellular.boids.Boid;
 import com.gdx.cellular.box2d.PhysicsElementActor;
 import com.gdx.cellular.box2d.ShapeFactory;
 import com.gdx.cellular.elements.Element;
@@ -28,6 +30,7 @@ import com.gdx.cellular.ui.CursorActor;
 import com.gdx.cellular.ui.ModeActor;
 import com.gdx.cellular.util.TextInputHandler;
 import com.gdx.cellular.util.WeatherSystem;
+import com.gdx.cellular.particles.Particle;
 
 
 public class InputManager {
@@ -165,6 +168,28 @@ public class InputManager {
         this.touchedLastFrame = touchedLastFrame;
     }
 
+    public void openCreatorMenuAtScreen(float screenX, float screenY) {
+        Vector3 menuPosition = camera.unproject(new Vector3(screenX, screenY, 0));
+        setDrawMenuAndLocation(menuPosition.x, menuPosition.y);
+    }
+
+    public void closeCreatorMenu() {
+        drawMenu = false;
+        Gdx.input.setInputProcessor(creatorInputProcessor);
+    }
+
+    public void requestSave() {
+        if (readyToSave) return;
+        paused = true;
+        Gdx.input.getTextInput(saveLevelNameListener, "Save Level", "", "File Name");
+    }
+
+    public void requestLoad() {
+        if (readyToLoad) return;
+        paused = true;
+        Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "", "File Name");
+    }
+
     public void spawnElementByInput(CellularMatrix matrix) {
             Vector3 touchPos = new Vector3();
             touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
@@ -196,6 +221,7 @@ public class InputManager {
                     } else {
                         matrix.addExplosion(brushSize, 3, matrix.toMatrix(touchPos.x), matrix.toMatrix(touchPos.y));
                     }
+                    break;
                 case HEAT:
                     if (touchedLastFrame) {
                         matrix.applyHeatBetweenTwoPoints(lastTouchPos, touchPos, brushSize, brushType);
@@ -278,7 +304,7 @@ public class InputManager {
         int yEnd =  Math.max(matrixY1, matrixY2);
 
         for (int x = xStart; x <= xEnd; x++) {
-            for (int y = yStart; y < yEnd; y++) {
+            for (int y = yStart; y <= yEnd; y++) {
                 matrix.spawnElementByMatrix(x, y, this.currentlySelectedElement);
             }
         }
@@ -395,8 +421,7 @@ public class InputManager {
 
     public void save(CellularMatrix matrix) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.K) && !readyToSave) {
-            paused = true;
-            Gdx.input.getTextInput(saveLevelNameListener, "Save Level", "File Name", "");
+            requestSave();
         }
 
         if (!readyToSave) {
@@ -406,33 +431,15 @@ public class InputManager {
         readyToSave = false;
         setIsPaused(false);
 
-        String lastClass;
-        String currentClass;
-        int currentClassCount;
-        StringBuilder builder = new StringBuilder();
-
+        StringBuilder builder = new StringBuilder("V2\n");
         for (int r = 0; r < matrix.outerArraySize; r++) {
             Array<Element> row = matrix.getRow(r);
-            lastClass = row.get(0).getClass().getSimpleName();
-            currentClassCount = 0;
-
             for (int e = 0; e < row.size; e++) {
+                if (e > 0) builder.append(';');
                 Element element = row.get(e);
-                currentClass = element.getClass().getSimpleName();
-
-                if (currentClass.equals(lastClass)) {
-                    currentClassCount++;
-                    if (e == row.size - 1) {
-                        builder.append(currentClassCount).append(",").append(lastClass).append(",");
-                    }
-                    continue;
-                }
-
-                builder.append(currentClassCount).append(",").append(lastClass).append(",");
-                currentClassCount = 1;
-                lastClass = currentClass;
+                appendSavedElement(builder, element);
             }
-            builder.append("0,|,");
+            builder.append('\n');
         }
 
         FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
@@ -442,8 +449,7 @@ public class InputManager {
 
     public void load(CellularMatrix matrix) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.L) && !readyToLoad) {
-            paused = true;
-            Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "File Name", "");
+            requestLoad();
         }
 
         if (!readyToLoad) {
@@ -458,8 +464,59 @@ public class InputManager {
             return;
         }
 
-        matrix.clearAll();
         String level = saveFile.readString("UTF-8");
+        matrix.clearAll();
+        if (level.startsWith("V2\n")) {
+            loadVersionTwo(matrix, level.substring(3));
+            return;
+        }
+
+        loadLegacyLevel(matrix, level);
+    }
+
+    private void appendSavedElement(StringBuilder builder, Element element) {
+        if (element instanceof Particle) {
+            Particle particle = (Particle) element;
+            Color color = particle.color;
+            builder.append("P:").append(particle.containedElementType.name())
+                    .append(':').append(particle.vel.x).append(':').append(particle.vel.y)
+                    .append(':').append(color.r).append(':').append(color.g).append(':').append(color.b)
+                    .append(':').append(color.a).append(':').append(particle.isIgnited);
+        } else if (element instanceof Boid) {
+            builder.append("B:").append(element.vel.x).append(':').append(element.vel.y);
+        } else {
+            builder.append(element.elementType.name());
+        }
+    }
+
+    private void loadVersionTwo(CellularMatrix matrix, String level) {
+        String[] rows = level.split("\\n", -1);
+        for (int y = 0; y < rows.length && y < matrix.outerArraySize; y++) {
+            String[] cells = rows[y].split(";", -1);
+            for (int x = 0; x < cells.length && x < matrix.innerArraySize; x++) {
+                String cell = cells[x];
+                if (cell.isEmpty()) continue;
+                String[] values = cell.split(":");
+                if (values[0].equals("P") && values.length == 9) {
+                    ElementType containedType = ElementType.valueOf(values[1]);
+                    Vector3 velocity = new Vector3(Float.parseFloat(values[2]), Float.parseFloat(values[3]), 0);
+                    Color color = new Color(Float.parseFloat(values[4]), Float.parseFloat(values[5]),
+                            Float.parseFloat(values[6]), Float.parseFloat(values[7]));
+                    ElementType.createParticleByMatrix(matrix, x, y, velocity, containedType, color,
+                            Boolean.parseBoolean(values[8]));
+                } else if (values[0].equals("B") && values.length == 3) {
+                    Vector3 velocity = new Vector3(Float.parseFloat(values[1]), Float.parseFloat(values[2]), 0);
+                    ElementType.createBoidByMatrix(matrix, x, y, velocity);
+                } else {
+                    ElementType elementType = ElementType.valueOf(cell);
+                    Element element = elementType.createElementByMatrix(x, y);
+                    matrix.setElementAtIndex(x, y, element);
+                }
+            }
+        }
+    }
+
+    private void loadLegacyLevel(CellularMatrix matrix, String level) {
         String[] splitLevel = level.split(",");
         Array<Element> row = matrix.getRow(0);
         int lastElementIndex = 0;
@@ -479,9 +536,13 @@ public class InputManager {
                 continue;
             }
 
+            ElementType elementType = ElementType.valueOf(clazz);
+            if (elementType == ElementType.PARTICLE || elementType == ElementType.BOID) {
+                elementType = ElementType.EMPTYCELL;
+            }
             for (int k = 0; k < count && k + lastElementIndex < row.size; k++) {
                 row.set(k + lastElementIndex,
-                        ElementType.valueOf(clazz).createElementByMatrix(k + lastElementIndex, rowIndex));
+                        elementType.createElementByMatrix(k + lastElementIndex, rowIndex));
             }
             lastElementIndex += count;
         }
