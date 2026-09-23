@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.gdx.cellular.CellularAutomaton;
 import com.gdx.cellular.input.InputManager;
@@ -45,6 +46,26 @@ public class CreatorMenu {
     private void createDropdownStage(Viewport viewport) {
         Stage stage = new Stage(viewport);
         Skin skin = Skins.getSkin("uiskin");
+
+        // Keep the menu modal, but let a touch outside its rows dismiss it so
+        // mobile controls and the simulation are reachable again immediately.
+        Table dismissLayer = new Table();
+        dismissLayer.setFillParent(true);
+        dismissLayer.setTouchable(Touchable.enabled);
+        dismissLayer.addListener(new InputListener() {
+            @Override
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                return true;
+            }
+
+            @Override
+            public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
+                if (event.getTarget() == dismissLayer) {
+                    inputManager.closeCreatorMenu();
+                }
+            }
+        });
+        stage.addActor(dismissLayer);
 
         dropDownTopLevelTable = new Table() {
             @Override

@@ -71,7 +71,7 @@ public class MobileControls {
         toolsButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                inputManager.openCreatorMenuAtScreen(Gdx.input.getX(), Gdx.input.getY());
+                inputManager.openCreatorMenuAtScreen(Gdx.graphics.getWidth() - 42f, 20f);
             }
         });
         toolsBar = new Table();

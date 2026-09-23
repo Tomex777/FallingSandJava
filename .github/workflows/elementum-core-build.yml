@@ -89,10 +89,15 @@ jobs:
             adb shell input tap 590 20
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-menu.png
+            adb shell input tap 320 160
+            sleep 1
+            adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-dismissed.png
+            adb shell input tap 590 20
+            sleep 1
             adb shell input tap 520 70
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-mouse-modes.png
-            adb shell input tap 400 10
+            adb shell input tap 400 90
             sleep 1
             adb shell input tap 332 284
             sleep 1
