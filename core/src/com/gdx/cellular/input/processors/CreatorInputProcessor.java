@@ -78,8 +78,7 @@ public class CreatorInputProcessor implements InputProcessor {
             inputManager.spawnElementByInput(matrix);
         } else if (button == Input.Buttons.RIGHT) {
             inputManager.setTouchedLastFrame(false);
-            Vector3 pos = camera.unproject(new Vector3(screenX, screenY, 0));
-            inputManager.setDrawMenuAndLocation(pos.x, pos.y);
+            inputManager.openCreatorMenuAtScreen(screenX, screenY);
         }
         return false;
     }
