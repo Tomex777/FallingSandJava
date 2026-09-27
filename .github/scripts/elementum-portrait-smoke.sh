@@ -53,9 +53,9 @@ capture tools-menu
 tap 100 250
 capture tools-dismissed
 tap 326 29
-tap 240 70
+tap 220 110
 capture tools-mouse-modes
-tap 120 70
+tap 100 110
 
 tap 278 715
 capture material-picker-solids
@@ -76,10 +76,11 @@ sleep 2
 capture interactions
 
 tap 326 29
-tap 240 130
+tap 220 170
 capture save-dialog
 dialog Save
 adb shell input text elementum_qa
+dialog Save
 tap_ok Save
 sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
@@ -91,10 +92,11 @@ tap 105 765
 tap 174 765
 capture cleared
 tap 326 29
-tap 240 150
+tap 220 190
 capture load-dialog
 dialog Load
 adb shell input text elementum_qa
+dialog Load
 tap_ok Load
 sleep 2
 capture loaded
