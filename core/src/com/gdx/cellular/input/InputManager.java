@@ -73,7 +73,8 @@ public class InputManager {
 
     public InputManager(OrthographicCamera camera, Viewport viewport, ShapeRenderer shapeRenderer) {
         this.camera = camera;
-        this.creatorMenu = new CreatorMenu(this, viewport);
+        // UI coordinates stay in screen pixels while the world camera pans/zooms.
+        this.creatorMenu = new CreatorMenu(this, new ScreenViewport());
         this.controlsMenu = new ControlsMenu(this, viewport);
         this.cursorStage = new Stage(viewport);
         this.cursor = new Cursor(this);
@@ -169,7 +170,8 @@ public class InputManager {
     }
 
     public void openCreatorMenuAtScreen(float screenX, float screenY) {
-        Vector3 menuPosition = camera.unproject(new Vector3(screenX, screenY, 0));
+        Vector3 menuPosition = new Vector3(screenX, screenY, 0);
+        creatorMenu.dropDownStage.getViewport().unproject(menuPosition);
         setDrawMenuAndLocation(menuPosition.x, menuPosition.y);
     }
 
@@ -181,6 +183,10 @@ public class InputManager {
         Vector3 menuPosition = new Vector3(left, 140f, 0);
         viewport.unproject(menuPosition);
         setDrawMenuAndLocation(menuPosition.x, menuPosition.y);
+    }
+
+    public void resizeCreatorMenu(int width, int height) {
+        creatorMenu.dropDownStage.getViewport().update(width, height, true);
     }
 
     public void closeCreatorMenu() {
