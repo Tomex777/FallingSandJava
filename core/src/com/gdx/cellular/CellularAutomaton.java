@@ -111,8 +111,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 	}
 
 	@Override
-	public void render () {
+    public void render () {
         ensureViewportsMatchScreen();
+        shapeRenderer.setProjectionMatrix(camera.combined);
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -203,6 +204,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrixStage.getViewport().update(width, height, true);
 		inputManager.cursorStage.getViewport().update(width, height, true);
 		inputManager.modeStage.getViewport().update(width, height, true);
+		inputManager.resizeCreatorMenu(width, height);
 		if (mobileControls != null) {
 			mobileControls.resize(width, height);
 		}
