@@ -42,6 +42,7 @@ public class MobileControls {
     private final Map<ElementType, TextButton> pickerButtons = new EnumMap<>(ElementType.class);
 
     private TextButton pauseButton;
+    private TextButton brushTypeButton;
     private TextButton allMaterialsButton;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
@@ -98,6 +99,17 @@ public class MobileControls {
 
         addAction("-", 40f, () -> inputManager.calculateNewBrushSize(-2));
         addAction("+", 40f, () -> inputManager.calculateNewBrushSize(2));
+
+        brushTypeButton = createButton(brushTypeLabel());
+        brushTypeButton.getLabel().setFontScale(0.72f);
+        brushTypeButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.cycleBrushType();
+                brushTypeButton.setText(brushTypeLabel());
+            }
+        });
+        quickBar.add(brushTypeButton).width(68f).height(52f).padRight(3f);
 
         pauseButton = createButton("Pause");
         pauseButton.addListener(new ClickListener() {
@@ -220,6 +232,18 @@ public class MobileControls {
             default:
                 String lower = type.name().toLowerCase();
                 return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+        }
+    }
+
+    private String brushTypeLabel() {
+        switch (inputManager.brushType) {
+            case SQUARE:
+                return "Square";
+            case RECTANGLE:
+                return "Rect";
+            case CIRCLE:
+            default:
+                return "Circle";
         }
     }
 

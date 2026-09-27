@@ -80,6 +80,13 @@ adb shell input swipe 190 230 190 340 500
 sleep 2
 capture interactions
 
+tap 160 765
+capture brush-rect
+tap 160 765
+capture brush-square
+tap 160 765
+capture brush-circle
+
 tap 326 29
 tap 220 230
 capture save-dialog
@@ -91,10 +98,10 @@ sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
 adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
 
-tap 160 765
+tap 240 765
 capture paused
-tap 160 765
-tap 235 765
+tap 240 765
+tap 315 765
 capture cleared
 tap 326 29
 tap 220 250
