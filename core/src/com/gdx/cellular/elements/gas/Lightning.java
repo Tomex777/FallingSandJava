@@ -18,6 +18,7 @@ import com.gdx.cellular.elements.solid.immoveable.Titanium;
  * original material movement presets untouched.
  */
 public class Lightning extends Gas {
+    private boolean discharged;
 
     public Lightning(int x, int y) {
         super(x, y);
@@ -44,8 +45,14 @@ public class Lightning extends Gas {
             return;
         }
 
-        energizeNeighbors(matrix);
-        propagate(matrix);
+        // A cell transfers its charge once. Its remaining lifetime is only a
+        // visible trail; propagating on every frame multiplied the strike into
+        // a screen-filling cloud on mobile.
+        if (!discharged) {
+            discharged = true;
+            energizeNeighbors(matrix);
+            propagate(matrix);
+        }
         checkLifeSpan(matrix);
 
         if (matrix.useChunks && !isDead()) {
