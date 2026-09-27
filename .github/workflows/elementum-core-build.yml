@@ -131,7 +131,9 @@ jobs:
             adb shell input tap 460 190
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-dialog.png
-            test "$(stat -c%s android/build/runtime-smoke/elementum-save-dialog.png)" -gt 40000
+            adb shell uiautomator dump /sdcard/elementum-window.xml >/dev/null
+            adb shell cat /sdcard/elementum-window.xml > android/build/runtime-smoke/save-window.xml
+            grep -q 'text="Save Level"' android/build/runtime-smoke/save-window.xml
             adb shell input text elementum_qa
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-name-entered.png
@@ -154,7 +156,9 @@ jobs:
             adb shell input tap 460 210
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-load-dialog.png
-            test "$(stat -c%s android/build/runtime-smoke/elementum-load-dialog.png)" -gt 40000
+            adb shell uiautomator dump /sdcard/elementum-window.xml >/dev/null
+            adb shell cat /sdcard/elementum-window.xml > android/build/runtime-smoke/load-window.xml
+            grep -q 'text="Load Level"' android/build/runtime-smoke/load-window.xml
             adb shell input text elementum_qa
             adb shell input tap 240 218
             sleep 2
