@@ -53,9 +53,14 @@ capture tools-menu
 tap 100 250
 capture tools-dismissed
 tap 326 29
-tap 280 110
+tap 220 170
 capture tools-mouse-modes
-tap 160 50
+tap 100 210
+capture mouse-mode-heat
+tap 326 29
+tap 220 170
+tap 100 150
+capture mouse-mode-spawn
 
 tap 278 715
 capture material-picker-solids
@@ -76,7 +81,7 @@ sleep 2
 capture interactions
 
 tap 326 29
-tap 280 170
+tap 220 230
 capture save-dialog
 dialog Save
 adb shell input text elementum_qa
@@ -92,7 +97,7 @@ tap 160 765
 tap 235 765
 capture cleared
 tap 326 29
-tap 280 190
+tap 220 250
 capture load-dialog
 dialog Load
 adb shell input text elementum_qa
