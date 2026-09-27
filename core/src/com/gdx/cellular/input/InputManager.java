@@ -175,9 +175,10 @@ public class InputManager {
 
     public void openCreatorMenuTopRight() {
         Viewport viewport = creatorMenu.dropDownStage.getViewport();
-        float left = Math.max(0f, Gdx.graphics.getWidth() - 180f);
-        float bottom = Math.max(0f, Gdx.graphics.getHeight() - 160f);
-        Vector3 menuPosition = new Vector3(left, bottom, 0);
+        // Viewport.unproject expects screen coordinates measured from the top.
+        // Keep all six menu rows near the Tools button in either orientation.
+        float left = Math.max(0f, Gdx.graphics.getWidth() - 140f);
+        Vector3 menuPosition = new Vector3(left, 140f, 0);
         viewport.unproject(menuPosition);
         setDrawMenuAndLocation(menuPosition.x, menuPosition.y);
     }
