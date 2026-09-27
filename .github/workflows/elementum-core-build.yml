@@ -85,6 +85,15 @@ jobs:
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
             adb logcat -d > android/build/runtime-smoke/logcat-startup.txt
             adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" > android/build/runtime-smoke/window-startup.txt || true
+            # The world may render before its stage overlays on a cold emulator.
+            # Keep the visibility assertion, but give the first usable frame time
+            # to arrive and retain each failed capture for diagnosis.
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              if test "$(stat -c%s android/build/runtime-smoke/elementum-startup.png)" -gt 5000; then break; fi
+              mv android/build/runtime-smoke/elementum-startup.png "android/build/runtime-smoke/elementum-startup-wait-${attempt}.png"
+              sleep 3
+              adb exec-out screencap -p > android/build/runtime-smoke/elementum-startup.png
+            done
             test "$(stat -c%s android/build/runtime-smoke/elementum-startup.png)" -gt 5000
             adb shell input tap 590 20
             sleep 1
