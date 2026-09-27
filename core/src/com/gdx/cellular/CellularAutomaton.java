@@ -55,6 +55,12 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 	@Override
 	public void create () {
+		if (Gdx.app.getType() == Application.ApplicationType.Android) {
+			// Keep the established cell size while matching the phone's tall surface.
+			// Cap the grid width so high-density phones do not multiply work by 9x.
+			screenWidth = Math.min(720, Gdx.graphics.getWidth());
+			screenHeight = Math.round((float) screenWidth * Gdx.graphics.getHeight() / Gdx.graphics.getWidth());
+		}
 		Gdx.gl.glEnable(GL20.GL_BLEND);
 		fpsLogger = new FPSLogger();
 
@@ -68,7 +74,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 
         stepped.set(0, true);
 
-		Viewport viewport = new FitViewport(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), camera);
+		Viewport viewport = new FitViewport(screenWidth, screenHeight, camera);
 		inputManager = new InputManager(camera, viewport, shapeRenderer);
 
 		b2dWorld = new World(new Vector2(0, -100), true);
