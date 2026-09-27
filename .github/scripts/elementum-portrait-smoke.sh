@@ -55,11 +55,11 @@ capture tools-dismissed
 tap 326 29
 tap 220 170
 capture tools-mouse-modes
-tap 100 210
+tap 100 190
 capture mouse-mode-heat
 tap 326 29
 tap 220 170
-tap 100 150
+tap 100 130
 capture mouse-mode-spawn
 
 tap 278 715
