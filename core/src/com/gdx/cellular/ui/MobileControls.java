@@ -81,10 +81,10 @@ public class MobileControls {
         toolsBar.add(toolsButton).width(68f).height(42f);
         stage.addActor(toolsBar);
 
-        addQuickMaterial("Sand", ElementType.SAND, 62f);
-        addQuickMaterial("Water", ElementType.WATER, 66f);
-        addQuickMaterial("Petrol", ElementType.PETROL, 68f);
-        addQuickMaterial("Lightning", ElementType.LIGHTNING, 86f);
+        addQuickMaterial("Sand", ElementType.SAND, 56f);
+        addQuickMaterial("Water", ElementType.WATER, 56f);
+        addQuickMaterial("Petrol", ElementType.PETROL, 56f);
+        addQuickMaterial("Lightning", ElementType.LIGHTNING, 78f);
 
         allMaterialsButton = createButton("All");
         allMaterialsButton.addListener(new ClickListener() {
@@ -93,7 +93,8 @@ public class MobileControls {
                 materialPicker.setVisible(!materialPicker.isVisible());
             }
         });
-        quickBar.add(allMaterialsButton).width(52f).height(58f).padRight(4f);
+        quickBar.add(allMaterialsButton).width(48f).height(52f).padRight(3f);
+        quickBar.row();
 
         addAction("-", 40f, () -> inputManager.calculateNewBrushSize(-2));
         addAction("+", 40f, () -> inputManager.calculateNewBrushSize(2));
@@ -106,7 +107,7 @@ public class MobileControls {
                 pauseButton.setText(inputManager.getIsPaused() ? "Play" : "Pause");
             }
         });
-        quickBar.add(pauseButton).width(68f).height(58f).padRight(4f);
+        quickBar.add(pauseButton).width(68f).height(52f).padRight(3f);
 
         addAction("Clear", 60f, () -> {
             inputManager.clearMatrix(matrix);
@@ -145,7 +146,7 @@ public class MobileControls {
 
             materialGrid.add(button).width(132f).height(48f).pad(3f);
             column++;
-            if (column == 4) {
+            if (column == 2) {
                 materialGrid.row();
                 column = 0;
             }
@@ -165,7 +166,7 @@ public class MobileControls {
                 selectMaterial(type);
             }
         });
-        quickBar.add(button).width(width).height(58f).padRight(4f);
+        quickBar.add(button).width(width).height(52f).padRight(3f);
     }
 
     private void addAction(String label, float width, Runnable action) {
@@ -176,7 +177,7 @@ public class MobileControls {
                 action.run();
             }
         });
-        quickBar.add(button).width(width).height(58f).padRight(4f);
+        quickBar.add(button).width(width).height(52f).padRight(3f);
     }
 
     private TextButton createButton(String label) {
@@ -225,9 +226,9 @@ public class MobileControls {
     private void layoutPicker() {
         float width = stage.getViewport().getWorldWidth();
         float height = stage.getViewport().getWorldHeight();
-        float pickerWidth = Math.max(280f, Math.min(width - 20f, 580f));
-        float pickerHeight = Math.max(120f, Math.min(height - 84f, 210f));
-        materialPicker.setBounds(10f, 76f, pickerWidth, pickerHeight);
+        float pickerWidth = Math.max(280f, width - 20f);
+        float pickerHeight = Math.max(120f, Math.min(height - 160f, 330f));
+        materialPicker.setBounds(10f, 120f, pickerWidth, pickerHeight);
     }
 
     public void draw() {
