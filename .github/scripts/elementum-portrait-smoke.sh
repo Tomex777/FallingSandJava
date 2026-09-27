@@ -55,7 +55,7 @@ capture tools-dismissed
 tap 326 29
 tap 220 110
 capture tools-mouse-modes
-tap 100 110
+tap 100 90
 
 tap 278 715
 capture material-picker-solids
@@ -86,10 +86,10 @@ sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
 adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
 
-tap 105 765
+tap 160 765
 capture paused
-tap 105 765
-tap 174 765
+tap 160 765
+tap 235 765
 capture cleared
 tap 326 29
 tap 220 190
