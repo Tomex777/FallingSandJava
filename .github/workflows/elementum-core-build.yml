@@ -95,11 +95,13 @@ jobs:
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-dismissed.png
             adb shell input tap 590 20
             sleep 1
-            adb shell input tap 520 70
+            # Root menu bounds on the 640x320 viewport are x=400..520,
+            # y=100..220. Tap row centers, not the outside right edge.
+            adb shell input tap 460 130
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-tools-mouse-modes.png
             test "$(stat -c%s android/build/runtime-smoke/elementum-tools-mouse-modes.png)" -gt 40000
-            adb shell input tap 400 90
+            adb shell input tap 340 90
             sleep 1
             adb shell input tap 332 284
             sleep 1
@@ -126,7 +128,7 @@ jobs:
             # Save the populated scene before clearing it so load can be checked.
             adb shell input tap 590 20
             sleep 1
-            adb shell input tap 520 130
+            adb shell input tap 460 190
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-save-dialog.png
             test "$(stat -c%s android/build/runtime-smoke/elementum-save-dialog.png)" -gt 40000
@@ -149,7 +151,7 @@ jobs:
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-cleared.png
             adb shell input tap 590 20
             sleep 1
-            adb shell input tap 520 150
+            adb shell input tap 460 210
             sleep 1
             adb exec-out screencap -p > android/build/runtime-smoke/elementum-load-dialog.png
             test "$(stat -c%s android/build/runtime-smoke/elementum-load-dialog.png)" -gt 40000
