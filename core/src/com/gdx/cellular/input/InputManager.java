@@ -180,7 +180,7 @@ public class InputManager {
         // Viewport.unproject expects screen coordinates measured from the top.
         // Keep all six menu rows near the Tools button in either orientation.
         float left = Math.max(0f, Gdx.graphics.getWidth() - 140f);
-        Vector3 menuPosition = new Vector3(left, 140f, 0);
+        Vector3 menuPosition = new Vector3(left, 200f, 0);
         viewport.unproject(menuPosition);
         setDrawMenuAndLocation(menuPosition.x, menuPosition.y);
     }
