@@ -1,6 +1,7 @@
 package com.gdx.cellular.input;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -44,6 +45,10 @@ public class InputProcessors {
     private InputProcessor compose(InputProcessor primary) {
         if (overlayInputProcessor == null) {
             return primary;
+        }
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            return new InputMultiplexer(new MobileNavigation((OrthographicCamera) inputManager.camera),
+                    overlayInputProcessor, primary);
         }
         return new InputMultiplexer(overlayInputProcessor, primary);
     }
