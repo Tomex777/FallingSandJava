@@ -80,10 +80,21 @@ adb shell input swipe 190 230 190 340 500
 sleep 2
 capture interactions
 
+tap 40 715
+adb shell input swipe 100 260 130 290 500
+sleep 1
+capture brush-circle-stroke
+
 tap 160 765
 capture brush-rect
+adb shell input swipe 150 260 180 290 500
+sleep 1
+capture brush-rect-stroke
 tap 160 765
 capture brush-square
+adb shell input swipe 200 260 230 290 500
+sleep 1
+capture brush-square-stroke
 tap 160 765
 capture brush-circle
 
