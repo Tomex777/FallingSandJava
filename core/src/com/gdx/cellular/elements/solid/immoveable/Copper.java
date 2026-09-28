@@ -39,7 +39,11 @@ public class Copper extends ImmovableSolid {
 
     @Override
     public void restoreSaveState(String state) {
-        meltResistance = Integer.parseInt(state);
+        int restored = Integer.parseInt(state);
+        if (restored <= 0 || restored > MAX_MELT_RESISTANCE) {
+            throw new IllegalArgumentException("Out-of-range Copper melt state");
+        }
+        meltResistance = restored;
     }
 
     @Override
