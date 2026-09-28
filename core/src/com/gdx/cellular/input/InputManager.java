@@ -26,7 +26,6 @@ import com.gdx.cellular.box2d.PhysicsElementActor;
 import com.gdx.cellular.box2d.ShapeFactory;
 import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.ElementType;
-import com.gdx.cellular.ui.ControlsMenu;
 import com.gdx.cellular.ui.CreatorMenu;
 import com.gdx.cellular.ui.CursorActor;
 import com.gdx.cellular.ui.ModeActor;
@@ -73,7 +72,6 @@ public class InputManager {
 
     public InputProcessor creatorInputProcessor;
     private final CreatorMenu creatorMenu;
-    private final ControlsMenu controlsMenu;
     public Stage cursorStage;
     public Cursor cursor;
     public Stage modeStage;
@@ -87,7 +85,6 @@ public class InputManager {
         this.camera = camera;
         // UI coordinates stay in screen pixels while the world camera pans/zooms.
         this.creatorMenu = new CreatorMenu(this, new ScreenViewport());
-        this.controlsMenu = new ControlsMenu(this, viewport);
         this.cursorStage = new Stage(viewport);
         this.cursor = new Cursor(this);
         this.cursorStage.addActor(new CursorActor(shapeRenderer, this.cursor));
@@ -222,6 +219,7 @@ public class InputManager {
             if (creatorMenu.dismissLoadDialog()) {
                 cancelFileDialog();
             }
+            creatorMenu.dismissHelpDialog();
             closeCreatorMenu();
             Gdx.app.log("ElementumInput", "back-dismiss=creator-overlay");
             return true;
