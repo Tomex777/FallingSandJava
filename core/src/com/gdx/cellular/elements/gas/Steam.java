@@ -26,7 +26,11 @@ public class Steam extends Gas {
 
     @Override
     public void restoreSaveState(String state) {
-        condensationResistance = Integer.parseInt(state);
+        int restored = Integer.parseInt(state);
+        if (restored <= 0 || restored > 140) {
+            throw new IllegalArgumentException("Out-of-range Steam condensation state");
+        }
+        condensationResistance = restored;
     }
 
     @Override
