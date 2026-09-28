@@ -205,7 +205,19 @@ adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
 sleep 3
 capture resumed
 
+# Local erase is a first-class touch action. It sits immediately left of Tools,
+# so the long-standing Tools target at x=326 remains unchanged.
+tap 255 29
+capture erase-selected
+adb shell input swipe 160 300 205 330 450
+sleep 1
+capture erase-stroke
+tap 40 715
+
 adb logcat -d > "$evidence/logcat.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"
 ! grep -E 'FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died' "$evidence/logcat.txt"
 ! grep -E 'ANR in com\.tomex\.elementum|Input dispatching timed out.*com\.tomex\.elementum' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material=PETROL' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material=LIGHTNING' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material=EMPTYCELL' "$evidence/logcat.txt"

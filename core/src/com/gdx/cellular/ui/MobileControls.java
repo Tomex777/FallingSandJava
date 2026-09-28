@@ -79,12 +79,24 @@ public class MobileControls {
                 inputManager.openCreatorMenuTopRight();
             }
         });
+
+        TextButton eraseButton = createButton("Erase");
+        quickButtons.put(ElementType.EMPTYCELL, eraseButton);
+        eraseButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectMaterial(ElementType.EMPTYCELL);
+            }
+        });
+
         toolsBar = new Table();
         toolsBar.top().right();
         toolsBar.setFillParent(true);
         // Keep empty table space transparent to two-finger world navigation.
         toolsBar.setTouchable(Touchable.childrenOnly);
         toolsBar.pad(8f);
+        toolsBar.add(eraseButton).width(54f).height(42f).padRight(3f);
+        // Keep Tools last so its existing top-right hit target remains stable.
         toolsBar.add(toolsButton).width(68f).height(42f);
         stage.addActor(toolsBar);
 
@@ -103,16 +115,22 @@ public class MobileControls {
         quickBar.add(allMaterialsButton).width(48f).height(52f).padRight(3f);
         quickBar.row();
 
-        addAction("-", 40f, () -> inputManager.calculateNewBrushSize(-2));
-        addAction("+", 40f, () -> inputManager.calculateNewBrushSize(2));
+        addAction("-", 40f, () -> {
+            inputManager.calculateNewBrushSize(-2);
+            updateBrushTypeButton();
+        });
+        addAction("+", 40f, () -> {
+            inputManager.calculateNewBrushSize(2);
+            updateBrushTypeButton();
+        });
 
         brushTypeButton = createButton(brushTypeLabel());
-        brushTypeButton.getLabel().setFontScale(0.72f);
+        brushTypeButton.getLabel().setFontScale(0.63f);
         brushTypeButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 inputManager.cycleBrushType();
-                brushTypeButton.setText(brushTypeLabel());
+                updateBrushTypeButton();
             }
         });
         quickBar.add(brushTypeButton).width(68f).height(52f).padRight(3f);
@@ -206,6 +224,7 @@ public class MobileControls {
 
     private void selectMaterial(ElementType type) {
         inputManager.setCurrentlySelectedElement(type);
+        Gdx.app.log("ElementumInput", "material=" + type.name());
 
         for (TextButton button : quickButtons.values()) {
             button.setColor(Color.WHITE);
@@ -242,14 +261,25 @@ public class MobileControls {
     }
 
     private String brushTypeLabel() {
+        String shape;
         switch (inputManager.brushType) {
             case SQUARE:
-                return "Square";
+                shape = "Square";
+                break;
             case RECTANGLE:
-                return "Rect";
+                shape = "Rect";
+                break;
             case CIRCLE:
             default:
-                return "Circle";
+                shape = "Circle";
+                break;
+        }
+        return shape + " " + inputManager.brushSize;
+    }
+
+    private void updateBrushTypeButton() {
+        if (brushTypeButton != null) {
+            brushTypeButton.setText(brushTypeLabel());
         }
     }
 
