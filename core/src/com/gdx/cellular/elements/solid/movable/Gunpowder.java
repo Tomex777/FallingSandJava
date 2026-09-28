@@ -27,6 +27,8 @@ public class Gunpowder extends MovableSolid {
 
     @Override
     public void restoreSaveState(String state) {
+        // Early V3 saves predate fuse persistence; empty means a fresh fuse.
+        if (state == null || state.isEmpty()) return;
         int restoredIgnitedCount = Integer.parseInt(state);
         if (restoredIgnitedCount < 0 || restoredIgnitedCount > IGNITED_THRESHOLD) {
             throw new IllegalArgumentException("Out-of-range Gunpowder fuse state");
