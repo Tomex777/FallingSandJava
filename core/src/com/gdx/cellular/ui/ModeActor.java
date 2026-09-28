@@ -1,5 +1,6 @@
 package com.gdx.cellular.ui;
 
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
@@ -45,7 +46,13 @@ public class ModeActor extends Actor {
         this.elementLabel.setY(this.pixelY - this.modeLabel.getHeight()/1.5f);
         this.elementLabel.draw(batch, 1);
         String weatherString = this.inputManager.weatherSystem.disabled ? "OFF" : "ON";
-        this.weatherLabel.setText("Weather: " + weatherString + "  Element: " + this.inputManager.weatherSystem.elementType.toString());
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            // Keep the portrait status block clear of the compact top-right tools.
+            // Weather material details remain available in the creator menu.
+            this.weatherLabel.setText("Weather: " + weatherString);
+        } else {
+            this.weatherLabel.setText("Weather: " + weatherString + "  Element: " + this.inputManager.weatherSystem.elementType.toString());
+        }
         this.weatherLabel.setX(this.pixelX);
         this.weatherLabel.setY(this.pixelY - (this.modeLabel.getHeight()/1.5f) * 2);
         this.weatherLabel.draw(batch, 1);

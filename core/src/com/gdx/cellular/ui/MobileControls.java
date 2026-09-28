@@ -134,7 +134,9 @@ public class MobileControls {
         allMaterialsButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                materialPicker.setVisible(!materialPicker.isVisible());
+                boolean visible = !materialPicker.isVisible();
+                materialPicker.setVisible(visible);
+                Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
         quickBar.add(allMaterialsButton).width(48f).height(52f).padRight(3f);

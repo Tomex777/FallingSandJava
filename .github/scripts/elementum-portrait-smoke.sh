@@ -123,7 +123,7 @@ tap 220 170
 tap 100 130
 capture mouse-mode-spawn
 
-tap 278 715
+tap 310 715
 capture material-picker-solids
 adb shell input swipe 190 610 190 430 500
 sleep 1
@@ -131,7 +131,7 @@ capture material-picker-liquids
 adb shell input swipe 190 610 190 430 500
 sleep 1
 capture material-picker-gases-energy
-tap 278 715
+tap 310 715
 tap 145 715
 adb shell input swipe 190 230 190 340 500
 sleep 1
@@ -349,6 +349,8 @@ grep -q 'ElementumInput.*material=EMPTYCELL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=HEAT' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=COOL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=SPAWN' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"
