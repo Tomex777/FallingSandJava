@@ -1054,8 +1054,12 @@ public class InputManager {
     }
 
     public void drawMenu() {
-        this.modeStage.act();
-        this.modeStage.draw();
+        // Android has a touch-first status surface in MobileControls. Drawing
+        // the legacy desktop ModeActor as well makes both labels overlap.
+        if (Gdx.app.getType() != Application.ApplicationType.Android) {
+            this.modeStage.act();
+            this.modeStage.draw();
+        }
         if (drawMenu) {
             this.creatorMenu.dropDownStage.act();
             this.creatorMenu.dropDownStage.draw();

@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -50,6 +51,7 @@ public class MobileControls {
     private TextButton allMaterialsButton;
     private TextButton heatButton;
     private TextButton coolButton;
+    private Dialog clearDialog;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
         this.inputManager = inputManager;
@@ -186,10 +188,17 @@ public class MobileControls {
         });
         quickBar.add(pauseButton).width(68f).height(52f).padRight(3f);
 
-        addAction("Clear", 60f, () -> {
-            inputManager.clearMatrix(matrix);
-            inputManager.clearBox2dActors();
+        TextButton clearButton = createButton("Clear");
+        // Destructive state-changing actions should not look identical to
+        // harmless brush controls on a phone.
+        clearButton.setColor(new Color(0.72f, 0.28f, 0.28f, 1f));
+        clearButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showClearConfirmation();
+            }
         });
+        quickBar.add(clearButton).width(60f).height(52f).padRight(3f);
 
         stage.addActor(quickBar);
         selectMaterial(ElementType.SAND);
@@ -197,7 +206,53 @@ public class MobileControls {
         inputManager.setMobileOverlayDismiss(this::dismissMobileOverlay);
     }
 
+    private void showClearConfirmation() {
+        if (clearDialog != null) return;
+
+        materialPicker.setVisible(false);
+        final Dialog dialog = new Dialog("Clear sandbox?", skin, "dialog") {
+            @Override
+            protected void result(Object object) {
+                clearDialog = null;
+                if (Boolean.TRUE.equals(object)) {
+                    inputManager.clearMatrix(matrix);
+                    inputManager.clearBox2dActors();
+                    Gdx.app.log("ElementumInput", "clear-confirmed");
+                } else {
+                    Gdx.app.log("ElementumInput", "clear-cancelled");
+                }
+            }
+        };
+        clearDialog = dialog;
+
+        Label warning = new Label(
+                "Remove the current sandbox? Saved scenes are not deleted.",
+                skin);
+        warning.setWrap(true);
+        warning.setFontScale(0.72f);
+
+        float width = Math.max(280f,
+                Math.min(330f, stage.getViewport().getWorldWidth() - 24f));
+        float height = 190f;
+        dialog.getContentTable().add(warning)
+                .width(width - 36f).pad(14f).left();
+        dialog.button("Cancel", false);
+        dialog.button("Clear", true);
+        dialog.show(stage);
+        dialog.setSize(width, height);
+        dialog.setPosition(
+                (stage.getViewport().getWorldWidth() - width) / 2f,
+                (stage.getViewport().getWorldHeight() - height) / 2f);
+        Gdx.app.log("ElementumInput", "clear-confirm=open");
+    }
+
     private boolean dismissMobileOverlay() {
+        if (clearDialog != null) {
+            clearDialog.remove();
+            clearDialog = null;
+            Gdx.app.log("ElementumInput", "clear-cancelled-back");
+            return true;
+        }
         if (!materialPicker.isVisible()) return false;
         materialPicker.setVisible(false);
         Gdx.app.log("ElementumInput", "material-picker=back-closed");

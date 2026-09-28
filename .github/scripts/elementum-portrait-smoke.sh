@@ -352,6 +352,10 @@ fi
 capture paused
 tap 240 765
 tap 315 765
+sleep 1
+capture clear-confirm
+tap 255 465
+sleep 1
 capture cleared
 tap 40 715
 adb shell input swipe 90 300 160 340 400
@@ -530,6 +534,7 @@ grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*clear-confirmed' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
 save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
 if [ "$save_count" -lt 2 ]; then
