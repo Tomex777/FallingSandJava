@@ -2,6 +2,8 @@ package com.gdx.cellular.input.processors;
 
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.Application;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Vector3;
 import com.gdx.cellular.CellularMatrix;
@@ -75,7 +77,12 @@ public class CreatorInputProcessor implements InputProcessor {
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (button == Input.Buttons.LEFT && !inputManager.drawMenu) {
-            inputManager.spawnElementByInput(matrix);
+            // Wait until Android confirms this was a tap or a one-finger stroke.
+            // MobileNavigation can then claim a second finger without leaving a
+            // stray particle where the first finger landed.
+            if (Gdx.app.getType() != Application.ApplicationType.Android) {
+                inputManager.spawnElementByInput(matrix);
+            }
         } else if (button == Input.Buttons.RIGHT) {
             inputManager.setTouchedLastFrame(false);
             inputManager.openCreatorMenuAtScreen(screenX, screenY);
@@ -86,6 +93,10 @@ public class CreatorInputProcessor implements InputProcessor {
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
         if (button == Input.Buttons.LEFT) {
+            if (Gdx.app.getType() == Application.ApplicationType.Android
+                    && !inputManager.touchedLastFrame && !inputManager.drawMenu) {
+                inputManager.spawnElementByInput(matrix);
+            }
             inputManager.setTouchedLastFrame(false);
             inputManager.touchUpLMB(matrix);
         }

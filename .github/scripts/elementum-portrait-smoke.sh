@@ -7,6 +7,52 @@ trap 'adb logcat -d > "$evidence/logcat.txt" || true' EXIT
 
 capture() { adb exec-out screencap -p > "$evidence/elementum-$1.png"; }
 tap() { adb shell input tap "$1" "$2"; sleep 1; }
+multitouch_pan() {
+  adb root >/dev/null
+  adb wait-for-device
+  adb shell getevent -lp > "$evidence/input-devices.txt"
+  read -r device x_min x_max y_min y_max < <(python3 - "$evidence/input-devices.txt" <<'PY'
+import re,sys
+data=open(sys.argv[1]).read()
+for block in re.split(r'add device \d+:\s*', data)[1:]:
+    path=block.splitlines()[0].strip()
+    x=re.search(r'ABS_MT_POSITION_X\s*:.*?min\s+(-?\d+),\s*max\s+(-?\d+)', block)
+    y=re.search(r'ABS_MT_POSITION_Y\s*:.*?min\s+(-?\d+),\s*max\s+(-?\d+)', block)
+    if x and y:
+        print(path, x.group(1), x.group(2), y.group(1), y.group(2))
+        break
+else:
+    raise SystemExit('No multi-touch input device found')
+PY
+  )
+  raw_x() { python3 - "$1" "$x_min" "$x_max" <<'PY'
+import sys
+screen,low,high=map(int,sys.argv[1:])
+print(round(low + screen * (high-low) / 359))
+PY
+  }
+  raw_y() { python3 - "$1" "$y_min" "$y_max" <<'PY'
+import sys
+screen,low,high=map(int,sys.argv[1:])
+print(round(low + screen * (high-low) / 799))
+PY
+  }
+  local x0 y0 x1 y1 x0m x1m ym
+  x0=$(raw_x 105); x1=$(raw_x 225); y0=$(raw_y 330)
+  x0m=$(raw_x 60); x1m=$(raw_x 220); ym=$(raw_y 370)
+  local events=""
+  add_event() { events+="sendevent $device $1 $2 $3; "; }
+  add_event 1 330 1; add_event 1 325 1
+  add_event 3 47 0; add_event 3 57 1; add_event 3 53 "$x0"; add_event 3 54 "$y0"; add_event 3 48 5
+  add_event 0 0 0
+  add_event 3 47 1; add_event 3 57 2; add_event 3 53 "$x1"; add_event 3 54 "$y0"; add_event 3 48 5
+  add_event 0 0 0
+  add_event 3 47 0; add_event 3 53 "$x0m"; add_event 3 54 "$ym"
+  add_event 3 47 1; add_event 3 53 "$x1m"; add_event 3 54 "$ym"; add_event 0 0 0
+  add_event 3 47 0; add_event 3 57 -1
+  add_event 3 47 1; add_event 3 57 -1; add_event 1 330 0; add_event 1 325 0; add_event 0 0 0
+  adb shell "$events"
+}
 dialog() {
   adb shell uiautomator dump /sdcard/elementum-window.xml >/dev/null
   adb shell cat /sdcard/elementum-window.xml > "$evidence/$1-window.xml"
@@ -97,6 +143,17 @@ sleep 1
 capture brush-square-stroke
 tap 160 765
 capture brush-circle
+
+# Freeze the scene and prove that a genuine two-pointer pan/pinch reaches the
+# Android input stack. The paired captures retain visual proof for review.
+tap 240 765
+tap 160 330
+capture navigation-before
+multitouch_pan
+sleep 1
+capture navigation-after
+printf '%s\n' "device=$device rangeX=$x_min..$x_max rangeY=$y_min..$y_max injected=two-pointer-pan-pinch" > "$evidence/navigation-input.txt"
+tap 240 765
 
 tap 326 29
 tap 220 230

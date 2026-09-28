@@ -47,7 +47,8 @@ public class InputProcessors {
             return primary;
         }
         if (Gdx.app.getType() == Application.ApplicationType.Android) {
-            return new InputMultiplexer(new MobileNavigation((OrthographicCamera) inputManager.camera),
+            return new InputMultiplexer(new MobileNavigation((OrthographicCamera) inputManager.camera,
+                    (com.badlogic.gdx.scenes.scene2d.Stage) overlayInputProcessor),
                     overlayInputProcessor, primary);
         }
         return new InputMultiplexer(overlayInputProcessor, primary);

@@ -3,18 +3,23 @@ package com.gdx.cellular.input;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.gdx.cellular.CellularAutomaton;
 
 /** Two fingers navigate the cellular world; a single finger keeps drawing. */
 public final class MobileNavigation extends InputAdapter {
     private final OrthographicCamera camera;
+    private final Stage overlay;
     private final float[] x = new float[2];
     private final float[] y = new float[2];
     private final boolean[] down = new boolean[2];
     private float lastCenterX, lastCenterY, lastDistance;
+    private boolean gesture;
 
-    public MobileNavigation(OrthographicCamera camera) {
+    public MobileNavigation(OrthographicCamera camera, Stage overlay) {
         this.camera = camera;
+        this.overlay = overlay;
     }
 
     @Override
@@ -23,8 +28,11 @@ public final class MobileNavigation extends InputAdapter {
         down[pointer] = true;
         x[pointer] = screenX;
         y[pointer] = screenY;
-        if (down[0] && down[1]) rememberGesture();
-        return down[0] && down[1];
+        if (down[0] && down[1] && !touchesOverlay(x[0], y[0]) && !touchesOverlay(x[1], y[1])) {
+            gesture = true;
+            rememberGesture();
+        }
+        return gesture;
     }
 
     @Override
@@ -32,7 +40,7 @@ public final class MobileNavigation extends InputAdapter {
         if (pointer > 1 || !down[pointer]) return false;
         x[pointer] = screenX;
         y[pointer] = screenY;
-        if (!down[0] || !down[1]) return false;
+        if (!gesture || !down[0] || !down[1]) return false;
 
         float centerX = (x[0] + x[1]) * 0.5f;
         float centerY = (y[0] + y[1]) * 0.5f;
@@ -63,10 +71,18 @@ public final class MobileNavigation extends InputAdapter {
         lastDistance = (float) Math.hypot(x[0] - x[1], y[0] - y[1]);
     }
 
+    private boolean touchesOverlay(float screenX, float screenY) {
+        Vector2 stagePoint = overlay.screenToStageCoordinates(new Vector2(screenX, screenY));
+        return overlay.hit(stagePoint.x, stagePoint.y, true) != null;
+    }
+
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        if (pointer < 2) down[pointer] = false;
-        return false;
+        if (pointer > 1) return false;
+        boolean consumed = gesture;
+        down[pointer] = false;
+        if (!down[0] && !down[1]) gesture = false;
+        return consumed;
     }
 
     @Override
