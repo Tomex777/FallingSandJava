@@ -5,8 +5,8 @@ import com.gdx.cellular.CellularMatrix;
 
 public class Gunpowder extends MovableSolid {
 
+    private static final int IGNITED_THRESHOLD = 7;
     private int ignitedCount = 0;
-    private final int ignitedThreshold = 7;
 
     public Gunpowder(int x, int y) {
         super(x, y);
@@ -20,12 +20,26 @@ public class Gunpowder extends MovableSolid {
         fireDamage = 3;
     }
 
+    @Override
+    public String getSaveState() {
+        return Integer.toString(ignitedCount);
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        int restoredIgnitedCount = Integer.parseInt(state);
+        if (restoredIgnitedCount < 0 || restoredIgnitedCount > IGNITED_THRESHOLD) {
+            throw new IllegalArgumentException("Out-of-range Gunpowder fuse state");
+        }
+        ignitedCount = restoredIgnitedCount;
+    }
+
     public void step(CellularMatrix matrix) {
         super.step(matrix);
         if (isIgnited) {
             ignitedCount++;
         }
-        if (ignitedCount >= ignitedThreshold) {
+        if (ignitedCount >= IGNITED_THRESHOLD) {
             matrix.addExplosion(15, 10, this);
         }
     }
