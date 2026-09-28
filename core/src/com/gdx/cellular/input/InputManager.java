@@ -1,5 +1,6 @@
 package com.gdx.cellular.input;
 
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
@@ -31,6 +32,8 @@ import com.gdx.cellular.ui.ModeActor;
 import com.gdx.cellular.util.TextInputHandler;
 import com.gdx.cellular.util.WeatherSystem;
 import com.gdx.cellular.particles.Particle;
+
+import java.util.Arrays;
 
 
 public class InputManager {
@@ -212,7 +215,57 @@ public class InputManager {
         pausedBeforeFileDialog = paused;
         fileDialogOpen = true;
         paused = true;
+
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            drawMenu = true;
+            creatorMenu.showLoadDialog();
+            Gdx.input.setInputProcessor(creatorMenu.dropDownStage);
+            Gdx.app.log("ElementumSaveLoad", "browser-open");
+            return;
+        }
+
         Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "", "File Name");
+    }
+
+    public FileHandle[] getSavedLevels() {
+        FileHandle saveDirectory = Gdx.files.local("save");
+        if (!saveDirectory.exists()) return new FileHandle[0];
+
+        FileHandle[] saves = saveDirectory.list(".ser");
+        Arrays.sort(saves, (left, right) -> Long.compare(right.lastModified(), left.lastModified()));
+        return saves;
+    }
+
+    public void selectSavedLevelForLoad(String name) {
+        if (!isSafeLevelName(name)) {
+            Gdx.app.error("ElementumSaveLoad", "browser-invalid-name");
+            cancelFileDialog();
+            closeCreatorMenu();
+            return;
+        }
+
+        fileNameForLevel = name;
+        readyToLoad = true;
+        fileDialogOpen = false;
+        drawMenu = false;
+        Gdx.input.setInputProcessor(creatorInputProcessor);
+        Gdx.app.log("ElementumSaveLoad", "browser-selected=" + name);
+    }
+
+    public boolean deleteSavedLevel(String name) {
+        if (!isSafeLevelName(name)) {
+            Gdx.app.error("ElementumSaveLoad", "delete-invalid-name");
+            return false;
+        }
+
+        FileHandle saveFile = Gdx.files.local("save/" + name + ".ser");
+        boolean deleted = !saveFile.exists() || saveFile.delete();
+        Gdx.app.log("ElementumSaveLoad", "deleted=" + name + " success=" + deleted);
+        return deleted;
+    }
+
+    private boolean isSafeLevelName(String name) {
+        return name != null && !name.isEmpty() && name.matches("[a-zA-Z0-9_]+");
     }
 
     public void cancelFileDialog() {
@@ -674,7 +727,7 @@ public class InputManager {
     }
 
     public boolean setFileNameForSave(String sane) {
-        if (sane == null || sane.trim().isEmpty()) {
+        if (!isSafeLevelName(sane)) {
             Gdx.app.log("ElementumSaveLoad", "save-name-rejected");
             cancelFileDialog();
             return false;
@@ -686,7 +739,7 @@ public class InputManager {
     }
 
     public boolean setFileNameForLoad(String sane) {
-        if (sane == null || sane.trim().isEmpty()) {
+        if (!isSafeLevelName(sane)) {
             Gdx.app.log("ElementumSaveLoad", "load-name-rejected");
             cancelFileDialog();
             return false;

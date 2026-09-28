@@ -297,11 +297,11 @@ sleep 1
 capture after-clear-redraw
 tap 326 29
 tap 220 250
-capture load-dialog
-dialog Load
-adb shell input text elementum_qa
-dialog Load
-tap_ok Load
+capture load-browser
+sleep 1
+# Android Load is a touch-first scene browser. The newest saved scene is the
+# first large row in the centered dialog; no exact filename entry is required.
+tap 120 255
 sleep 2
 capture loaded
 adb shell input keyevent KEYCODE_HOME
@@ -440,6 +440,10 @@ grep -q 'ElementumInput.*mode=COOL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=SPAWN' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*browser-scenes=1' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V2' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"

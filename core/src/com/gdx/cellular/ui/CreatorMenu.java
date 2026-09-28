@@ -1,6 +1,7 @@
 package com.gdx.cellular.ui;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.physics.box2d.BodyDef;
@@ -36,6 +37,7 @@ public class CreatorMenu {
     public SelectedSubList selectedSubList;
 
     public Map<SelectedSubList, Table> listTableMap = new HashMap<>();
+    private Dialog loadDialog;
 
     public CreatorMenu(InputManager inputManager, Viewport viewport) {
         this.inputManager = inputManager;
@@ -240,6 +242,89 @@ public class CreatorMenu {
             }
         });
         return button;
+    }
+
+    public void showLoadDialog() {
+        if (loadDialog != null) {
+            loadDialog.remove();
+            loadDialog = null;
+        }
+
+        Skin skin = Skins.getSkin("uiskin");
+        final Dialog dialog = new Dialog("Load Scene", skin, "dialog") {
+            @Override
+            protected void result(Object object) {
+                if (Boolean.FALSE.equals(object)) {
+                    inputManager.cancelFileDialog();
+                    inputManager.closeCreatorMenu();
+                    Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
+                }
+            }
+        };
+        loadDialog = dialog;
+
+        Table savesTable = new Table();
+        savesTable.top().left();
+        FileHandle[] saves = inputManager.getSavedLevels();
+
+        if (saves.length == 0) {
+            Label empty = new Label("No saved scenes yet", skin);
+            savesTable.add(empty).pad(12f);
+        } else {
+            for (FileHandle save : saves) {
+                String levelName = save.nameWithoutExtension();
+
+                TextButton loadButton = new TextButton(levelName, skin);
+                loadButton.getLabel().setFontScale(0.85f);
+                loadButton.addListener(new ClickListener() {
+                    @Override
+                    public void clicked(InputEvent event, float x, float y) {
+                        dialog.hide();
+                        loadDialog = null;
+                        inputManager.selectSavedLevelForLoad(levelName);
+                    }
+                });
+
+                Label timestamp = new Label(new Date(save.lastModified()).toString(), skin);
+                timestamp.setFontScale(0.55f);
+
+                TextButton deleteButton = new TextButton("Delete", skin);
+                deleteButton.getLabel().setFontScale(0.75f);
+                deleteButton.addListener(new ClickListener() {
+                    @Override
+                    public void clicked(InputEvent event, float x, float y) {
+                        inputManager.deleteSavedLevel(levelName);
+                        dialog.hide();
+                        loadDialog = null;
+                        Gdx.app.postRunnable(CreatorMenu.this::showLoadDialog);
+                    }
+                });
+
+                Table row = new Table();
+                row.add(loadButton).width(176f).height(48f).left();
+                row.add(deleteButton).width(72f).height(48f).padLeft(6f);
+                savesTable.add(row).left().padTop(4f);
+                savesTable.row();
+                savesTable.add(timestamp).colspan(2).left().padLeft(4f).padBottom(6f);
+                savesTable.row();
+            }
+        }
+
+        ScrollPane scrollPane = new ScrollPane(savesTable, skin);
+        scrollPane.setFadeScrollBars(false);
+        scrollPane.setScrollingDisabled(true, false);
+        scrollPane.setOverscroll(false, true);
+
+        float width = Math.max(280f, Math.min(330f, viewport.getWorldWidth() - 24f));
+        float height = Math.max(240f, Math.min(460f, viewport.getWorldHeight() - 120f));
+        dialog.getContentTable().add(scrollPane).width(width - 28f).height(height - 100f).pad(8f);
+        dialog.button("Cancel", false);
+        dialog.show(dropDownStage);
+        dialog.setSize(width, height);
+        dialog.setPosition((viewport.getWorldWidth() - width) / 2f,
+                (viewport.getWorldHeight() - height) / 2f);
+
+        Gdx.app.log("ElementumSaveLoad", "browser-scenes=" + saves.length);
     }
 
     private void unhideSelectedSublist(SelectedSubList selectedSubList) {
