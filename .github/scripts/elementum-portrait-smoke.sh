@@ -141,6 +141,45 @@ adb shell input swipe 190 230 190 340 500
 sleep 2
 capture interactions
 
+# Rapidly switch among the four touch-first materials and leave overlapping
+# strokes in the same busy area.
+tap 40 715
+adb shell input swipe 80 250 130 300 300
+tap 90 715
+adb shell input swipe 120 250 170 300 300
+tap 145 715
+adb shell input swipe 160 250 210 300 300
+tap 210 715
+adb shell input swipe 200 250 245 300 300
+sleep 2
+capture rapid-material-switching
+
+# Increase the brush materially rather than only exercising the +/- buttons.
+# Use raw taps here so the stress case does not spend a second per increment.
+for _ in {1..8}; do adb shell input tap 90 765; done
+sleep 1
+tap 40 715
+adb shell input swipe 70 360 250 390 550
+sleep 2
+capture large-brush-stroke
+for _ in {1..8}; do adb shell input tap 40 765; done
+sleep 1
+
+# Paused drawing should edit the world without advancing the simulation.
+tap 240 765
+capture pause-draw-before
+tap 90 715
+adb shell input swipe 110 410 220 430 450
+sleep 1
+capture pause-draw-after
+if cmp -s "$evidence/elementum-pause-draw-before.png" "$evidence/elementum-pause-draw-after.png"; then
+  echo "Drawing while paused produced no visible world edit" >&2
+  exit 1
+fi
+tap 240 765
+sleep 2
+capture pause-draw-resumed
+
 tap 40 715
 adb shell input swipe 100 260 130 290 500
 sleep 1
@@ -190,6 +229,10 @@ capture paused
 tap 240 765
 tap 315 765
 capture cleared
+tap 40 715
+adb shell input swipe 90 300 160 340 400
+sleep 1
+capture after-clear-redraw
 tap 326 29
 tap 220 250
 capture load-dialog
@@ -214,10 +257,17 @@ sleep 1
 capture erase-stroke
 tap 40 715
 
+# Let fire/electricity/gas/steam activity settle for a sustained interval.
+# This catches delayed stalls that a launch-only smoke cannot see.
+sleep 8
+capture long-session-settled
+test -n "$(adb shell pidof com.tomex.elementum)"
+
 adb logcat -d > "$evidence/logcat.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"
 ! grep -E 'FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died' "$evidence/logcat.txt"
 ! grep -E 'ANR in com\.tomex\.elementum|Input dispatching timed out.*com\.tomex\.elementum' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material=WATER' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=PETROL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=LIGHTNING' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=EMPTYCELL' "$evidence/logcat.txt"
