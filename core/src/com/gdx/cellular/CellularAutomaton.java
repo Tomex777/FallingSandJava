@@ -142,10 +142,6 @@ public class CellularAutomaton extends ApplicationAdapter {
         stepped.flip(0);
         incrementFrameCount();
 
-        if (useChunks) {
-			matrix.resetChunks();
-		}
-
         // Detect and act on input
         numThreads = inputManager.adjustThreadCount(numThreads);
         useMultiThreading = inputManager.toggleThreads(useMultiThreading);
@@ -167,6 +163,13 @@ public class CellularAutomaton extends ApplicationAdapter {
 			}
 			recordPerformance(frameStartNanos, 0L);
 			return;
+		}
+
+		// Do not age chunk activity while paused. Edits made during pause mark
+		// shouldStepNextFrame; shifting that flag only when simulation resumes
+		// guarantees freshly drawn fuel/energy/thermal cells actually step.
+		if (useChunks) {
+			matrix.resetChunks();
 		}
 
 		matrix.spawnFromSpouts();
