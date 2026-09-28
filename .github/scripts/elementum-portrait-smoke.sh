@@ -300,7 +300,25 @@ sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
 adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
 
+# A truncated V2 file can still contain individually valid tokens. Keep the
+# current world paused and prove dimension validation rejects it before clearAll.
 tap 240 765
+capture invalid-load-before
+adb shell "run-as com.tomex.elementum sh -c 'printf \"V2\\nSAND\\n\" > files/save/elementum_corrupt.ser'"
+sleep 1
+tap 326 29
+tap 220 250
+capture corrupt-load-browser
+sleep 1
+tap 120 255
+sleep 1
+capture invalid-load-after
+if ! cmp -s "$evidence/elementum-invalid-load-before.png" "$evidence/elementum-invalid-load-after.png"; then
+  echo "Rejected V2 load changed the live paused sandbox" >&2
+  exit 1
+fi
+adb shell run-as com.tomex.elementum rm files/save/elementum_corrupt.ser
+
 capture paused
 tap 240 765
 tap 315 765
@@ -469,6 +487,7 @@ grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*browser-scenes=1' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V2' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*load-invalid=elementum_corrupt' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"

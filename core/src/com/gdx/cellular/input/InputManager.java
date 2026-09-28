@@ -603,7 +603,7 @@ public class InputManager {
             String level = saveFile.readString("UTF-8");
             boolean versionTwo = level.startsWith("V2\n");
             String payload = versionTwo ? level.substring(3) : level;
-            boolean valid = versionTwo ? validateVersionTwo(payload) : validateLegacyLevel(payload);
+            boolean valid = versionTwo ? validateVersionTwo(payload, matrix) : validateLegacyLevel(payload);
             if (!valid) {
                 Gdx.app.error("ElementumSaveLoad", "load-invalid=" + fileNameForLevel);
                 return;
@@ -645,11 +645,21 @@ public class InputManager {
         }
     }
 
-    private boolean validateVersionTwo(String level) {
+    private boolean validateVersionTwo(String level, CellularMatrix matrix) {
         try {
             String[] rows = level.split("\\n", -1);
-            for (String row : rows) {
-                String[] cells = row.split(";", -1);
+            // V2 writers emit one complete row for every matrix row plus the
+            // final empty token produced by the trailing newline. Reject a
+            // truncated or foreign-sized scene before clearAll() can touch the
+            // user's current sandbox.
+            if (rows.length != matrix.outerArraySize + 1 || !rows[rows.length - 1].isEmpty()) {
+                return false;
+            }
+
+            for (int y = 0; y < matrix.outerArraySize; y++) {
+                String[] cells = rows[y].split(";", -1);
+                if (cells.length != matrix.innerArraySize) return false;
+
                 for (String cell : cells) {
                     if (cell.isEmpty()) continue;
                     String[] values = cell.split(":");
@@ -657,12 +667,17 @@ public class InputManager {
                         if (values.length != 9) return false;
                         ElementType containedType = ElementType.valueOf(values[1]);
                         if (containedType == ElementType.PARTICLE || containedType == ElementType.BOID) return false;
-                        for (int i = 2; i <= 7; i++) Float.parseFloat(values[i]);
+                        for (int i = 2; i <= 7; i++) {
+                            float value = Float.parseFloat(values[i]);
+                            if (Float.isNaN(value) || Float.isInfinite(value)) return false;
+                        }
                         if (!"true".equals(values[8]) && !"false".equals(values[8])) return false;
                     } else if (values[0].equals("B")) {
                         if (values.length != 3) return false;
-                        Float.parseFloat(values[1]);
-                        Float.parseFloat(values[2]);
+                        for (int i = 1; i <= 2; i++) {
+                            float value = Float.parseFloat(values[i]);
+                            if (Float.isNaN(value) || Float.isInfinite(value)) return false;
+                        }
                     } else {
                         if (values.length != 1) return false;
                         ElementType type = ElementType.valueOf(cell);
