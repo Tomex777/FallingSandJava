@@ -166,6 +166,10 @@ capture copper-thermal-gradient-after
 tap 240 765
 
 tap 255 74
+# The preceding conduction pass can equalize the strip above a fresh Copper's
+# 500-point melt resistance. Two bounded heat strokes guarantee this quench
+# fixture is actually molten instead of depending on conduction timing.
+adb shell input swipe 70 630 150 630 400
 adb shell input swipe 70 630 150 630 400
 sleep 1
 capture copper-remelted
