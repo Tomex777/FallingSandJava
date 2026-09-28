@@ -269,7 +269,9 @@ sleep 1
 capture cooling-water-after
 
 # While still paused, heat the frozen strip once to melt Ice -> Water, then a
-# second time to boil Water -> Steam. No movement can hide the phase changes.
+# second time to boil Water -> Steam. Cool that stationary steam back into
+# Water to prove the reverse gas/liquid phase transition without movement
+# hiding the result.
 tap 255 74
 adb shell input swipe 125 410 205 410 400
 sleep 1
@@ -277,6 +279,10 @@ capture melting-ice-after
 adb shell input swipe 125 410 205 410 400
 sleep 1
 capture evaporation-steam-after
+tap 318 74
+adb shell input swipe 125 410 205 410 400
+sleep 1
+capture condensation-water-after
 tap 240 765
 
 # Heat is paired with Cool. Ignite a Petrol strip, then a material shortcut
@@ -346,3 +352,4 @@ grep -q 'ElementumInput.*mode=SPAWN' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*steam-to-water' "$evidence/logcat.txt"
