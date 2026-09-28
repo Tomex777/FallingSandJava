@@ -98,17 +98,47 @@ public class Lightning extends Gas {
                     continue;
                 }
 
-                if (neighbor instanceof Titanium || neighbor instanceof Copper || neighbor instanceof MoltenCopper) {
-                    boolean conducted = conductFrom(matrix, neighbor);
-                    if (conducted && generation == 0
-                            && (neighbor instanceof Copper || neighbor instanceof MoltenCopper)) {
-                        Gdx.app.log("ElementumReaction", "lightning-conducted-copper");
-                    }
+                if (isConductor(neighbor)) {
+                    logCopperConduction(neighbor, conductFrom(matrix, neighbor));
                     continue;
                 }
 
                 neighbor.receiveHeat(matrix, heatFactor);
             }
+        }
+
+        // A lightning arc can bridge one empty matrix cell to a conductor.
+        // This is intentionally limited to the radius-2 ring and still consumes
+        // the existing per-lightning child budget, so it cannot become an
+        // unbounded conductor scan or exponential propagation path.
+        bridgeOneCellGapToConductor(matrix);
+    }
+
+    private void bridgeOneCellGapToConductor(CellularMatrix matrix) {
+        if (childBudgetExhausted()) return;
+
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) != 2) continue;
+
+                Element candidate = matrix.get(getMatrixX() + dx, getMatrixY() + dy);
+                if (!isConductor(candidate)) continue;
+
+                boolean conducted = conductFrom(matrix, candidate);
+                logCopperConduction(candidate, conducted);
+                if (conducted) return;
+            }
+        }
+    }
+
+    private boolean isConductor(Element element) {
+        return element instanceof Titanium || element instanceof Copper || element instanceof MoltenCopper;
+    }
+
+    private void logCopperConduction(Element conductor, boolean conducted) {
+        if (conducted && generation == 0
+                && (conductor instanceof Copper || conductor instanceof MoltenCopper)) {
+            Gdx.app.log("ElementumReaction", "lightning-conducted-copper");
         }
     }
 
