@@ -29,7 +29,11 @@ public class Lava extends Liquid {
 
     @Override
     public void restoreSaveState(String state) {
-        magmatizeDamage = Integer.parseInt(state);
+        int restored = Integer.parseInt(state);
+        if (restored < 0 || restored > 9) {
+            throw new IllegalArgumentException("Out-of-range Lava reaction state");
+        }
+        magmatizeDamage = restored;
     }
 
     @Override
