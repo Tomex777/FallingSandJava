@@ -176,11 +176,22 @@ public class PhysicsElementActor {
     }
 
     public void recalculateBoundaries() {
-        Body newBody = ShapeFactory.createPolygonFromElementArrayDeleteOldBody((int) this.physicsBody.getPosition().x, (int) this.physicsBody.getPosition().y, this.elements, this.physicsBody);
+        // ShapeFactory destroys the old body only after a valid replacement is
+        // ready. Snapshot motion/transform first so we never query a destroyed
+        // Box2D body while carrying state to the replacement.
+        Body oldBody = this.physicsBody;
+        Vector2 oldPosition = oldBody.getPosition().cpy();
+        Vector2 oldLinearVelocity = oldBody.getLinearVelocity().cpy();
+        float oldAngularVelocity = oldBody.getAngularVelocity();
+        float oldAngle = oldBody.getAngle();
+
+        Body newBody = ShapeFactory.createPolygonFromElementArrayDeleteOldBody(
+                (int) oldPosition.x, (int) oldPosition.y, this.elements, oldBody);
         if (newBody == null) return;
-        newBody.setAngularVelocity(this.physicsBody.getAngularVelocity());
-        newBody.setLinearVelocity(this.physicsBody.getLinearVelocity());
-        newBody.setTransform(this.physicsBody.getTransform().getPosition(), this.physicsBody.getTransform().getRotation());
+
+        newBody.setAngularVelocity(oldAngularVelocity);
+        newBody.setLinearVelocity(oldLinearVelocity);
+        newBody.setTransform(oldPosition, oldAngle);
         this.physicsBody = newBody;
     }
 
