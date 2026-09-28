@@ -350,6 +350,21 @@ if adb shell run-as com.tomex.elementum test -e files/save/elementum_qa.ser.tmp;
 fi
 
 capture paused
+
+# Clear is deliberately destructive on mobile. First cancel it while the
+# simulation is paused and prove the live sandbox is bit-for-bit unchanged.
+tap 315 765
+sleep 1
+capture clear-confirm-cancel
+tap 152 478
+sleep 1
+capture clear-cancelled
+if ! cmp -s "$evidence/elementum-paused.png" "$evidence/elementum-clear-cancelled.png"; then
+  echo "Cancelling Clear changed the paused sandbox" >&2
+  exit 1
+fi
+
+# Then resume and prove the affirmative path really clears the active world.
 tap 240 765
 tap 315 765
 sleep 1
@@ -534,6 +549,65 @@ grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*clear-cancelled
+grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
+save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
+if [ "$save_count" -lt 2 ]; then
+  echo "Expected initial save plus atomic overwrite, got atomic save count=$save_count" >&2
+  exit 1
+fi
+grep -q 'ElementumSaveLoad.*browser-scenes=1' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V3' "$evidence/logcat.txt"
+grep -Eq 'ElementumSaveLoad.*restored-stateful=[1-9][0-9]*.*transactional=true' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*load-invalid=elementum_corrupt' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*steam-to-water' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*copper-to-molten-copper' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*molten-copper-to-copper' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*water-molten-copper-steam' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*copper-thermal-conduction' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*lightning-conducted-copper' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*lightning-conducted-water' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*lightning-ignited-petrol' "$evidence/logcat.txt"
+grep -q 'ElementumPerf.*avgFrameUs=' "$evidence/logcat.txt"
+
+# With no overlay active, Android Back should finish the activity rather than
+# being swallowed by libGDX. Then prove a true process restart can still reopen
+# and load the durable V3 scene from app storage.
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+adb shell dumpsys activity activities > "$evidence/root-back-activity.txt"
+if grep -q 'mResumedActivity.*com\.tomex\.elementum' "$evidence/root-back-activity.txt"; then
+  echo "Root Back left Elementum resumed" >&2
+  exit 1
+fi
+adb logcat -d > "$evidence/logcat-after-root-back.txt"
+grep -q 'ElementumLifecycle.*back-finish' "$evidence/logcat-after-root-back.txt"
+
+adb shell am force-stop com.tomex.elementum
+sleep 1
+adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
+sleep 4
+capture process-restart
+test -n "$(adb shell pidof com.tomex.elementum)"
+adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
+
+tap 326 29
+tap 220 240
+capture process-restart-load-browser
+sleep 1
+tap 120 255
+sleep 2
+capture process-restart-loaded
+adb logcat -d > "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V3' "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumSaveLoad.*transactional=true' "$evidence/logcat-after-process-restart.txt"
+test -n "$(adb shell pidof com.tomex.elementum)"
+ "$evidence/logcat.txt"
 grep -q 'ElementumInput.*clear-confirmed' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
 save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
