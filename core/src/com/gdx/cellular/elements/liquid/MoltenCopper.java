@@ -33,7 +33,11 @@ public class MoltenCopper extends Liquid {
 
     @Override
     public void restoreSaveState(String state) {
-        solidificationResistance = Integer.parseInt(state);
+        int restored = Integer.parseInt(state);
+        if (restored <= 0 || restored > 500) {
+            throw new IllegalArgumentException("Out-of-range Molten Copper phase state");
+        }
+        solidificationResistance = restored;
     }
 
     @Override
