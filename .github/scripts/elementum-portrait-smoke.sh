@@ -42,15 +42,15 @@ PY
   x0m=$(raw_x 115); x1m=$(raw_x 255); ym=$(raw_y 340)
   local events=""
   add_event() { events+="sendevent $device $1 $2 $3; "; }
-  add_event 1 330 1; add_event 1 325 1
-  add_event 3 47 0; add_event 3 57 1; add_event 3 53 "$x0"; add_event 3 54 "$y0"; add_event 3 48 5
+  add_event 1 330 1
+  add_event 3 47 0; add_event 3 57 1; add_event 3 53 "$x0"; add_event 3 54 "$y0"; add_event 3 48 5; add_event 3 58 512
   add_event 0 0 0
-  add_event 3 47 1; add_event 3 57 2; add_event 3 53 "$x1"; add_event 3 54 "$y0"; add_event 3 48 5
+  add_event 3 47 1; add_event 3 57 2; add_event 3 53 "$x1"; add_event 3 54 "$y0"; add_event 3 48 5; add_event 3 58 512
   add_event 0 0 0
   add_event 3 47 0; add_event 3 53 "$x0m"; add_event 3 54 "$ym"
   add_event 3 47 1; add_event 3 53 "$x1m"; add_event 3 54 "$ym"; add_event 0 0 0
   add_event 3 47 0; add_event 3 57 -1
-  add_event 3 47 1; add_event 3 57 -1; add_event 1 330 0; add_event 1 325 0; add_event 0 0 0
+  add_event 3 47 1; add_event 3 57 -1; add_event 1 330 0; add_event 0 0 0
   adb shell "$events"
 }
 dialog() {
