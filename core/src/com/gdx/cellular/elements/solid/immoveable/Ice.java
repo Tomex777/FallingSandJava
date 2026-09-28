@@ -1,5 +1,6 @@
 package com.gdx.cellular.elements.solid.immoveable;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector3;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.ElementType;
@@ -30,6 +31,7 @@ public class Ice extends ImmovableSolid {
         if (heat <= 0 || isDead()) return false;
         meltResistance -= Math.max(1, heat);
         if (meltResistance <= 0) {
+            Gdx.app.log("ElementumReaction", "ice-to-water");
             dieAndReplace(matrix, ElementType.WATER);
         }
         return true;

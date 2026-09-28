@@ -267,6 +267,16 @@ tap 318 74
 adb shell input swipe 125 410 205 410 400
 sleep 1
 capture cooling-water-after
+
+# While still paused, heat the frozen strip once to melt Ice -> Water, then a
+# second time to boil Water -> Steam. No movement can hide the phase changes.
+tap 255 74
+adb shell input swipe 125 410 205 410 400
+sleep 1
+capture melting-ice-after
+adb shell input swipe 125 410 205 410 400
+sleep 1
+capture evaporation-steam-after
 tap 240 765
 
 # Heat is paired with Cool. Ignite a Petrol strip, then a material shortcut
@@ -281,15 +291,32 @@ sleep 2
 capture heat-petrol-after
 tap 40 715
 
-# Let fire/electricity/gas/steam activity settle for a sustained interval.
-# This catches delayed stalls that a launch-only smoke cannot see.
-sleep 8
+# Keep the busy world active long enough to expose delayed allocation,
+# render-thread or reaction-traversal problems. Sample memory, graphics and
+# worker-thread state during the soak.
+for sample in 1 2 3 4; do
+  sleep 5
+  app_pid=$(adb shell pidof com.tomex.elementum)
+  test -n "$app_pid"
+  capture "soak-$sample"
+  adb shell dumpsys meminfo com.tomex.elementum > "$evidence/meminfo-$sample.txt" || true
+  adb shell dumpsys gfxinfo com.tomex.elementum > "$evidence/gfxinfo-$sample.txt" || true
+  adb shell ps -T -p "$app_pid" -o PID,TID,STAT,NAME > "$evidence/threads-$sample.txt" || true
+done
 capture long-session-settled
 test -n "$(adb shell pidof com.tomex.elementum)"
 
+sim_threads=$(grep -c 'ElementumSim' "$evidence/threads-4.txt" || true)
+if [ "$sim_threads" -lt 1 ] || [ "$sim_threads" -gt 6 ]; then
+  echo "Expected a bounded persistent simulation pool (1..6 workers), got $sim_threads" >&2
+  cat "$evidence/threads-4.txt" >&2
+  exit 1
+fi
+printf '%s\n' "persistent_sim_workers=$sim_threads" > "$evidence/performance-summary.txt"
+
 adb logcat -d > "$evidence/logcat.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"
-! grep -E 'FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died' "$evidence/logcat.txt"
+! grep -E 'FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died|OutOfMemoryError|Fatal signal' "$evidence/logcat.txt"
 ! grep -E 'ANR in com\.tomex\.elementum|Input dispatching timed out.*com\.tomex\.elementum' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=WATER' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=PETROL' "$evidence/logcat.txt"
@@ -299,3 +326,5 @@ grep -q 'ElementumInput.*mode=HEAT' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=COOL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=SPAWN' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"

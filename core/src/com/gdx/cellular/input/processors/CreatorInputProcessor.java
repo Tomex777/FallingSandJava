@@ -55,7 +55,7 @@ public class CreatorInputProcessor implements InputProcessor {
         if (keycode == Input.Keys.M) {
             inputManager.cycleBrushType();
         }
-        if (keycode == Input.Keys.O) {
+        if (keycode == Input.Keys.F12) {
             inputManager.setMouseMode(com.gdx.cellular.input.MouseMode.COOL);
         }
         return false;

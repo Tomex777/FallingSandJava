@@ -24,6 +24,10 @@ import com.gdx.cellular.util.GameManager;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 
 public class CellularAutomaton extends ApplicationAdapter {
@@ -40,6 +44,10 @@ public class CellularAutomaton extends ApplicationAdapter {
 
     private int numThreads = 12;
     private boolean useMultiThreading = true;
+    private ExecutorService simulationExecutor;
+    private int simulationColumnCount;
+    private final List<ElementColumnStepper> columnSteppers = new ArrayList<>();
+    private final List<Future<?>> workerFutures = new ArrayList<>();
 
     private InputManager inputManager;
 
@@ -132,10 +140,6 @@ public class CellularAutomaton extends ApplicationAdapter {
 		inputManager.save(matrix);
 		inputManager.load(matrix);
 
-		matrix.reshuffleXIndexes();
-		matrix.reshuffleThreadXIndexes(numThreads);
-		matrix.calculateAndSetThreadedXIndexOffset();
-
 		boolean isPaused = inputManager.getIsPaused();
 		if (isPaused) {
 			matrixStage.draw();
@@ -155,21 +159,18 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrix.useChunks = useChunks;
 
 		if (!useMultiThreading) {
+			matrix.reshuffleXIndexes();
 			matrix.stepAndDrawAll(shapeRenderer);
 		} else {
 			matrix.reshuffleThreadXIndexes(numThreads);
-			List<Thread> threads = new ArrayList<>(numThreads);
-
-			for (int t = 0; t < numThreads; t++) {
-				Thread newThread = new Thread(new ElementColumnStepper(matrix, t));
-				threads.add(newThread);
-			}
+			matrix.calculateAndSetThreadedXIndexOffset();
+			ensureSimulationExecutor();
 			if (stepped.get(0)) {
-				startAndWaitOnOddThreads(threads);
-				startAndWaitOnEvenThreads(threads);
+				runWorkerParity(1);
+				runWorkerParity(0);
 			} else {
-				startAndWaitOnEvenThreads(threads);
-				startAndWaitOnOddThreads(threads);
+				runWorkerParity(0);
+				runWorkerParity(1);
 			}
 //			matrix.drawAll(shapeRenderer);
 
@@ -238,42 +239,40 @@ public class CellularAutomaton extends ApplicationAdapter {
 				BodyDef.BodyType.StaticBody);
 	}
 
-	private void startAndWaitOnEvenThreads(List<Thread> threads) {
-		try {
-			for (int t = 0; t < threads.size(); t++) {
-				if (t % 2 == 0) {
-					threads.get(t).start();
-				}
-			}
-			for (int t = 0; t < threads.size(); t++) {
-				if (t % 2 == 0) {
-					threads.get(t).join();
-				}
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
+	private void ensureSimulationExecutor() {
+		if (simulationExecutor != null && simulationColumnCount == numThreads) return;
+		if (simulationExecutor != null) simulationExecutor.shutdownNow();
+		simulationColumnCount = numThreads;
+		int workerCount = Math.max(1, (numThreads + 1) / 2);
+		simulationExecutor = Executors.newFixedThreadPool(workerCount, runnable -> {
+			Thread worker = new Thread(runnable, "ElementumSim");
+			worker.setDaemon(true);
+			return worker;
+		});
+		columnSteppers.clear();
+		for (int t = 0; t < numThreads; t++) columnSteppers.add(new ElementColumnStepper(matrix, t));
 	}
 
-	private void startAndWaitOnOddThreads(List<Thread> threads) {
-		try {
-			for (int t = 0; t < threads.size(); t++) {
-				if (t % 2 != 0) {
-					threads.get(t).start();
-				}
+	private void runWorkerParity(int parity) {
+		workerFutures.clear();
+		for (int t = parity; t < numThreads; t += 2) {
+			workerFutures.add(simulationExecutor.submit(columnSteppers.get(t)));
+		}
+		for (Future<?> future : workerFutures) {
+			try {
+				future.get();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				return;
+			} catch (ExecutionException e) {
+				throw new RuntimeException("Elementum simulation worker failed", e.getCause());
 			}
-			for (int t = 0; t < threads.size(); t++) {
-				if (t % 2 != 0) {
-					threads.get(t).join();
-				}
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
 		}
 	}
 
     @Override
 	public void dispose () {
+		if (simulationExecutor != null) simulationExecutor.shutdownNow();
 		shapeRenderer.dispose();
 		if (mobileControls != null) {
 			mobileControls.dispose();

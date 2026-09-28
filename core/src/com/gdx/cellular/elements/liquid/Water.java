@@ -27,6 +27,7 @@ public class Water extends Liquid {
         if (heat <= 0 || isDead()) return false;
         boilResistance -= Math.max(1, heat);
         if (boilResistance <= 0) {
+            Gdx.app.log("ElementumReaction", "water-to-steam");
             dieAndReplace(matrix, ElementType.STEAM);
         }
         return true;
