@@ -3,6 +3,7 @@ package com.gdx.cellular.input;
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
@@ -34,6 +35,7 @@ import com.gdx.cellular.util.WeatherSystem;
 import com.gdx.cellular.particles.Particle;
 
 import java.util.Arrays;
+import java.util.function.BooleanSupplier;
 
 
 public class InputManager {
@@ -62,6 +64,7 @@ public class InputManager {
     private boolean readyToSave = false;
     private boolean readyToLoad = false;
     public boolean drawMenu = false;
+    private BooleanSupplier mobileOverlayDismiss;
     private boolean drawCursor = true;
 
     public InputProcessor creatorInputProcessor;
@@ -99,6 +102,10 @@ public class InputManager {
 
     public void setCreatorInputProcessor(InputProcessor creatorInputProcessor) {
         this.creatorInputProcessor = creatorInputProcessor;
+    }
+
+    public void setMobileOverlayDismiss(BooleanSupplier mobileOverlayDismiss) {
+        this.mobileOverlayDismiss = mobileOverlayDismiss;
     }
 
     public void calculateNewBrushSize(int delta) {
@@ -202,6 +209,27 @@ public class InputManager {
         Gdx.input.setInputProcessor(creatorInputProcessor);
     }
 
+    private void activateCreatorMenuInput() {
+        Gdx.input.setInputProcessor(new InputMultiplexer(creatorMenu.dropDownStage, creatorInputProcessor));
+    }
+
+    public boolean dismissActiveOverlay() {
+        if (drawMenu) {
+            if (creatorMenu.dismissLoadDialog()) {
+                cancelFileDialog();
+            }
+            closeCreatorMenu();
+            Gdx.app.log("ElementumInput", "back-dismiss=creator-overlay");
+            return true;
+        }
+
+        if (mobileOverlayDismiss != null && mobileOverlayDismiss.getAsBoolean()) {
+            Gdx.app.log("ElementumInput", "back-dismiss=mobile-overlay");
+            return true;
+        }
+        return false;
+    }
+
     public void requestSave() {
         if (readyToSave || fileDialogOpen) return;
         pausedBeforeFileDialog = paused;
@@ -219,7 +247,7 @@ public class InputManager {
         if (Gdx.app.getType() == Application.ApplicationType.Android) {
             drawMenu = true;
             creatorMenu.showLoadDialog();
-            Gdx.input.setInputProcessor(creatorMenu.dropDownStage);
+            activateCreatorMenuInput();
             Gdx.app.log("ElementumSaveLoad", "browser-open");
             return;
         }
@@ -761,8 +789,9 @@ public class InputManager {
 
     public void setDrawMenuAndLocation(float x, float y) {
         this.drawMenu = true;
+        this.creatorMenu.prepareForRootMenu();
         this.creatorMenu.dropDownTopLevelTable.setPosition(x, y);
-        Gdx.input.setInputProcessor(this.creatorMenu.dropDownStage);
+        activateCreatorMenuInput();
     }
 
     public Vector3 getTouchPos() {

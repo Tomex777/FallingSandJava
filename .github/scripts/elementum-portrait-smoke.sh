@@ -111,6 +111,11 @@ PY
 
 tap 326 29
 capture tools-menu
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+capture tools-back-dismissed
+test -n "$(adb shell pidof com.tomex.elementum)"
+tap 326 29
 tap 100 250
 capture tools-dismissed
 tap 326 29
@@ -125,6 +130,11 @@ capture mouse-mode-spawn
 
 tap 310 715
 capture material-picker-solids
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+capture material-picker-back-dismissed
+test -n "$(adb shell pidof com.tomex.elementum)"
+tap 310 715
 
 # Copper is the second-row left solid after alphabetical material sorting.
 # Exercise the new reversible thermal metal and a local water quench while the
@@ -299,6 +309,14 @@ tap 326 29
 tap 220 250
 capture load-browser
 sleep 1
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+capture load-browser-back-dismissed
+test -n "$(adb shell pidof com.tomex.elementum)"
+tap 326 29
+tap 220 250
+capture load-browser-reopened
+sleep 1
 # Android Load is a touch-first scene browser. The newest saved scene is the
 # first large row in the centered dialog; no exact filename entry is required.
 tap 120 255
@@ -440,6 +458,9 @@ grep -q 'ElementumInput.*mode=COOL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=SPAWN' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*browser-scenes=1' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat.txt"

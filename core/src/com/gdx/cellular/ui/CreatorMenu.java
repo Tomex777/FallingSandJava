@@ -244,6 +244,26 @@ public class CreatorMenu {
         return button;
     }
 
+    public void prepareForRootMenu() {
+        dropDownTopLevelTable.setVisible(true);
+        dropDownElementList.setVisible(true);
+        dropDownMouseMode.setVisible(true);
+        dropDownBodyType.setVisible(true);
+        dropDownWeather.setVisible(true);
+        selectedSubList = null;
+        dropDownElementList.setPosition(-200, -200);
+        dropDownMouseMode.setPosition(-200, -200);
+        dropDownBodyType.setPosition(-200, -200);
+        dropDownWeather.setPosition(-200, -200);
+    }
+
+    public boolean dismissLoadDialog() {
+        if (loadDialog == null) return false;
+        loadDialog.remove();
+        loadDialog = null;
+        return true;
+    }
+
     public void showLoadDialog() {
         if (loadDialog != null) {
             loadDialog.remove();
@@ -262,6 +282,13 @@ public class CreatorMenu {
             }
         };
         loadDialog = dialog;
+        // A modal browser owns the creator stage while it is open. Do not
+        // leave the old desktop-style menu rows peeking through behind it.
+        dropDownTopLevelTable.setVisible(false);
+        dropDownElementList.setVisible(false);
+        dropDownMouseMode.setVisible(false);
+        dropDownBodyType.setVisible(false);
+        dropDownWeather.setVisible(false);
 
         Table savesTable = new Table();
         savesTable.top().left();

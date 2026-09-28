@@ -180,6 +180,14 @@ public class MobileControls {
         stage.addActor(quickBar);
         selectMaterial(ElementType.SAND);
         layoutPicker();
+        inputManager.setMobileOverlayDismiss(this::dismissMobileOverlay);
+    }
+
+    private boolean dismissMobileOverlay() {
+        if (!materialPicker.isVisible()) return false;
+        materialPicker.setVisible(false);
+        Gdx.app.log("ElementumInput", "material-picker=back-closed");
+        return true;
     }
 
     private void buildMaterialPicker() {
