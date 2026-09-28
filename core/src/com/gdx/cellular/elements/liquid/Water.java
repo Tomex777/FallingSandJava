@@ -6,6 +6,7 @@ import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.ElementType;
 
 public class Water extends Liquid {
+    private int boilResistance = 80;
 
     public Water(int x, int y) {
         super(x, y);
@@ -21,7 +22,11 @@ public class Water extends Liquid {
 
     @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
-        dieAndReplace(matrix, ElementType.STEAM);
+        if (heat <= 0 || isDead()) return false;
+        boilResistance -= Math.max(1, heat);
+        if (boilResistance <= 0) {
+            dieAndReplace(matrix, ElementType.STEAM);
+        }
         return true;
     }
 
@@ -49,6 +54,4 @@ public class Water extends Liquid {
             return false;
         }
     }
-
-
 }

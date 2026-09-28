@@ -1,12 +1,17 @@
 package com.gdx.cellular.elements.liquid;
 
 import com.badlogic.gdx.math.Vector3;
+import com.gdx.cellular.CellularMatrix;
+import com.gdx.cellular.elements.Element;
+import com.gdx.cellular.elements.ElementType;
+import com.gdx.cellular.elements.EmptyCell;
 
 /**
- * A light, fast-spreading flammable liquid for Elementum.
+ * A light, fast-spreading fuel with a short, smoky burn.
  *
- * Movement is intentionally inherited from {@link Liquid} unchanged so Petrol
- * follows the same falling-sand movement preset as the original liquids.
+ * Petrol keeps the original Liquid movement implementation, but combustion is
+ * intentionally distinct from Oil: it ignites easily, burns faster and vents a
+ * bounded mix of flame/smoke/vapour into free space above the liquid.
  */
 public class Petrol extends Liquid {
 
@@ -19,7 +24,6 @@ public class Petrol extends Liquid {
         density = 3;
         dispersionRate = 6;
 
-        // Petrol ignites more readily and burns faster than Oil.
         flammabilityResistance = 2;
         resetFlammabilityResistance = 1;
         fireDamage = 16;
@@ -27,5 +31,40 @@ public class Petrol extends Liquid {
         temperature = 10;
         health = 650;
         explosionResistance = 0;
+    }
+
+    @Override
+    public void spawnSparkIfIgnited(CellularMatrix matrix) {
+        if (!isEffectsFrame() || !isIgnited || isDead()) return;
+
+        int x = getMatrixX();
+        int y = getMatrixY() + 1;
+        Element above = matrix.get(x, y);
+        if (!(above instanceof EmptyCell)) return;
+
+        double roll = Math.random();
+        ElementType exhaust = roll < 0.55
+                ? ElementType.SPARK
+                : roll < 0.82 ? ElementType.SMOKE : ElementType.FLAMMABLEGAS;
+        matrix.spawnElementByMatrix(x, y, exhaust);
+    }
+
+    @Override
+    public void checkIfDead(CellularMatrix matrix) {
+        if (health > 0 || isDead()) return;
+
+        if (!isIgnited) {
+            die(matrix);
+            return;
+        }
+
+        double roll = Math.random();
+        if (roll < 0.58) {
+            dieAndReplace(matrix, ElementType.SMOKE);
+        } else if (roll < 0.78) {
+            dieAndReplace(matrix, ElementType.FLAMMABLEGAS);
+        } else {
+            die(matrix);
+        }
     }
 }

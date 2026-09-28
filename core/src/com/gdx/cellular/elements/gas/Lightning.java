@@ -13,15 +13,25 @@ import com.gdx.cellular.elements.solid.immoveable.Titanium;
 /**
  * Pixel-native transient electrical energy for Elementum.
  *
- * Lightning deliberately does not use Gas.step(); it propagates through the
- * existing cellular grid as a short-lived jagged chain while leaving all
- * original material movement presets untouched.
+ * Propagation is intentionally bounded by generation and per-cell branch
+ * budgets. That keeps a strike powerful around water and conductors without
+ * allowing a busy world to turn into an exponential lightning flood.
  */
 public class Lightning extends Gas {
+    private static final int MAX_GENERATION = 20;
+    private static final int EARLY_BRANCH_GENERATIONS = 4;
+
+    private final int generation;
     private boolean discharged;
+    private int childrenSpawned;
 
     public Lightning(int x, int y) {
+        this(x, y, 0);
+    }
+
+    private Lightning(int x, int y, int generation) {
         super(x, y);
+        this.generation = generation;
         vel = new Vector3(0, -124f, 0);
         inertialResistance = 0;
         mass = 0;
@@ -31,8 +41,6 @@ public class Lightning extends Gas {
         heated = true;
         heatFactor = 30;
         explosionResistance = 0;
-        // Keep a strike visible for a few simulation beats. A 2–4 beat chain
-        // vanishes before it reads as a bolt, especially on a phone screen.
         lifeSpan = getRandomInt(7) + 8;
     }
 
@@ -45,9 +53,6 @@ public class Lightning extends Gas {
             return;
         }
 
-        // A cell transfers its charge once. Its remaining lifetime is only a
-        // visible trail; propagating on every frame multiplied the strike into
-        // a screen-filling cloud on mobile.
         if (!discharged) {
             discharged = true;
             energizeNeighbors(matrix);
@@ -69,24 +74,21 @@ public class Lightning extends Gas {
                 if (neighbor == null || neighbor instanceof EmptyCell || neighbor instanceof Lightning) continue;
 
                 if (neighbor instanceof Petrol) {
-                    neighbor.receiveHeat(matrix, 100);
+                    neighbor.receiveHeat(matrix, 120);
                     continue;
                 }
 
                 if (neighbor instanceof Water) {
-                    // Water carries the discharge. Only a small portion flashes
-                    // to steam so a strike does not erase an entire pool.
-                    if (Math.random() < 0.12f) {
+                    if (Math.random() < 0.10f) {
                         neighbor.dieAndReplace(matrix, ElementType.STEAM);
                     } else {
-                        spawnLightningIfEmpty(matrix, x - 1, y);
-                        spawnLightningIfEmpty(matrix, x + 1, y);
+                        carryFrom(matrix, x, y);
                     }
                     continue;
                 }
 
                 if (neighbor instanceof Titanium) {
-                    conductThroughTitanium(matrix, neighbor);
+                    conductFrom(matrix, neighbor);
                     continue;
                 }
 
@@ -95,19 +97,31 @@ public class Lightning extends Gas {
         }
     }
 
-    private void conductThroughTitanium(CellularMatrix matrix, Element metal) {
-        int[][] offsets = new int[][] {
-                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }
-        };
+    private void carryFrom(CellularMatrix matrix, int sourceX, int sourceY) {
+        int direction = Math.random() < 0.5f ? -1 : 1;
+        if (!spawnChildIfEmpty(matrix, sourceX + direction, sourceY)) {
+            spawnChildIfEmpty(matrix, sourceX - direction, sourceY);
+        }
+    }
 
-        for (int[] offset : offsets) {
-            int x = metal.getMatrixX() + offset[0];
-            int y = metal.getMatrixY() + offset[1];
-            spawnLightningIfEmpty(matrix, x, y);
+    private void conductFrom(CellularMatrix matrix, Element metal) {
+        int[][] offsets = new int[][] {
+                { 1, 0 }, { 0, -1 }, { -1, 0 }, { 0, 1 }
+        };
+        int start = getRandomInt(offsets.length);
+        for (int i = 0; i < offsets.length; i++) {
+            int[] offset = offsets[(start + i) % offsets.length];
+            if (spawnChildIfEmpty(matrix,
+                    metal.getMatrixX() + offset[0],
+                    metal.getMatrixY() + offset[1])) {
+                return;
+            }
         }
     }
 
     private void propagate(CellularMatrix matrix) {
+        if (generation >= MAX_GENERATION || childBudgetExhausted()) return;
+
         int direction = Math.random() < 0.5f ? -1 : 1;
         int nextX = getMatrixX();
 
@@ -122,23 +136,36 @@ public class Lightning extends Gas {
         Element target = matrix.get(nextX, nextY);
 
         if (target instanceof EmptyCell) {
-            matrix.spawnElementByMatrix(nextX, nextY, ElementType.LIGHTNING);
+            spawnChildIfEmpty(matrix, nextX, nextY);
 
-            // Rare one-cell fork keeps the bolt organic while remaining in the
-            // original pixel aesthetic.
-            if (Math.random() < 0.12f) {
-                spawnLightningIfEmpty(matrix, nextX + (Math.random() < 0.5f ? -1 : 1), nextY);
+            if (generation < EARLY_BRANCH_GENERATIONS && Math.random() < 0.10f) {
+                spawnChildIfEmpty(matrix,
+                        nextX + (Math.random() < 0.5f ? -1 : 1),
+                        nextY);
             }
         } else if (target != null && !(target instanceof Lightning)) {
             target.receiveHeat(matrix, heatFactor);
         }
     }
 
-    private void spawnLightningIfEmpty(CellularMatrix matrix, int x, int y) {
-        if (!matrix.isWithinBounds(x, y)) return;
-        if (matrix.get(x, y) instanceof EmptyCell) {
-            matrix.spawnElementByMatrix(x, y, ElementType.LIGHTNING);
+    private boolean spawnChildIfEmpty(CellularMatrix matrix, int x, int y) {
+        if (generation >= MAX_GENERATION || childBudgetExhausted() || !matrix.isWithinBounds(x, y)) {
+            return false;
         }
+        if (!(matrix.get(x, y) instanceof EmptyCell)) {
+            return false;
+        }
+
+        Lightning child = new Lightning(x, y, generation + 1);
+        matrix.setElementAtIndex(x, y, child);
+        matrix.reportToChunkActive(child);
+        childrenSpawned++;
+        return true;
+    }
+
+    private boolean childBudgetExhausted() {
+        int limit = generation < EARLY_BRANCH_GENERATIONS ? 2 : 1;
+        return childrenSpawned >= limit;
     }
 
     @Override
@@ -155,8 +182,7 @@ public class Lightning extends Gas {
 
     @Override
     public void modifyColor() {
-        // Lightning keeps its registered pixel colour rather than using the
-        // engine's fire palette.
+        // Lightning keeps its registered pixel colour.
     }
 
     @Override

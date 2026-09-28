@@ -45,6 +45,7 @@ public class ColorConstants {
 
     // Immovable Solids
     private static final Color STONE = new Color(150/255f, 150/255f, 150/255f, 1);
+    private static final Color ICE = new Color(176/255f, 224/255f, 246/255f, 0.92f);
 
     private static final Color BRICK_1 = new Color(188/255f, 3/255f, 0/255f, 1);
     private static final Color BRICK_2 = new Color(188/255f, 3/255f, 0/255f, 1);
@@ -140,6 +141,7 @@ public class ColorConstants {
         elementColorMap.get(ElementType.SNOW).add(SNOW);
 
         elementColorMap.get(ElementType.STONE).add(STONE);
+        elementColorMap.get(ElementType.ICE).add(ICE);
 
         elementColorMap.get(ElementType.BRICK).add(BRICK_1);
         elementColorMap.get(ElementType.BRICK).add(BRICK_2);

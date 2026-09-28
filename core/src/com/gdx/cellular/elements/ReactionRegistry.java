@@ -22,16 +22,67 @@ public final class ReactionRegistry {
     private static final Map<ReactionKey, Reaction> REACTIONS = new HashMap<>();
 
     static {
-        // Lava can ignite Petrol without replacing the existing liquid movement
-        // or collision rules.
         registerSymmetric(ElementType.PETROL, ElementType.LAVA, (first, second, matrix) -> {
-            Element petrol = first.elementType == ElementType.PETROL ? first : second;
-            petrol.receiveHeat(matrix, 100);
+            Element petrol = ofType(first, second, ElementType.PETROL);
+            petrol.receiveHeat(matrix, 120);
             return false;
+        });
+
+        // A spark should be a reliable ignition source for Petrol rather than
+        // depending on one small random heat roll.
+        registerSymmetric(ElementType.PETROL, ElementType.SPARK, (first, second, matrix) -> {
+            Element petrol = ofType(first, second, ElementType.PETROL);
+            petrol.receiveHeat(matrix, 120);
+            return false;
+        });
+
+        // Water touching Lava flashes locally to steam while cooling the lava.
+        // Reaction-frame gating prevents an entire pool from transforming in a
+        // single render frame.
+        registerSymmetric(ElementType.WATER, ElementType.LAVA, (first, second, matrix) -> {
+            if (!first.isReactionFrame()) return false;
+            Element water = ofType(first, second, ElementType.WATER);
+            Element lava = ofType(first, second, ElementType.LAVA);
+            water.receiveHeat(matrix, 120);
+            lava.receiveCooling(matrix, 2);
+            return true;
+        });
+
+        // Ice slowly advances into adjacent water, creating a genuine freezing
+        // loop without an unbounded flood-fill.
+        registerSymmetric(ElementType.ICE, ElementType.WATER, (first, second, matrix) -> {
+            if (!first.isReactionFrame() || Math.random() >= 0.08) return false;
+            Element water = ofType(first, second, ElementType.WATER);
+            water.dieAndReplace(matrix, ElementType.ICE);
+            return true;
+        });
+
+        // Snow can seed ice at a much slower rate than a solid ice boundary.
+        registerSymmetric(ElementType.SNOW, ElementType.WATER, (first, second, matrix) -> {
+            if (!first.isReactionFrame() || Math.random() >= 0.025) return false;
+            Element water = ofType(first, second, ElementType.WATER);
+            water.dieAndReplace(matrix, ElementType.ICE);
+            return true;
+        });
+
+        // Lava melts Ice immediately at the contact cell, while the phase
+        // change removes some heat from the lava instead of erasing either
+        // material wholesale.
+        registerSymmetric(ElementType.ICE, ElementType.LAVA, (first, second, matrix) -> {
+            if (!first.isReactionFrame()) return false;
+            Element ice = ofType(first, second, ElementType.ICE);
+            Element lava = ofType(first, second, ElementType.LAVA);
+            ice.receiveHeat(matrix, 120);
+            lava.receiveCooling(matrix, 3);
+            return true;
         });
     }
 
     private ReactionRegistry() {
+    }
+
+    private static Element ofType(Element first, Element second, ElementType type) {
+        return first.elementType == type ? first : second;
     }
 
     public static void register(ElementType first, ElementType second, Reaction reaction) {

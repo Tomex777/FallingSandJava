@@ -18,6 +18,7 @@ public enum ElementType {
     EMPTYCELL(EmptyCell.class, ClassType.EMPTYCELL, (x, y) -> EmptyCell.getInstance()),
     GROUND(Ground.class, ClassType.IMMOVABLESOLID, Ground::new),
     STONE(Stone.class, ClassType.IMMOVABLESOLID, Stone::new),
+    ICE(Ice.class, ClassType.IMMOVABLESOLID, Ice::new),
     BRICK(Brick.class, ClassType.IMMOVABLESOLID, Brick::new),
     SAND(Sand.class, ClassType.MOVABLESOLID, Sand::new),
     SNOW(Snow.class, ClassType.MOVABLESOLID, Snow::new),
