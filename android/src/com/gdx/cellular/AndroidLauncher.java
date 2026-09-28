@@ -45,6 +45,7 @@ public class AndroidLauncher extends AndroidApplication {
 		Gdx.app.postRunnable(() -> {
 			boolean handled = automaton.handleAndroidBack();
 			if (!handled) {
+				Gdx.app.log("ElementumLifecycle", "back-finish");
 				runOnUiThread(this::finish);
 			}
 		});
