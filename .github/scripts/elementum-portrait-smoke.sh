@@ -256,16 +256,29 @@ adb shell input swipe 160 300 205 330 450
 sleep 1
 capture erase-stroke
 
-# Cooling is a dedicated touch tool immediately left of Erase. Paint fresh
-# water, cool the same area, then return to Sand/Spawn through a material tap.
+# Prove the thermal phase change while paused so the water cannot flow away
+# between drawing and cooling. Thermal tools are on the second top-right row.
 tap 90 715
-adb shell input swipe 125 360 205 360 400
+tap 240 765
+adb shell input swipe 125 410 205 410 400
 sleep 1
 capture cooling-water-before
-tap 200 29
-adb shell input swipe 125 360 205 360 400
-sleep 2
+tap 318 74
+adb shell input swipe 125 410 205 410 400
+sleep 1
 capture cooling-water-after
+tap 240 765
+
+# Heat is paired with Cool. Ignite a Petrol strip, then a material shortcut
+# must restore SPAWN before the session continues.
+tap 145 715
+adb shell input swipe 115 445 220 445 450
+sleep 1
+capture heat-petrol-before
+tap 255 74
+adb shell input swipe 115 445 220 445 450
+sleep 2
+capture heat-petrol-after
 tap 40 715
 
 # Let fire/electricity/gas/steam activity settle for a sustained interval.
@@ -282,5 +295,7 @@ grep -q 'ElementumInput.*material=WATER' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=PETROL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=LIGHTNING' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material=EMPTYCELL' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*mode=HEAT' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=COOL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=SPAWN' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"

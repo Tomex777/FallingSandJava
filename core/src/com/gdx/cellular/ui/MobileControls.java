@@ -46,6 +46,7 @@ public class MobileControls {
     private TextButton pauseButton;
     private TextButton brushTypeButton;
     private TextButton allMaterialsButton;
+    private TextButton heatButton;
     private TextButton coolButton;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
@@ -82,12 +83,21 @@ public class MobileControls {
             }
         });
 
+        heatButton = createButton("Heat");
+        heatButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.setMouseMode(MouseMode.HEAT);
+                syncToolHighlights();
+            }
+        });
+
         coolButton = createButton("Cool");
         coolButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 inputManager.setMouseMode(MouseMode.COOL);
-                coolButton.setColor(Color.CYAN);
+                syncToolHighlights();
             }
         });
 
@@ -106,10 +116,13 @@ public class MobileControls {
         // Keep empty table space transparent to two-finger world navigation.
         toolsBar.setTouchable(Touchable.childrenOnly);
         toolsBar.pad(8f);
-        toolsBar.add(coolButton).width(50f).height(42f).padRight(3f);
+        // Preserve the proven top row hit targets from #92.
         toolsBar.add(eraseButton).width(54f).height(42f).padRight(3f);
-        // Keep Tools last so its existing top-right hit target remains stable.
         toolsBar.add(toolsButton).width(68f).height(42f);
+        toolsBar.row();
+        // Thermal tools sit underneath instead of expanding left over status.
+        toolsBar.add(heatButton).width(54f).height(42f).padTop(3f).padRight(3f);
+        toolsBar.add(coolButton).width(68f).height(42f).padTop(3f);
         stage.addActor(toolsBar);
 
         addQuickMaterial("Sand", ElementType.SAND, 56f);
@@ -237,7 +250,7 @@ public class MobileControls {
     private void selectMaterial(ElementType type) {
         inputManager.setMouseMode(MouseMode.SPAWN);
         inputManager.setCurrentlySelectedElement(type);
-        if (coolButton != null) coolButton.setColor(Color.WHITE);
+        syncToolHighlights();
         Gdx.app.log("ElementumInput", "material=" + type.name());
 
         for (TextButton button : quickButtons.values()) {
@@ -297,6 +310,15 @@ public class MobileControls {
         }
     }
 
+    private void syncToolHighlights() {
+        if (heatButton != null) {
+            heatButton.setColor(inputManager.getMouseMode() == MouseMode.HEAT ? Color.CYAN : Color.WHITE);
+        }
+        if (coolButton != null) {
+            coolButton.setColor(inputManager.getMouseMode() == MouseMode.COOL ? Color.CYAN : Color.WHITE);
+        }
+    }
+
     private void layoutPicker() {
         float width = stage.getViewport().getWorldWidth();
         float height = stage.getViewport().getWorldHeight();
@@ -312,6 +334,7 @@ public class MobileControls {
             resize(width, height);
         }
         toolsBar.setVisible(!inputManager.drawMenu && !materialPicker.isVisible());
+        syncToolHighlights();
         stage.act();
         stage.draw();
     }

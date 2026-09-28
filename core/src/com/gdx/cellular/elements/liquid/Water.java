@@ -1,5 +1,6 @@
 package com.gdx.cellular.elements.liquid;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector3;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.Element;
@@ -36,6 +37,7 @@ public class Water extends Liquid {
         if (cooling <= 0 || isDead()) return false;
         freezeResistance -= Math.max(1, cooling);
         if (freezeResistance <= 0) {
+            Gdx.app.log("ElementumReaction", "water-to-ice");
             dieAndReplace(matrix, ElementType.ICE);
         }
         return true;
