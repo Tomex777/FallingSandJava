@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -66,6 +67,9 @@ public class MobileControls {
         quickBar = new Table();
         quickBar.bottom().left();
         quickBar.setFillParent(true);
+        // The layout table spans the whole screen, but only its buttons should
+        // block world navigation gestures.
+        quickBar.setTouchable(Touchable.childrenOnly);
         quickBar.pad(8f);
 
         TextButton toolsButton = createButton("Tools");
@@ -78,6 +82,8 @@ public class MobileControls {
         toolsBar = new Table();
         toolsBar.top().right();
         toolsBar.setFillParent(true);
+        // Keep empty table space transparent to two-finger world navigation.
+        toolsBar.setTouchable(Touchable.childrenOnly);
         toolsBar.pad(8f);
         toolsBar.add(toolsButton).width(68f).height(42f);
         stage.addActor(toolsBar);

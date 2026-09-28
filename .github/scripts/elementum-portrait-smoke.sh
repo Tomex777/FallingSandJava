@@ -167,6 +167,10 @@ capture navigation-before
 multitouch_pan
 sleep 1
 capture navigation-after
+if cmp -s "$evidence/elementum-navigation-before.png" "$evidence/elementum-navigation-after.png"; then
+  echo "Two-pointer navigation produced no visible camera change" >&2
+  exit 1
+fi
 printf '%s\n' "device=$device rangeX=$x_min..$x_max rangeY=$y_min..$y_max injected=two-pointer-pan-pinch" > "$evidence/navigation-input.txt"
 tap 240 765
 
