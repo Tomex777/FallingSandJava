@@ -540,3 +540,36 @@ grep -q 'ElementumReaction.*lightning-conducted-copper' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-conducted-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-ignited-petrol' "$evidence/logcat.txt"
 grep -q 'ElementumPerf.*avgFrameUs=' "$evidence/logcat.txt"
+
+# With no overlay active, Android Back should finish the activity rather than
+# being swallowed by libGDX. Then prove a true process restart can still reopen
+# and load the durable V3 scene from app storage.
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+adb shell dumpsys activity activities > "$evidence/root-back-activity.txt"
+if grep -q 'mResumedActivity.*com\.tomex\.elementum' "$evidence/root-back-activity.txt"; then
+  echo "Root Back left Elementum resumed" >&2
+  exit 1
+fi
+adb logcat -d > "$evidence/logcat-after-root-back.txt"
+grep -q 'ElementumLifecycle.*back-finish' "$evidence/logcat-after-root-back.txt"
+
+adb shell am force-stop com.tomex.elementum
+sleep 1
+adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
+sleep 4
+capture process-restart
+test -n "$(adb shell pidof com.tomex.elementum)"
+adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
+
+tap 326 29
+tap 220 250
+capture process-restart-load-browser
+sleep 1
+tap 120 255
+sleep 2
+capture process-restart-loaded
+adb logcat -d > "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V3' "$evidence/logcat-after-process-restart.txt"
+test -n "$(adb shell pidof com.tomex.elementum)"
