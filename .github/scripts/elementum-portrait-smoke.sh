@@ -86,7 +86,14 @@ for attempt in {1..10}; do
   sleep 3
   capture startup
 done
-test "$(stat -c%s "$evidence/elementum-startup.png")" -gt 5000
+if [ "$(stat -c%s "$evidence/elementum-startup.png")" -le 5000 ]; then
+  app_pid=$(adb shell pidof com.tomex.elementum || true)
+  if [ -n "$app_pid" ]; then adb shell kill -3 "$app_pid" || true; fi
+  adb shell dumpsys gfxinfo com.tomex.elementum > "$evidence/startup-gfxinfo.txt" || true
+  adb shell dumpsys activity top > "$evidence/startup-activity.txt" || true
+  sleep 2
+  exit 1
+fi
 python3 - "$evidence/elementum-startup.png" <<'PY'
 import struct,sys
 with open(sys.argv[1],'rb') as f: header=f.read(24)
