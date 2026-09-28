@@ -115,6 +115,18 @@ adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture tools-back-dismissed
 test -n "$(adb shell pidof com.tomex.elementum)"
+
+# The former empty controls placeholder is now a real Help modal. It should
+# remain touch-friendly and dismiss through the same Android Back contract.
+tap 326 29
+tap 220 270
+sleep 1
+capture help-dialog
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+capture help-back-dismissed
+test -n "$(adb shell pidof com.tomex.elementum)"
+
 tap 326 29
 tap 100 250
 capture tools-dismissed
@@ -514,6 +526,7 @@ grep -q 'ElementumInput.*mode=COOL' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*mode=SPAWN' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
