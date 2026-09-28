@@ -29,13 +29,6 @@ public class CreatorInputProcessor implements InputProcessor {
 
     @Override
     public boolean keyDown(int keycode) {
-        if (keycode == Input.Keys.BACK && Gdx.app.getType() == Application.ApplicationType.Android) {
-            if (inputManager.dismissActiveOverlay()) {
-                return true;
-            }
-            Gdx.app.exit();
-            return true;
-        }
         if (keycode == Input.Keys.ENTER) {
             this.parent.setPlayerProcessor();
         }

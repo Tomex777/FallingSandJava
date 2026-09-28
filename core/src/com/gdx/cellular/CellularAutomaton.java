@@ -277,6 +277,10 @@ public class CellularAutomaton extends ApplicationAdapter {
 		}
 	}
 
+	public boolean handleAndroidBack() {
+		return inputManager != null && inputManager.dismissActiveOverlay();
+	}
+
 	private void incrementFrameCount() {
 		frameCount = frameCount == 3 ? 0 : frameCount + 1;
 	}

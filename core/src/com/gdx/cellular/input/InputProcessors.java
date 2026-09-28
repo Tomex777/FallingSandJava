@@ -2,7 +2,6 @@ package com.gdx.cellular.input;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Application;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -34,9 +33,6 @@ public class InputProcessors {
 
         this.inputManager.setCreatorInputProcessor(creatorCompositeProcessor);
         Gdx.input.setInputProcessor(creatorCompositeProcessor);
-        if (Gdx.app.getType() == Application.ApplicationType.Android) {
-            Gdx.input.setCatchKey(Input.Keys.BACK, true);
-        }
     }
 
     public InputProcessors(InputManager inputManager,
