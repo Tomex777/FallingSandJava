@@ -773,6 +773,10 @@ public class InputManager {
                     if (!parseIntegerState(state, 1)) return false;
                     int fuse = Integer.parseInt(state);
                     return fuse >= 0 && fuse <= 7;
+                case SNOW:
+                    if (!parseIntegerState(state, 1)) return false;
+                    int snowMelt = Integer.parseInt(state);
+                    return snowMelt >= 0 && snowMelt <= 60;
                 case ACID:
                     if (!parseIntegerState(state, 1)) return false;
                     int corrosion = Integer.parseInt(state);
