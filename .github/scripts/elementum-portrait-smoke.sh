@@ -306,15 +306,33 @@ done
 capture long-session-settled
 test -n "$(adb shell pidof com.tomex.elementum)"
 
-sim_threads=$(grep -c 'ElementumSim' "$evidence/threads-4.txt" || true)
-if [ "$sim_threads" -lt 1 ] || [ "$sim_threads" -gt 6 ]; then
-  echo "Expected a bounded persistent simulation pool (1..6 workers), got $sim_threads" >&2
-  cat "$evidence/threads-4.txt" >&2
+# Android's toybox ps NAME column reports the process name for every thread on
+# API 36, so it cannot prove executor thread names. Use the app's one-shot
+# ThreadFactory creation logs instead: a fixed pool must create at least one
+# worker and must never exceed the hard six-worker cap during this soak.
+adb logcat -d > "$evidence/logcat.txt"
+sim_threads=$(grep -c 'ElementumWorker: created=ElementumSim-' "$evidence/logcat.txt" || true)
+pool_configs=$(grep -c 'ElementumWorker: pool-size=' "$evidence/logcat.txt" || true)
+if [ "$pool_configs" -lt 1 ] || [ "$sim_threads" -lt 1 ] || [ "$sim_threads" -gt 6 ]; then
+  echo "Expected one bounded persistent simulation pool (1..6 workers), got configs=$pool_configs workers=$sim_threads" >&2
+  grep 'ElementumWorker' "$evidence/logcat.txt" >&2 || true
   exit 1
 fi
-printf '%s\n' "persistent_sim_workers=$sim_threads" > "$evidence/performance-summary.txt"
 
-adb logcat -d > "$evidence/logcat.txt"
+pss_first=$(awk '/TOTAL PSS:/ {print $3; exit}' "$evidence/meminfo-1.txt")
+pss_last=$(awk '/TOTAL PSS:/ {print $3; exit}' "$evidence/meminfo-4.txt")
+pss_growth=$((pss_last - pss_first))
+if [ "$pss_growth" -gt 32768 ]; then
+  echo "Elementum PSS grew by more than 32 MiB during the 20-second busy-world soak: ${pss_growth} KiB" >&2
+  exit 1
+fi
+printf '%s\n' \
+  "persistent_sim_workers=$sim_threads" \
+  "pool_configurations=$pool_configs" \
+  "pss_first_kib=$pss_first" \
+  "pss_last_kib=$pss_last" \
+  "pss_growth_kib=$pss_growth" > "$evidence/performance-summary.txt"
+
 test -n "$(adb shell pidof com.tomex.elementum)"
 ! grep -E 'FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died|OutOfMemoryError|Fatal signal' "$evidence/logcat.txt"
 ! grep -E 'ANR in com\.tomex\.elementum|Input dispatching timed out.*com\.tomex\.elementum' "$evidence/logcat.txt"
