@@ -376,6 +376,10 @@ tap 40 715
 adb shell input swipe 90 300 160 340 400
 sleep 1
 capture after-clear-redraw
+if cmp -s "$evidence/elementum-cleared.png" "$evidence/elementum-after-clear-redraw.png"; then
+  echo "Drawing immediately after Clear produced no visible world edit" >&2
+  exit 1
+fi
 tap 326 29
 tap 220 240
 capture load-browser
@@ -549,8 +553,31 @@ grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
-grep -q 'ElementumInput: clear-cancelled' "$evidence/logcat.txt"
-grep -q 'ElementumInput.*clear-confirmed' "$evidence/logcat.txt"
+clear_cancel_line=$(grep 'ElementumInput: clear-cancelled before=' "$evidence/logcat.txt" | tail -1)
+python3 - "$clear_cancel_line" <<'PY'
+import re,sys
+line=sys.argv[1]
+m=re.search(r'before=(\d+) after=(\d+).*dimensionsPreserved=(true|false).*pausedBefore=(true|false) pausedAfter=(true|false)', line)
+assert m, f'Could not parse clear-cancel evidence: {line}'
+before,after=map(int,m.group(1,2))
+assert before > 0, f'Clear cancel fixture had no live cells: {line}'
+assert before == after, f'Clear cancel changed live-cell count: {line}'
+assert m.group(3) == 'true', f'Clear cancel changed world dimensions: {line}'
+assert m.group(4) == 'true' and m.group(5) == 'true', f'Clear cancel changed paused state: {line}'
+PY
+clear_confirm_line=$(grep 'ElementumInput: clear-confirmed before=' "$evidence/logcat.txt" | tail -1)
+python3 - "$clear_confirm_line" <<'PY'
+import re,sys
+line=sys.argv[1]
+m=re.search(r'before=(\d+) remaining=(\d+) removed=(-?\d+).*dimensionsPreserved=(true|false).*pausedBefore=(true|false) pausedAfter=(true|false)', line)
+assert m, f'Could not parse clear-confirm evidence: {line}'
+before,remaining,removed=map(int,m.group(1,2,3))
+assert before > 0, f'Clear confirm fixture had no live cells: {line}'
+assert remaining == 0, f'Clear confirm left live cells behind: {line}'
+assert removed == before, f'Clear confirm removed-count mismatch: {line}'
+assert m.group(4) == 'true', f'Clear confirm changed world dimensions: {line}'
+assert m.group(5) == 'false' and m.group(6) == 'false', f'Clear confirm changed running state: {line}'
+PY
 grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
 save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
 if [ "$save_count" -lt 2 ]; then

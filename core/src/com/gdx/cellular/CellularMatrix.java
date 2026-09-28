@@ -334,6 +334,24 @@ public class CellularMatrix {
         return true;
     }
 
+    /**
+     * Returns the number of live, non-empty matrix cells without mutating the
+     * simulation. This lets destructive-action acceptance checks verify world
+     * state directly instead of inferring success from a dismissed dialog.
+     */
+    public int countNonEmptyCells() {
+        int count = 0;
+        for (int y = 0; y < outerArraySize; y++) {
+            Array<Element> row = matrix.get(y);
+            for (int x = 0; x < innerArraySize; x++) {
+                if (!(row.get(x) instanceof EmptyCell)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     public Element get(Vector3 location) {
         return get((int) location.x, (int) location.y);
     }

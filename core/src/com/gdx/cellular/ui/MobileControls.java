@@ -210,6 +210,11 @@ public class MobileControls {
         if (clearDialog != null) return;
 
         materialPicker.setVisible(false);
+        final int clearNonEmptyBefore = matrix.countNonEmptyCells();
+        final int clearWidthBefore = matrix.innerArraySize;
+        final int clearHeightBefore = matrix.outerArraySize;
+        final boolean clearPausedBefore = inputManager.getIsPaused();
+
         final Dialog dialog = new Dialog("Clear sandbox?", skin, "dialog") {
             @Override
             protected void result(Object object) {
@@ -217,9 +222,31 @@ public class MobileControls {
                 if (Boolean.TRUE.equals(object)) {
                     inputManager.clearMatrix(matrix);
                     inputManager.clearBox2dActors();
-                    Gdx.app.log("ElementumInput", "clear-confirmed");
+
+                    int remaining = matrix.countNonEmptyCells();
+                    boolean dimensionsPreserved = clearWidthBefore == matrix.innerArraySize
+                            && clearHeightBefore == matrix.outerArraySize;
+                    boolean clearPausedAfter = inputManager.getIsPaused();
+                    Gdx.app.log("ElementumInput", "clear-confirmed"
+                            + " before=" + clearNonEmptyBefore
+                            + " remaining=" + remaining
+                            + " removed=" + (clearNonEmptyBefore - remaining)
+                            + " dimensions=" + matrix.innerArraySize + "x" + matrix.outerArraySize
+                            + " dimensionsPreserved=" + dimensionsPreserved
+                            + " pausedBefore=" + clearPausedBefore
+                            + " pausedAfter=" + clearPausedAfter);
                 } else {
-                    Gdx.app.log("ElementumInput", "clear-cancelled");
+                    int clearNonEmptyAfter = matrix.countNonEmptyCells();
+                    boolean dimensionsPreserved = clearWidthBefore == matrix.innerArraySize
+                            && clearHeightBefore == matrix.outerArraySize;
+                    boolean clearPausedAfter = inputManager.getIsPaused();
+                    Gdx.app.log("ElementumInput", "clear-cancelled"
+                            + " before=" + clearNonEmptyBefore
+                            + " after=" + clearNonEmptyAfter
+                            + " dimensions=" + matrix.innerArraySize + "x" + matrix.outerArraySize
+                            + " dimensionsPreserved=" + dimensionsPreserved
+                            + " pausedBefore=" + clearPausedBefore
+                            + " pausedAfter=" + clearPausedAfter);
                 }
             }
         };
