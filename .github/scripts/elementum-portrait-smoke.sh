@@ -319,6 +319,22 @@ if ! cmp -s "$evidence/elementum-invalid-load-before.png" "$evidence/elementum-i
 fi
 adb shell run-as com.tomex.elementum rm files/save/elementum_corrupt.ser
 
+# Saving the same name again must use the safe overwrite path rather than
+# deleting the existing valid scene before the replacement is ready.
+tap 326 29
+tap 220 230
+capture overwrite-save-dialog
+dialog Save
+adb shell input text elementum_qa
+dialog Save
+tap_ok Save
+sleep 1
+adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
+if adb shell run-as com.tomex.elementum test -e files/save/elementum_qa.ser.tmp; then
+  echo "Atomic save overwrite left a temporary file behind" >&2
+  exit 1
+fi
+
 capture paused
 tap 240 765
 tap 315 765
@@ -484,6 +500,11 @@ grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
+save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
+if [ "$save_count" -lt 2 ]; then
+  echo "Expected initial save plus atomic overwrite, got atomic save count=$save_count" >&2
+  exit 1
+fi
 grep -q 'ElementumSaveLoad.*browser-scenes=1' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V2' "$evidence/logcat.txt"

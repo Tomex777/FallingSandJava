@@ -34,6 +34,10 @@ import com.gdx.cellular.util.TextInputHandler;
 import com.gdx.cellular.util.WeatherSystem;
 import com.gdx.cellular.particles.Particle;
 
+import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.function.BooleanSupplier;
 
@@ -572,14 +576,41 @@ public class InputManager {
             tempFile = Gdx.files.local("save/" + fileNameForLevel + ".ser.tmp");
             saveFile.parent().mkdirs();
             tempFile.writeString(builder.toString(), false, "UTF-8");
-            if (saveFile.exists()) saveFile.delete();
-            tempFile.moveTo(saveFile);
-            Gdx.app.log("ElementumSaveLoad", "saved=" + fileNameForLevel + " bytes=" + saveFile.length());
+            boolean atomicReplace = commitSaveFile(tempFile, saveFile);
+            Gdx.app.log("ElementumSaveLoad", "saved=" + fileNameForLevel
+                    + " bytes=" + saveFile.length() + " atomic=" + atomicReplace);
         } catch (RuntimeException error) {
             if (tempFile != null && tempFile.exists()) tempFile.delete();
             Gdx.app.error("ElementumSaveLoad", "save-failed=" + fileNameForLevel, error);
         } finally {
             finishFileAction();
+        }
+    }
+
+    private boolean commitSaveFile(FileHandle tempFile, FileHandle saveFile) {
+        try {
+            // Local Android saves live on one app-private filesystem. Promote a
+            // fully written temp file with an atomic rename so an existing valid
+            // sandbox is never deleted before its replacement is guaranteed.
+            Files.move(tempFile.file().toPath(), saveFile.file().toPath(),
+                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (AtomicMoveNotSupportedException unsupported) {
+            // A brand-new save has no previous user data to protect, so a normal
+            // move is acceptable. For overwrite, fail closed and keep the old
+            // .ser untouched rather than falling back to delete-then-move.
+            if (saveFile.exists()) {
+                throw new RuntimeException("Atomic overwrite is not supported for " + saveFile.path(), unsupported);
+            }
+            try {
+                Files.move(tempFile.file().toPath(), saveFile.file().toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+                return false;
+            } catch (IOException moveFailure) {
+                throw new RuntimeException("Could not promote save temp file " + tempFile.path(), moveFailure);
+            }
+        } catch (IOException moveFailure) {
+            throw new RuntimeException("Could not atomically replace save " + saveFile.path(), moveFailure);
         }
     }
 
