@@ -54,9 +54,35 @@ PY
   adb shell "$events"
 }
 dialog() {
-  adb shell uiautomator dump /sdcard/elementum-window.xml >/dev/null
-  adb shell cat /sdcard/elementum-window.xml > "$evidence/$1-window.xml"
-  grep -q "text=\"$1 Level\"" "$evidence/$1-window.xml"
+  local window="$evidence/$1-window.xml"
+
+  # API 36 can show SystemUI's one-time immersive-mode teaching overlay after
+  # adbd is restarted for raw multi-touch injection. Detect that real overlay
+  # from the accessibility tree and dismiss its "Got it" button before asserting
+  # the app dialog; do not paper over it with a longer fixed delay.
+  for attempt in {1..4}; do
+    adb shell uiautomator dump /sdcard/elementum-window.xml >/dev/null
+    adb shell cat /sdcard/elementum-window.xml > "$window"
+
+    if ! grep -q 'text="Viewing full screen"' "$window"; then
+      grep -q "text=\"$1 Level\"" "$window"
+      return
+    fi
+
+    bounds=$(python3 - "$window" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+node=next(n for n in root.iter('node') if n.get('text')=='Got it')
+x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
+print((x1+x2)//2,(y1+y2)//2)
+PY
+)
+    adb shell input tap $bounds
+    sleep 0.25
+  done
+
+  echo "Immersive-mode teaching overlay did not dismiss before $1 dialog" >&2
+  return 1
 }
 tap_ok() {
   local bounds
