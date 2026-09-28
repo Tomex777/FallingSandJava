@@ -1,5 +1,6 @@
 package com.gdx.cellular.box2d;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.*;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.Array;
@@ -110,9 +111,53 @@ public class ShapeFactory {
     }
 
     public static Body createPolygonFromElementArrayDeleteOldBody(int x, int y, Array<Array<Element>> elements, Body body) {
+        if (body == null || shapeFactory == null || shapeFactory.world == null || shapeFactory.world.isLocked()) {
+            logBoundaryRejected("replacement-world-unavailable", null);
+            return null;
+        }
+
+        Vector2 oldPosition = body.getPosition().cpy();
+        Vector2 oldLinearVelocity = body.getLinearVelocity().cpy();
+        float oldAngle = body.getAngle();
+        float oldAngularVelocity = body.getAngularVelocity();
+        boolean oldSleepingAllowed = body.isSleepingAllowed();
+        boolean oldAwake = body.isAwake();
+
+        if (!isFinite(oldPosition) || !isFinite(oldLinearVelocity)
+                || !isFinite(oldAngle) || !isFinite(oldAngularVelocity)) {
+            logBoundaryRejected("replacement-non-finite-motion", null);
+            return null;
+        }
+
         Body newBody = createPolygonFromElementArray(x, y, elements, body.getType());
         if (newBody == null) return null;
+
+        try {
+            // Stage all replacement state while the known-good body still exists.
+            // Only destroy the old body after the replacement accepts its transform
+            // and motion, so a Java-side rebuild failure leaves the live actor intact.
+            newBody.setTransform(oldPosition, oldAngle);
+            newBody.setLinearVelocity(oldLinearVelocity);
+            newBody.setAngularVelocity(oldAngularVelocity);
+            newBody.setSleepingAllowed(oldSleepingAllowed);
+            newBody.setAwake(oldAwake);
+        } catch (RuntimeException invalidReplacement) {
+            destroyStagedBody(newBody);
+            logBoundaryRejected("replacement-state-rejected", invalidReplacement);
+            return null;
+        }
+
+        if (shapeFactory.world.isLocked()) {
+            destroyStagedBody(newBody);
+            logBoundaryRejected("replacement-world-locked", null);
+            return null;
+        }
+
         shapeFactory.world.destroyBody(body);
+        if (Gdx.app != null) {
+            Gdx.app.log("ElementumPhysics", "boundary-rebuild=committed fixtures="
+                    + newBody.getFixtureList().size);
+        }
         return newBody;
     }
 
@@ -157,10 +202,14 @@ public class ShapeFactory {
 
 // LOCATIONTECH POLYGON GENERATION
         List<Float> earVertsList = new ArrayList<>();
-        allVertsTransformed.forEach(vector2 -> {
+        for (Vector2 vector2 : allVertsTransformed) {
+            if (!isFinite(vector2)) {
+                logBoundaryRejected("outline-non-finite", null);
+                return null;
+            }
             earVertsList.add(vector2.x);
             earVertsList.add(vector2.y);
-        });
+        }
         earVertsList.add(allVertsTransformed.get(0).x);
         earVertsList.add(allVertsTransformed.get(0).y);
         float[] earVerts = new float[earVertsList.size()];
@@ -169,95 +218,167 @@ public class ShapeFactory {
         }
 
         GeometryFactory geometryFactory = new GeometryFactory();
-        CoordinateSequence coordinateSequence = new PackedCoordinateSequence.Float(earVerts, 2, 0);
-        if (coordinateSequence.size() != 0 && coordinateSequence.size() < 4) {
-            return null;
-        }
-        LinearRing linearRing = new LinearRing(coordinateSequence, geometryFactory);
-        Polygon polygon = geometryFactory.createPolygon(linearRing);
-
-        final Geometry simplifiedPolygon = DouglasPeuckerSimplifier.simplify(polygon, .3);
-
-        List<org.dyn4j.geometry.Vector2> dyn4jVerts = Arrays.stream(simplifiedPolygon.getCoordinates()).map(vec -> new org.dyn4j.geometry.Vector2(vec.x, vec.y)).collect(Collectors.toList());
-        if (dyn4jVerts.size() <= 2) {
-            return null;
-        }
-        dyn4jVerts.remove(dyn4jVerts.size() - 1);
         List<Convex> convexes;
-        if (dyn4jVerts.size() == 3) {
-            org.dyn4j.geometry.Vector2[] triangle =
-                    dyn4jVerts.toArray(new org.dyn4j.geometry.Vector2[0]);
-            double signedCross = (triangle[1].x - triangle[0].x) * (triangle[2].y - triangle[0].y)
-                    - (triangle[1].y - triangle[0].y) * (triangle[2].x - triangle[0].x);
-            if (Math.abs(signedCross) < 0.000001d) {
+        try {
+            CoordinateSequence coordinateSequence = new PackedCoordinateSequence.Float(earVerts, 2, 0);
+            if (coordinateSequence.size() < 4) {
+                logBoundaryRejected("outline-too-small", null);
                 return null;
             }
-            if (signedCross < 0d) {
-                org.dyn4j.geometry.Vector2 swap = triangle[1];
-                triangle[1] = triangle[2];
-                triangle[2] = swap;
-            }
-            Convex convex = new org.dyn4j.geometry.Polygon(triangle);
-            convexes = new ArrayList<>();
-            convexes.add(convex);
-        } else if (dyn4jVerts.size() > 3) {
-            try {
-                convexes = sweepLine.decompose(dyn4jVerts.toArray(new org.dyn4j.geometry.Vector2[0]));
-            } catch (Exception e) {
+
+            LinearRing linearRing = new LinearRing(coordinateSequence, geometryFactory);
+            Polygon polygon = geometryFactory.createPolygon(linearRing);
+            if (polygon.isEmpty() || !polygon.isValid()) {
+                logBoundaryRejected("outline-invalid", null);
                 return null;
             }
-        } else {
+
+            final Geometry simplifiedPolygon = DouglasPeuckerSimplifier.simplify(polygon, .3);
+            if (!(simplifiedPolygon instanceof Polygon)
+                    || simplifiedPolygon.isEmpty()
+                    || !simplifiedPolygon.isValid()) {
+                logBoundaryRejected("simplified-outline-invalid", null);
+                return null;
+            }
+
+            Coordinate[] simplifiedCoordinates = simplifiedPolygon.getCoordinates();
+            if (simplifiedCoordinates.length < 4
+                    || !simplifiedCoordinates[0].equals2D(
+                    simplifiedCoordinates[simplifiedCoordinates.length - 1])) {
+                logBoundaryRejected("simplified-outline-open", null);
+                return null;
+            }
+
+            List<org.dyn4j.geometry.Vector2> dyn4jVerts = new ArrayList<>();
+            for (int i = 0; i < simplifiedCoordinates.length - 1; i++) {
+                Coordinate coordinate = simplifiedCoordinates[i];
+                org.dyn4j.geometry.Vector2 vertex =
+                        new org.dyn4j.geometry.Vector2(coordinate.x, coordinate.y);
+                if (!isFinite(vertex)) {
+                    logBoundaryRejected("simplified-outline-non-finite", null);
+                    return null;
+                }
+                dyn4jVerts.add(vertex);
+            }
+
+            if (!hasValidDistinctVertices(dyn4jVerts)) {
+                logBoundaryRejected("simplified-outline-duplicate-or-small", null);
+                return null;
+            }
+
+            if (dyn4jVerts.size() == 3) {
+                org.dyn4j.geometry.Vector2[] triangle =
+                        dyn4jVerts.toArray(new org.dyn4j.geometry.Vector2[0]);
+                if (!normalizeDyn4jTriangle(triangle)) {
+                    logBoundaryRejected("triangle-degenerate", null);
+                    return null;
+                }
+                convexes = new ArrayList<>();
+                convexes.add(new org.dyn4j.geometry.Polygon(triangle));
+            } else {
+                convexes = sweepLine.decompose(
+                        dyn4jVerts.toArray(new org.dyn4j.geometry.Vector2[0]));
+            }
+        } catch (RuntimeException invalidGeometry) {
+            logBoundaryRejected("outline-decomposition-failed", invalidGeometry);
             return null;
         }
 
-        Body body = shapeFactory.world.createBody(bodyDef);
-
-        for (Convex convex : convexes) {
-            org.dyn4j.geometry.Polygon dynConvexPolygon = (org.dyn4j.geometry.Polygon) convex;
-            org.dyn4j.geometry.Vector2[] dyn4jConvexVerts = dynConvexPolygon.getVertices();
-            float[] convexVerts = new float[dyn4jConvexVerts.length * 2 + 2];
-            for(int i = 0; i < dyn4jConvexVerts.length; ++i) {
-                convexVerts[i * 2] = (float) dyn4jConvexVerts[i].x;
-                convexVerts[i * 2 + 1] = (float) dyn4jConvexVerts[i].y;
-            }
-            convexVerts[convexVerts.length - 2] = (float) dyn4jConvexVerts[0].x;
-            convexVerts[convexVerts.length - 1] = (float) dyn4jConvexVerts[0].y;
-
-            CoordinateSequence convexCoordinateSequence = new PackedCoordinateSequence.Float(convexVerts, 2, 0);
-            LinearRing convexLinearRing = new LinearRing(convexCoordinateSequence, geometryFactory);
-            Polygon ltConvexPolygon = geometryFactory.createPolygon(convexLinearRing);
-
-            DelaunayTriangulationBuilder triangulationBuilder = new DelaunayTriangulationBuilder();
-            triangulationBuilder.setSites(ltConvexPolygon);
-            Geometry triangulatedGeometry = triangulationBuilder.getTriangles(geometryFactory);
-            int geometryCount = triangulatedGeometry.getNumGeometries();
-
-            for (int i = 0; i < geometryCount; i++) {
-                Geometry currentGeometry = triangulatedGeometry.getGeometryN(i);
-                Coordinate[] coordinates = currentGeometry.getCoordinates();
-                Vector2[] triangleVerts = new Vector2[3];
-                for (int c = 0; c < 3; c++) {
-                    Coordinate currentCoordinate = coordinates[c];
-                    Vector2 transformedCoordinate = new Vector2();
-                    transformedCoordinate.x = (float) currentCoordinate.x;
-                    transformedCoordinate.y = (float) currentCoordinate.y;
-                    triangleVerts[c] = transformedCoordinate;
+        // Validate and normalize every fixture triangle before creating a native
+        // Box2D body. This keeps NaN, duplicate and zero-area geometry out of JNI.
+        List<Vector2[]> fixtureTriangles = new ArrayList<>();
+        try {
+            for (Convex convex : convexes) {
+                if (!(convex instanceof org.dyn4j.geometry.Polygon)) {
+                    logBoundaryRejected("convex-type-invalid", null);
+                    return null;
                 }
-                PolygonShape polygonForFixture = new PolygonShape();
-                polygonForFixture.set(triangleVerts);
-                FixtureDef fixtureDef = new FixtureDef();
-                fixtureDef.shape = polygonForFixture;
-                fixtureDef.density = 5;
-                fixtureDef.friction = 1f;
-                fixtureDef.restitution = 0.1f;
-                body.createFixture(fixtureDef);
-                polygonForFixture.dispose();
+                org.dyn4j.geometry.Polygon dynConvexPolygon =
+                        (org.dyn4j.geometry.Polygon) convex;
+                org.dyn4j.geometry.Vector2[] dyn4jConvexVerts =
+                        dynConvexPolygon.getVertices();
+                if (dyn4jConvexVerts.length < 3) {
+                    logBoundaryRejected("convex-too-small", null);
+                    return null;
+                }
+
+                float[] convexVerts = new float[dyn4jConvexVerts.length * 2 + 2];
+                for(int i = 0; i < dyn4jConvexVerts.length; ++i) {
+                    if (!isFinite(dyn4jConvexVerts[i])) {
+                        logBoundaryRejected("convex-non-finite", null);
+                        return null;
+                    }
+                    convexVerts[i * 2] = (float) dyn4jConvexVerts[i].x;
+                    convexVerts[i * 2 + 1] = (float) dyn4jConvexVerts[i].y;
+                }
+                convexVerts[convexVerts.length - 2] = (float) dyn4jConvexVerts[0].x;
+                convexVerts[convexVerts.length - 1] = (float) dyn4jConvexVerts[0].y;
+
+                CoordinateSequence convexCoordinateSequence =
+                        new PackedCoordinateSequence.Float(convexVerts, 2, 0);
+                LinearRing convexLinearRing =
+                        new LinearRing(convexCoordinateSequence, geometryFactory);
+                Polygon ltConvexPolygon =
+                        geometryFactory.createPolygon(convexLinearRing);
+                if (ltConvexPolygon.isEmpty() || !ltConvexPolygon.isValid()) {
+                    logBoundaryRejected("convex-invalid", null);
+                    return null;
+                }
+
+                DelaunayTriangulationBuilder triangulationBuilder =
+                        new DelaunayTriangulationBuilder();
+                triangulationBuilder.setSites(ltConvexPolygon);
+                Geometry triangulatedGeometry =
+                        triangulationBuilder.getTriangles(geometryFactory);
+
+                for (int i = 0; i < triangulatedGeometry.getNumGeometries(); i++) {
+                    Vector2[] triangleVerts = validatedBox2dTriangle(
+                            triangulatedGeometry.getGeometryN(i).getCoordinates());
+                    if (triangleVerts != null) {
+                        fixtureTriangles.add(triangleVerts);
+                    }
+                }
             }
+        } catch (RuntimeException invalidTriangulation) {
+            logBoundaryRejected("fixture-triangulation-failed", invalidTriangulation);
+            return null;
         }
 
+        if (fixtureTriangles.isEmpty()) {
+            logBoundaryRejected("fixture-triangles-empty", null);
+            return null;
+        }
+        if (shapeFactory == null || shapeFactory.world == null || shapeFactory.world.isLocked()) {
+            logBoundaryRejected("fixture-world-unavailable", null);
+            return null;
+        }
+
+        Body body = null;
+        try {
+            body = shapeFactory.world.createBody(bodyDef);
+            for (Vector2[] triangleVerts : fixtureTriangles) {
+                PolygonShape polygonForFixture = new PolygonShape();
+                try {
+                    polygonForFixture.set(triangleVerts);
+                    FixtureDef fixtureDef = new FixtureDef();
+                    fixtureDef.shape = polygonForFixture;
+                    fixtureDef.density = 5;
+                    fixtureDef.friction = 1f;
+                    fixtureDef.restitution = 0.1f;
+                    body.createFixture(fixtureDef);
+                } finally {
+                    polygonForFixture.dispose();
+                }
+            }
+        } catch (RuntimeException nativeGeometryRejection) {
+            destroyStagedBody(body);
+            logBoundaryRejected("box2d-fixture-rejected", nativeGeometryRejection);
+            return null;
+        }
 
         if (body.getFixtureList().size == 0) {
-            shapeFactory.world.destroyBody(body);
+            destroyStagedBody(body);
+            logBoundaryRejected("box2d-fixture-empty", null);
             return null;
         }
 
@@ -342,6 +463,124 @@ public class ShapeFactory {
 //        body.setAngularVelocity((float) (Math.random() * 2));
 
         return body;
+    }
+
+    private static boolean normalizeDyn4jTriangle(org.dyn4j.geometry.Vector2[] triangle) {
+        if (triangle == null || triangle.length != 3) return false;
+        for (org.dyn4j.geometry.Vector2 vertex : triangle) {
+            if (!isFinite(vertex)) return false;
+        }
+        if (samePoint(triangle[0], triangle[1])
+                || samePoint(triangle[1], triangle[2])
+                || samePoint(triangle[2], triangle[0])) {
+            return false;
+        }
+
+        double signedCross = (triangle[1].x - triangle[0].x)
+                * (triangle[2].y - triangle[0].y)
+                - (triangle[1].y - triangle[0].y)
+                * (triangle[2].x - triangle[0].x);
+        if (!isFinite(signedCross) || Math.abs(signedCross) < 0.000001d) {
+            return false;
+        }
+        if (signedCross < 0d) {
+            org.dyn4j.geometry.Vector2 swap = triangle[1];
+            triangle[1] = triangle[2];
+            triangle[2] = swap;
+        }
+        return true;
+    }
+
+    private static Vector2[] validatedBox2dTriangle(Coordinate[] coordinates) {
+        if (coordinates == null || coordinates.length < 3) return null;
+        Vector2[] triangle = new Vector2[3];
+        for (int i = 0; i < 3; i++) {
+            Coordinate coordinate = coordinates[i];
+            if (coordinate == null
+                    || !isFinite(coordinate.x)
+                    || !isFinite(coordinate.y)) {
+                return null;
+            }
+            triangle[i] = new Vector2((float) coordinate.x, (float) coordinate.y);
+        }
+
+        if (samePoint(triangle[0], triangle[1])
+                || samePoint(triangle[1], triangle[2])
+                || samePoint(triangle[2], triangle[0])) {
+            return null;
+        }
+
+        float signedCross = (triangle[1].x - triangle[0].x)
+                * (triangle[2].y - triangle[0].y)
+                - (triangle[1].y - triangle[0].y)
+                * (triangle[2].x - triangle[0].x);
+        if (!isFinite(signedCross) || Math.abs(signedCross) < 0.000001f) {
+            return null;
+        }
+        if (signedCross < 0f) {
+            Vector2 swap = triangle[1];
+            triangle[1] = triangle[2];
+            triangle[2] = swap;
+        }
+        return triangle;
+    }
+
+    private static boolean hasValidDistinctVertices(
+            List<org.dyn4j.geometry.Vector2> vertices) {
+        if (vertices == null || vertices.size() < 3) return false;
+        for (int i = 0; i < vertices.size(); i++) {
+            org.dyn4j.geometry.Vector2 current = vertices.get(i);
+            if (!isFinite(current)) return false;
+            for (int j = i + 1; j < vertices.size(); j++) {
+                if (samePoint(current, vertices.get(j))) return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean samePoint(org.dyn4j.geometry.Vector2 first,
+                                     org.dyn4j.geometry.Vector2 second) {
+        double dx = first.x - second.x;
+        double dy = first.y - second.y;
+        return dx * dx + dy * dy < 0.000000000001d;
+    }
+
+    private static boolean samePoint(Vector2 first, Vector2 second) {
+        float dx = first.x - second.x;
+        float dy = first.y - second.y;
+        return dx * dx + dy * dy < 0.000000000001f;
+    }
+
+    private static boolean isFinite(Vector2 vector) {
+        return vector != null && isFinite(vector.x) && isFinite(vector.y);
+    }
+
+    private static boolean isFinite(org.dyn4j.geometry.Vector2 vector) {
+        return vector != null && isFinite(vector.x) && isFinite(vector.y);
+    }
+
+    private static boolean isFinite(float value) {
+        return !Float.isNaN(value) && !Float.isInfinite(value);
+    }
+
+    private static boolean isFinite(double value) {
+        return !Double.isNaN(value) && !Double.isInfinite(value);
+    }
+
+    private static void destroyStagedBody(Body body) {
+        if (body != null && shapeFactory != null && shapeFactory.world != null
+                && !shapeFactory.world.isLocked()) {
+            shapeFactory.world.destroyBody(body);
+        }
+    }
+
+    private static void logBoundaryRejected(String reason, Throwable error) {
+        if (Gdx.app == null) return;
+        if (error == null) {
+            Gdx.app.log("ElementumPhysics", "boundary-rejected=" + reason);
+        } else {
+            Gdx.app.error("ElementumPhysics", "boundary-rejected=" + reason, error);
+        }
     }
 
     private static org.dyn4j.geometry.Vector2[] removeDuplicateVerts(org.dyn4j.geometry.Vector2[] convexVerts) {

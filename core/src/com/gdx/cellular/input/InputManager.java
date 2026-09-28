@@ -440,7 +440,12 @@ public class InputManager {
     }
 
     private void spawnRandomPolygon(int x, int y, Array<Array<Element>> randomPolygonArray, CellularMatrix matrix) {
-        Body body = ShapeFactory.createDynamicPolygonFromElementArray(matrix.toMatrix(x), matrix.toMatrix(y), randomPolygonArray);
+        Body body = ShapeFactory.createDynamicPolygonFromElementArray(
+                matrix.toMatrix(x), matrix.toMatrix(y), randomPolygonArray);
+        if (body == null) {
+            Gdx.app.log("ElementumPhysics", "random-polygon=skipped-invalid-boundary");
+            return;
+        }
         int mod = CellularAutomaton.box2dSizeModifier;
         Array<Fixture> fixtureList = body.getFixtureList();
         Vector2 point = new Vector2();

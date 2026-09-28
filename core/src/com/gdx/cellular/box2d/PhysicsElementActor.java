@@ -176,23 +176,21 @@ public class PhysicsElementActor {
     }
 
     public void recalculateBoundaries() {
-        // ShapeFactory destroys the old body only after a valid replacement is
-        // ready. Snapshot motion/transform first so we never query a destroyed
-        // Box2D body while carrying state to the replacement.
         Body oldBody = this.physicsBody;
         Vector2 oldPosition = oldBody.getPosition().cpy();
-        Vector2 oldLinearVelocity = oldBody.getLinearVelocity().cpy();
-        float oldAngularVelocity = oldBody.getAngularVelocity();
-        float oldAngle = oldBody.getAngle();
 
+        // ShapeFactory now stages validated fixtures and transfers transform,
+        // velocity and sleep state before it destroys the known-good body.
         Body newBody = ShapeFactory.createPolygonFromElementArrayDeleteOldBody(
                 (int) oldPosition.x, (int) oldPosition.y, this.elements, oldBody);
         if (newBody == null) return;
 
-        newBody.setAngularVelocity(oldAngularVelocity);
-        newBody.setLinearVelocity(oldLinearVelocity);
-        newBody.setTransform(oldPosition, oldAngle);
         this.physicsBody = newBody;
+        this.lastPos = newBody.getPosition().cpy();
+        this.lastAngle = newBody.getAngle();
+        xAccumulator = 0;
+        yAccumulator = 0;
+        angleAccumulator = 0;
     }
 
     public Body getPhysicsBody() {
