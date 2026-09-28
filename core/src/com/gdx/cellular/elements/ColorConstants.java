@@ -58,6 +58,9 @@ public class ColorConstants {
     private static final Color WOOD_3 = new Color(140/255f, 74/255f, 12/255f, 1);
 
     private static final Color TITANIUM = new Color(234/255f, 234/255f, 234/255f, 1);
+    private static final Color COPPER_1 = new Color(184/255f, 115/255f, 51/255f, 1);
+    private static final Color COPPER_2 = new Color(205/255f, 127/255f, 50/255f, 1);
+    private static final Color COPPER_3 = new Color(143/255f, 82/255f, 42/255f, 1);
 
     private static final Color SLIME_MOLD_1 = new Color(255/255f, 142/255f, 243/255f, 1);
     private static final Color SLIME_MOLD_2 = new Color(201/255f, 58/255f, 107/255f, 1);
@@ -77,6 +80,9 @@ public class ColorConstants {
     private static final Color ACID = new Color(0/255f, 255/255f, 0/255f, 1);
 
     private static final Color LAVA = new Color(255/255f, 165/255f, 0/255f, 1);
+    private static final Color MOLTEN_COPPER_1 = new Color(255/255f, 112/255f, 25/255f, 1);
+    private static final Color MOLTEN_COPPER_2 = new Color(255/255f, 177/255f, 46/255f, 1);
+    private static final Color MOLTEN_COPPER_3 = new Color(232/255f, 72/255f, 18/255f, 1);
 
     private static final Color BLOOD = new Color(234/255f, 0 /255f,0/255f, .8f);
 
@@ -155,6 +161,9 @@ public class ColorConstants {
         elementColorMap.get(ElementType.WOOD).add(WOOD_3);
 
         elementColorMap.get(ElementType.TITANIUM).add(TITANIUM);
+        elementColorMap.get(ElementType.COPPER).add(COPPER_1);
+        elementColorMap.get(ElementType.COPPER).add(COPPER_2);
+        elementColorMap.get(ElementType.COPPER).add(COPPER_3);
 
         elementColorMap.get(ElementType.GROUND).add(GROUND);
 
@@ -171,6 +180,9 @@ public class ColorConstants {
         elementColorMap.get(ElementType.ACID).add(ACID);
 
         elementColorMap.get(ElementType.LAVA).add(LAVA);
+        elementColorMap.get(ElementType.MOLTENCOPPER).add(MOLTEN_COPPER_1);
+        elementColorMap.get(ElementType.MOLTENCOPPER).add(MOLTEN_COPPER_2);
+        elementColorMap.get(ElementType.MOLTENCOPPER).add(MOLTEN_COPPER_3);
 
         elementColorMap.get(ElementType.BLOOD).add(BLOOD);
 

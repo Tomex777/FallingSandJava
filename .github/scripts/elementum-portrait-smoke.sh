@@ -125,6 +125,56 @@ capture mouse-mode-spawn
 
 tap 310 715
 capture material-picker-solids
+
+# Copper is the second-row left solid after alphabetical material sorting.
+# Exercise the new reversible thermal metal and a local water quench while the
+# scene is paused so phase changes are observable at fixed coordinates.
+tap 88 473
+tap 240 765
+tap 40 765
+adb shell input swipe 70 630 150 630 400
+sleep 1
+capture copper-solid
+tap 255 74
+adb shell input swipe 70 630 150 630 400
+sleep 1
+capture copper-molten
+tap 318 74
+adb shell input swipe 70 630 150 630 400
+sleep 1
+capture copper-refrozen
+tap 255 74
+adb shell input swipe 70 630 150 630 400
+sleep 1
+capture copper-remelted
+tap 90 715
+adb shell input swipe 70 624 150 624 400
+sleep 1
+capture molten-copper-water-before
+tap 240 765
+sleep 2
+capture molten-copper-water-after
+
+# Copper also acts as a conductor. Set up a fresh stationary strip plus an
+# adjacent lightning trace while paused, then resume to prove bounded transfer.
+tap 240 765
+tap 310 715
+tap 88 473
+adb shell input swipe 70 590 150 590 400
+sleep 1
+tap 210 715
+adb shell input swipe 70 584 150 584 400
+sleep 1
+capture copper-lightning-before
+tap 240 765
+sleep 2
+capture copper-lightning-after
+tap 90 765
+tap 40 715
+
+# Re-open at the top and continue proving the full picker can scroll through
+# liquids, gases and energy after the new material rows were added.
+tap 310 715
 adb shell input swipe 190 610 190 430 500
 sleep 1
 capture material-picker-liquids
@@ -382,5 +432,9 @@ grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*steam-to-water' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*copper-to-molten-copper' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*molten-copper-to-copper' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*water-molten-copper-steam' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*lightning-conducted-copper' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-ignited-petrol' "$evidence/logcat.txt"
 grep -q 'ElementumPerf.*avgFrameUs=' "$evidence/logcat.txt"

@@ -7,8 +7,10 @@ import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.elements.EmptyCell;
+import com.gdx.cellular.elements.liquid.MoltenCopper;
 import com.gdx.cellular.elements.liquid.Petrol;
 import com.gdx.cellular.elements.liquid.Water;
+import com.gdx.cellular.elements.solid.immoveable.Copper;
 import com.gdx.cellular.elements.solid.immoveable.Titanium;
 
 /**
@@ -96,8 +98,12 @@ public class Lightning extends Gas {
                     continue;
                 }
 
-                if (neighbor instanceof Titanium) {
-                    conductFrom(matrix, neighbor);
+                if (neighbor instanceof Titanium || neighbor instanceof Copper || neighbor instanceof MoltenCopper) {
+                    boolean conducted = conductFrom(matrix, neighbor);
+                    if (conducted && generation == 0
+                            && (neighbor instanceof Copper || neighbor instanceof MoltenCopper)) {
+                        Gdx.app.log("ElementumReaction", "lightning-conducted-copper");
+                    }
                     continue;
                 }
 
@@ -113,7 +119,7 @@ public class Lightning extends Gas {
         }
     }
 
-    private void conductFrom(CellularMatrix matrix, Element metal) {
+    private boolean conductFrom(CellularMatrix matrix, Element metal) {
         int[][] offsets = new int[][] {
                 { 1, 0 }, { 0, -1 }, { -1, 0 }, { 0, 1 }
         };
@@ -123,9 +129,10 @@ public class Lightning extends Gas {
             if (spawnChildIfEmpty(matrix,
                     metal.getMatrixX() + offset[0],
                     metal.getMatrixY() + offset[1])) {
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     private void propagate(CellularMatrix matrix) {

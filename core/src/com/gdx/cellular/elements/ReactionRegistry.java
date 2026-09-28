@@ -50,6 +50,18 @@ public final class ReactionRegistry {
             return true;
         });
 
+        // Water striking molten copper flashes to steam and locally quenches the
+        // metal. Reaction-frame gating keeps the quench bounded to contact cells.
+        registerSymmetric(ElementType.WATER, ElementType.MOLTENCOPPER, (first, second, matrix) -> {
+            if (!first.isReactionFrame()) return false;
+            Element water = ofType(first, second, ElementType.WATER);
+            Element moltenCopper = ofType(first, second, ElementType.MOLTENCOPPER);
+            water.receiveHeat(matrix, 120);
+            moltenCopper.receiveCooling(matrix, 120);
+            Gdx.app.log("ElementumReaction", "water-molten-copper-steam");
+            return true;
+        });
+
         // Ice slowly advances into adjacent water, creating a genuine freezing
         // loop without an unbounded flood-fill.
         registerSymmetric(ElementType.ICE, ElementType.WATER, (first, second, matrix) -> {

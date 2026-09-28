@@ -283,6 +283,8 @@ public class MobileControls {
                 return "Slime Mold";
             case GUNPOWDER:
                 return "Gunpowder";
+            case MOLTENCOPPER:
+                return "Molten Copper";
             default:
                 String lower = type.name().toLowerCase();
                 return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
