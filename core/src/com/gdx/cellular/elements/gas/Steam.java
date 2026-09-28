@@ -1,10 +1,12 @@
 package com.gdx.cellular.elements.gas;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector3;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.ElementType;
 
 public class Steam extends Gas {
+    private int condensationResistance = 70;
 
     public Steam(int x, int y) {
         super(x, y);
@@ -33,6 +35,19 @@ public class Steam extends Gas {
 
     @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
-        return false;
+        if (heat <= 0 || isDead()) return false;
+        condensationResistance = Math.min(140, condensationResistance + Math.max(1, heat / 2));
+        return true;
+    }
+
+    @Override
+    public boolean receiveCooling(CellularMatrix matrix, int cooling) {
+        if (cooling <= 0 || isDead()) return false;
+        condensationResistance -= Math.max(1, cooling);
+        if (condensationResistance <= 0) {
+            Gdx.app.log("ElementumReaction", "steam-to-water");
+            dieAndReplace(matrix, ElementType.WATER);
+        }
+        return true;
     }
 }
