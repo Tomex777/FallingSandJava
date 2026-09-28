@@ -143,6 +143,18 @@ tap 318 74
 adb shell input swipe 70 630 150 630 400
 sleep 1
 capture copper-refrozen
+
+# Copper is also thermally conductive, not only electrically conductive.
+# Create a local cold spot while paused, then resume briefly so adjacent copper
+# cells equalize that gradient through bounded nearest-neighbour transfer.
+tap 318 74
+tap 70 630
+capture copper-thermal-gradient-before
+tap 240 765
+sleep 2
+capture copper-thermal-gradient-after
+tap 240 765
+
 tap 255 74
 adb shell input swipe 70 630 150 630 400
 sleep 1
@@ -435,6 +447,7 @@ grep -q 'ElementumReaction.*steam-to-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*copper-to-molten-copper' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*molten-copper-to-copper' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-molten-copper-steam' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*copper-thermal-conduction' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-conducted-copper' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-ignited-petrol' "$evidence/logcat.txt"
 grep -q 'ElementumPerf.*avgFrameUs=' "$evidence/logcat.txt"
