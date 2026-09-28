@@ -549,7 +549,8 @@ grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
-grep -q 'ElementumInput.*clear-cancelled
+grep -q 'ElementumInput: clear-cancelled' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*clear-confirmed' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
 save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
 if [ "$save_count" -lt 2 ]; then
