@@ -297,6 +297,24 @@ sleep 2
 capture heat-petrol-after
 tap 40 715
 
+# Build a stationary Petrol + Lightning contact while paused, then resume it.
+# Brush size 3 is one matrix cell for a circle, so the strike sits directly
+# above rather than replacing the Petrol cells it must ignite.
+tap 240 765
+tap 40 765
+tap 145 715
+adb shell input swipe 110 500 230 500 450
+sleep 1
+tap 210 715
+adb shell input swipe 110 494 230 494 450
+sleep 1
+capture petrol-lightning-before
+tap 240 765
+sleep 2
+capture petrol-lightning-after
+tap 90 765
+tap 40 715
+
 # Keep the busy world active long enough to expose delayed allocation,
 # render-thread or reaction-traversal problems. Sample memory, graphics and
 # worker-thread state during the soak.
@@ -332,12 +350,21 @@ if [ "$pss_growth" -gt 32768 ]; then
   echo "Elementum PSS grew by more than 32 MiB during the 20-second busy-world soak: ${pss_growth} KiB" >&2
   exit 1
 fi
+perf_samples=$(grep -c 'ElementumPerf: frames=' "$evidence/logcat.txt" || true)
+if [ "$perf_samples" -lt 2 ]; then
+  echo "Expected repeated in-engine performance samples, got $perf_samples" >&2
+  grep 'ElementumPerf' "$evidence/logcat.txt" >&2 || true
+  exit 1
+fi
+latest_perf=$(grep 'ElementumPerf: frames=' "$evidence/logcat.txt" | tail -1 | sed 's/^.*ElementumPerf: //')
 printf '%s\n' \
   "persistent_sim_workers=$sim_threads" \
   "pool_configurations=$pool_configs" \
   "pss_first_kib=$pss_first" \
   "pss_last_kib=$pss_last" \
-  "pss_growth_kib=$pss_growth" > "$evidence/performance-summary.txt"
+  "pss_growth_kib=$pss_growth" \
+  "perf_samples=$perf_samples" \
+  "latest_perf=$latest_perf" > "$evidence/performance-summary.txt"
 
 test -n "$(adb shell pidof com.tomex.elementum)"
 ! grep -E 'FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died|OutOfMemoryError|Fatal signal' "$evidence/logcat.txt"
@@ -355,3 +382,5 @@ grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-steam' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*steam-to-water' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*lightning-ignited-petrol' "$evidence/logcat.txt"
+grep -q 'ElementumPerf.*avgFrameUs=' "$evidence/logcat.txt"

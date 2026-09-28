@@ -234,13 +234,14 @@ public class CellularMatrix {
         for (int y = 0; y < outerArraySize; y++) {
             Array<Element> row = getRow(y);
             for (int x : shuffledXIndexesForThreads.get(colIndex)) {
+                int actualX = calculateIndexWithOffset(x);
+                Element element = row.get(actualX);
+                if (element == null) continue;
                 try {
-                    Element element = row.get(calculateIndexWithOffset(x));
-                    if (element != null) {
-                        element.step(this);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    element.step(this);
+                } catch (RuntimeException e) {
+                    throw new IllegalStateException("Element step failed at x=" + actualX
+                            + " y=" + y + " type=" + element.elementType, e);
                 }
             }
         }

@@ -51,6 +51,14 @@ public class CellularAutomaton extends ApplicationAdapter {
     private final AtomicInteger simulationWorkerSerial = new AtomicInteger();
     private final List<ElementColumnStepper> columnSteppers = new ArrayList<>();
     private final List<Future<?>> workerFutures = new ArrayList<>();
+    private static final long PERF_LOG_INTERVAL_NANOS = 5_000_000_000L;
+    private long perfWindowStartNanos;
+    private long perfTotalFrameNanos;
+    private long perfMaxFrameNanos;
+    private long perfTotalSimulationNanos;
+    private long perfMaxSimulationNanos;
+    private int perfFrames;
+    private int perfSimulationFrames;
 
     private InputManager inputManager;
 
@@ -123,6 +131,8 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 	@Override
     public void render () {
+        long frameStartNanos = System.nanoTime();
+        long simulationNanos = 0L;
         ensureViewportsMatchScreen();
         shapeRenderer.setProjectionMatrix(camera.combined);
         Gdx.gl.glClearColor(0, 0, 0, 1);
@@ -155,12 +165,14 @@ public class CellularAutomaton extends ApplicationAdapter {
 			if (mobileControls != null) {
 				mobileControls.draw();
 			}
+			recordPerformance(frameStartNanos, 0L);
 			return;
 		}
 
 		matrix.spawnFromSpouts();
 		matrix.useChunks = useChunks;
 
+		long simulationStartNanos = System.nanoTime();
 		if (!useMultiThreading) {
 			matrix.reshuffleXIndexes();
 			matrix.stepAndDrawAll(shapeRenderer);
@@ -178,6 +190,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 //			matrix.drawAll(shapeRenderer);
 
 		}
+		simulationNanos = System.nanoTime() - simulationStartNanos;
 
 		matrix.executeExplosions();
 
@@ -201,6 +214,38 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 		inputManager.weatherSystem.enact(this.matrix);
 		gameManager.stepPlayers(this.matrix);
+		recordPerformance(frameStartNanos, simulationNanos);
+	}
+
+	private void recordPerformance(long frameStartNanos, long simulationNanos) {
+		long now = System.nanoTime();
+		long frameNanos = now - frameStartNanos;
+		if (perfWindowStartNanos == 0L) perfWindowStartNanos = now;
+		perfFrames++;
+		perfTotalFrameNanos += frameNanos;
+		perfMaxFrameNanos = Math.max(perfMaxFrameNanos, frameNanos);
+		if (simulationNanos > 0L) {
+			perfSimulationFrames++;
+			perfTotalSimulationNanos += simulationNanos;
+			perfMaxSimulationNanos = Math.max(perfMaxSimulationNanos, simulationNanos);
+		}
+		if (now - perfWindowStartNanos < PERF_LOG_INTERVAL_NANOS) return;
+
+		long avgFrameUs = perfFrames == 0 ? 0 : perfTotalFrameNanos / perfFrames / 1_000L;
+		long avgSimulationUs = perfSimulationFrames == 0 ? 0 : perfTotalSimulationNanos / perfSimulationFrames / 1_000L;
+		Gdx.app.log("ElementumPerf", "frames=" + perfFrames
+				+ " fps=" + Gdx.graphics.getFramesPerSecond()
+				+ " avgFrameUs=" + avgFrameUs
+				+ " maxFrameUs=" + (perfMaxFrameNanos / 1_000L)
+				+ " avgSimulationUs=" + avgSimulationUs
+				+ " maxSimulationUs=" + (perfMaxSimulationNanos / 1_000L));
+		perfWindowStartNanos = now;
+		perfFrames = 0;
+		perfSimulationFrames = 0;
+		perfTotalFrameNanos = 0L;
+		perfMaxFrameNanos = 0L;
+		perfTotalSimulationNanos = 0L;
+		perfMaxSimulationNanos = 0L;
 	}
 
 	@Override
