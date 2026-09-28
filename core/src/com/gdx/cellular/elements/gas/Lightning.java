@@ -111,10 +111,16 @@ public class Lightning extends Gas {
                 }
 
                 if (neighbor instanceof Water) {
-                    if (Math.random() < 0.10f) {
+                    // Water conducts locally but never starts an unbounded scan.
+                    // Reuse the lightning child budget to hop across one contact
+                    // cell, while depositing enough heat to matter thermally.
+                    neighbor.receiveHeat(matrix, heatFactor);
+                    boolean conducted = conductThroughWater(matrix, neighbor);
+                    if (conducted && generation == 0) {
+                        Gdx.app.log("ElementumReaction", "lightning-conducted-water");
+                    }
+                    if (!neighbor.isDead() && Math.random() < 0.10f) {
                         neighbor.dieAndReplace(matrix, ElementType.STEAM);
-                    } else {
-                        carryFrom(matrix, x, y);
                     }
                     continue;
                 }
@@ -163,11 +169,21 @@ public class Lightning extends Gas {
         }
     }
 
-    private void carryFrom(CellularMatrix matrix, int sourceX, int sourceY) {
-        int direction = Math.random() < 0.5f ? -1 : 1;
-        if (!spawnChildIfEmpty(matrix, sourceX + direction, sourceY)) {
-            spawnChildIfEmpty(matrix, sourceX - direction, sourceY);
+    private boolean conductThroughWater(CellularMatrix matrix, Element water) {
+        int[][] offsets = new int[][] {
+                { 0, -1 }, { 1, 0 }, { -1, 0 }, { 0, 1 }
+        };
+        int start = getRandomInt(offsets.length);
+        for (int i = 0; i < offsets.length; i++) {
+            int[] offset = offsets[(start + i) % offsets.length];
+            int x = water.getMatrixX() + offset[0];
+            int y = water.getMatrixY() + offset[1];
+
+            // Do not simply recreate the arc in the source lightning cell.
+            if (x == getMatrixX() && y == getMatrixY()) continue;
+            if (spawnChildIfEmpty(matrix, x, y)) return true;
         }
+        return false;
     }
 
     private boolean conductFrom(CellularMatrix matrix, Element metal) {
