@@ -113,6 +113,12 @@ public class CellularAutomaton extends ApplicationAdapter {
 		gameManager.createPlayer(matrix.innerArraySize/2, matrix.outerArraySize/2);
 
 		if (Gdx.app.getType() == Application.ApplicationType.Android) {
+			inputManager.setWorldResetHook(() -> {
+				int retiredPlayers = gameManager.retirePlayersForWorldReset();
+				if (retiredPlayers > 0) {
+					Gdx.app.log("ElementumWorld", "retired-players=" + retiredPlayers);
+				}
+			});
 			mobileControls = new MobileControls(inputManager, matrix);
 		}
 
@@ -153,10 +159,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 		if (isPaused) {
 			matrixStage.draw();
 			matrix.drawPhysicsElementActors(shapeRenderer);
-			Array<Body> bodies = new Array<>();
-			b2dWorld.getBodies(bodies);
-			matrix.drawBox2d(shapeRenderer, bodies);
-			debugRenderer.render(b2dWorld, camera.combined);
+			drawPhysicsDebugIfEnabled();
 			inputManager.drawMenu();
 			if (mobileControls != null) {
 				mobileControls.draw();
@@ -204,10 +207,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrixStage.draw();
 		matrix.drawPhysicsElementActors(shapeRenderer);
 
-		Array<Body> bodies = new Array<>();
-		b2dWorld.getBodies(bodies);
-		matrix.drawBox2d(shapeRenderer, bodies);
-		debugRenderer.render(b2dWorld, camera.combined);
+		drawPhysicsDebugIfEnabled();
 
 		inputManager.drawMenu();
 		inputManager.drawCursor();
@@ -218,6 +218,15 @@ public class CellularAutomaton extends ApplicationAdapter {
 		inputManager.weatherSystem.enact(this.matrix);
 		gameManager.stepPlayers(this.matrix);
 		recordPerformance(frameStartNanos, simulationNanos);
+	}
+
+	private void drawPhysicsDebugIfEnabled() {
+		if (Gdx.app.getType() == Application.ApplicationType.Android) return;
+
+		Array<Body> bodies = new Array<>();
+		b2dWorld.getBodies(bodies);
+		matrix.drawBox2d(shapeRenderer, bodies);
+		debugRenderer.render(b2dWorld, camera.combined);
 	}
 
 	private void recordPerformance(long frameStartNanos, long simulationNanos) {
@@ -332,6 +341,7 @@ public class CellularAutomaton extends ApplicationAdapter {
 	public void dispose () {
 		if (simulationExecutor != null) simulationExecutor.shutdownNow();
 		shapeRenderer.dispose();
+		debugRenderer.dispose();
 		if (mobileControls != null) {
 			mobileControls.dispose();
 		}

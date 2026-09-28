@@ -52,6 +52,7 @@ public class MobileControls {
     private TextButton heatButton;
     private TextButton coolButton;
     private Dialog clearDialog;
+    private boolean clearSettlementPending;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
         this.inputManager = inputManager;
@@ -221,7 +222,6 @@ public class MobileControls {
                 clearDialog = null;
                 if (Boolean.TRUE.equals(object)) {
                     inputManager.clearMatrix(matrix);
-                    inputManager.clearBox2dActors();
 
                     int remaining = matrix.countNonEmptyCells();
                     boolean dimensionsPreserved = clearWidthBefore == matrix.innerArraySize
@@ -235,6 +235,7 @@ public class MobileControls {
                             + " dimensionsPreserved=" + dimensionsPreserved
                             + " pausedBefore=" + clearPausedBefore
                             + " pausedAfter=" + clearPausedAfter);
+                    clearSettlementPending = true;
                 } else {
                     int clearNonEmptyAfter = matrix.countNonEmptyCells();
                     boolean dimensionsPreserved = clearWidthBefore == matrix.innerArraySize
@@ -474,6 +475,13 @@ public class MobileControls {
         toolsBar.setVisible(overlaysHidden);
         statusBar.setVisible(overlaysHidden);
         syncToolHighlights();
+        if (clearSettlementPending) {
+            Gdx.app.log("ElementumInput", "clear-settled"
+                    + " remaining=" + matrix.countNonEmptyCells()
+                    + " dimensions=" + matrix.innerArraySize + "x" + matrix.outerArraySize
+                    + " paused=" + inputManager.getIsPaused());
+            clearSettlementPending = false;
+        }
         stage.act();
         stage.draw();
     }

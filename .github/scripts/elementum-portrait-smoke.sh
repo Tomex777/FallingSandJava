@@ -604,6 +604,7 @@ assert removed == before, f'Clear confirm removed-count mismatch: {line}'
 assert m.group(4) == 'true', f'Clear confirm changed world dimensions: {line}'
 assert m.group(5) == 'false' and m.group(6) == 'false', f'Clear confirm changed running state: {line}'
 PY
+grep -q 'ElementumInput: clear-settled remaining=0 .*paused=false' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
 save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
 if [ "$save_count" -lt 2 ]; then

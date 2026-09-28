@@ -57,5 +57,15 @@ public class GameManager {
         return players.get(index);
     }
 
+    public int retirePlayersForWorldReset() {
+        int retired = 0;
+        for (int i = 0; i < players.size; i++) {
+            if (players.get(i) == null) continue;
+            players.set(i, null);
+            retired++;
+        }
+        return retired;
+    }
+
 
 }

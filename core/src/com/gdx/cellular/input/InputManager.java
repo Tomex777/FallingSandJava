@@ -69,6 +69,7 @@ public class InputManager {
     public boolean drawMenu = false;
     private BooleanSupplier mobileOverlayDismiss;
     private boolean drawCursor = true;
+    private Runnable worldResetHook = () -> { };
 
     public InputProcessor creatorInputProcessor;
     private final CreatorMenu creatorMenu;
@@ -167,7 +168,17 @@ public class InputManager {
     }
 
     public void clearMatrix(CellularMatrix matrix) {
+        resetActiveWorld(matrix);
+    }
+
+    public void setWorldResetHook(Runnable worldResetHook) {
+        this.worldResetHook = worldResetHook == null ? () -> { } : worldResetHook;
+    }
+
+    private void resetActiveWorld(CellularMatrix matrix) {
+        worldResetHook.run();
         matrix.clearAll();
+        clearBox2dActors();
     }
 
     public void placeSpout(CellularMatrix matrix) {
@@ -655,7 +666,7 @@ public class InputManager {
             } else {
                 // V2/legacy payloads are fully validated before this point and
                 // contain no material-specific private restore hooks.
-                matrix.clearAll();
+                resetActiveWorld(matrix);
                 if (versionTwo) {
                     loadVersionTwo(matrix, payload);
                 } else {
@@ -935,7 +946,7 @@ public class InputManager {
     }
 
     private void commitVersionThree(CellularMatrix matrix, DecodedV3 decoded) {
-        matrix.clearAll();
+        resetActiveWorld(matrix);
         for (int y = 0; y < decoded.elements.length; y++) {
             for (int x = 0; x < decoded.elements[y].length; x++) {
                 Element element = decoded.elements[y][x];
