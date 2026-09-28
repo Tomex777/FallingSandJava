@@ -8,5 +8,6 @@ public enum MouseMode {
     PARTICLE,
     PARTICALIZE,
     PHYSICSOBJ,
-    RECTANGLE
+    RECTANGLE,
+    COOL
 }

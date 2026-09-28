@@ -299,7 +299,10 @@ public class CreatorMenu {
     }
 
     private List<Button> createMouseModeButtons(Skin skin) {
-        return Arrays.stream(MouseMode.values()).map(mode -> createMouseModeButton(skin, mode)).collect(Collectors.toList());
+        return Arrays.stream(MouseMode.values())
+                .filter(mode -> mode != MouseMode.COOL)
+                .map(mode -> createMouseModeButton(skin, mode))
+                .collect(Collectors.toList());
     }
 
     private Button createMouseModeButton(Skin skin, MouseMode mode) {

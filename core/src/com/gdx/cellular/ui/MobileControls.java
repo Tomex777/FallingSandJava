@@ -15,6 +15,7 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
+import com.gdx.cellular.input.MouseMode;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -45,6 +46,7 @@ public class MobileControls {
     private TextButton pauseButton;
     private TextButton brushTypeButton;
     private TextButton allMaterialsButton;
+    private TextButton coolButton;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
         this.inputManager = inputManager;
@@ -80,6 +82,15 @@ public class MobileControls {
             }
         });
 
+        coolButton = createButton("Cool");
+        coolButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.setMouseMode(MouseMode.COOL);
+                coolButton.setColor(Color.CYAN);
+            }
+        });
+
         TextButton eraseButton = createButton("Erase");
         quickButtons.put(ElementType.EMPTYCELL, eraseButton);
         eraseButton.addListener(new ClickListener() {
@@ -95,6 +106,7 @@ public class MobileControls {
         // Keep empty table space transparent to two-finger world navigation.
         toolsBar.setTouchable(Touchable.childrenOnly);
         toolsBar.pad(8f);
+        toolsBar.add(coolButton).width(50f).height(42f).padRight(3f);
         toolsBar.add(eraseButton).width(54f).height(42f).padRight(3f);
         // Keep Tools last so its existing top-right hit target remains stable.
         toolsBar.add(toolsButton).width(68f).height(42f);
@@ -223,7 +235,9 @@ public class MobileControls {
     }
 
     private void selectMaterial(ElementType type) {
+        inputManager.setMouseMode(MouseMode.SPAWN);
         inputManager.setCurrentlySelectedElement(type);
+        if (coolButton != null) coolButton.setColor(Color.WHITE);
         Gdx.app.log("ElementumInput", "material=" + type.name());
 
         for (TextButton button : quickButtons.values()) {

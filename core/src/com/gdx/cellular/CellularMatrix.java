@@ -460,6 +460,10 @@ public class CellularMatrix {
         iterateAndApplyMethodBetweenTwoPoints(pos1, pos2, null, brushSize, brushtype, null, this:: applyHeatByBrush);
     }
 
+    public void applyCoolingBetweenTwoPoints(Vector3 pos1, Vector3 pos2, int brushSize, InputManager.BRUSHTYPE brushtype) {
+        iterateAndApplyMethodBetweenTwoPoints(pos1, pos2, null, brushSize, brushtype, null, this::applyCoolingByBrush);
+    }
+
     public void spawnElementBetweenTwoPoints(Vector3 pos1, Vector3 pos2, ElementType elementType, int brushSize, InputManager.BRUSHTYPE brushtype) {
         iterateAndApplyMethodBetweenTwoPoints(pos1, pos2, elementType, brushSize, brushtype, null, this::spawnElementByMatrixWithBrush);
     }
@@ -554,6 +558,29 @@ public class CellularMatrix {
                 } else {
                     Element element = get(x, y);
                     if (element != null) element.receiveHeat(this, 500);
+                    reportToChunkActive(x, y);
+                }
+            }
+        }
+    }
+
+    public void applyCoolingByBrush(FunctionInput input) {
+        int localBrushSize = input.getBrushSize();
+        int matrixX = input.getMatrixX();
+        int matrixY = input.getMatrixY();
+        int halfBrush = (int) Math.floor(localBrushSize / 2);
+        for (int x = matrixX - halfBrush; x <= matrixX + halfBrush; x++) {
+            for (int y = matrixY - halfBrush; y <= matrixY + halfBrush; y++) {
+                if (input.getBrushType().equals(InputManager.BRUSHTYPE.CIRCLE)) {
+                    int distance = distanceBetweenTwoPoints(matrixX, x, matrixY, y);
+                    if (distance < halfBrush) {
+                        Element element = get(x, y);
+                        if (element != null) element.receiveCooling(this, 500);
+                        reportToChunkActive(x, y);
+                    }
+                } else {
+                    Element element = get(x, y);
+                    if (element != null) element.receiveCooling(this, 500);
                     reportToChunkActive(x, y);
                 }
             }

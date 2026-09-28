@@ -134,6 +134,9 @@ public class InputManager {
                 this.mouseMode = MouseMode.HEAT;
                 break;
             case HEAT:
+                this.mouseMode = MouseMode.COOL;
+                break;
+            case COOL:
                 this.mouseMode = MouseMode.PARTICLE;
                 break;
             case PARTICLE:
@@ -244,6 +247,14 @@ public class InputManager {
                     } else {
                         CellularMatrix.FunctionInput input = new CellularMatrix.FunctionInput(matrix.toMatrix(touchPos.x), matrix.toMatrix(touchPos.y), brushSize, brushType);
                         matrix.applyHeatByBrush(input);
+                    }
+                    break;
+                case COOL:
+                    if (touchedLastFrame) {
+                        matrix.applyCoolingBetweenTwoPoints(lastTouchPos, touchPos, brushSize, brushType);
+                    } else {
+                        CellularMatrix.FunctionInput input = new CellularMatrix.FunctionInput(matrix.toMatrix(touchPos.x), matrix.toMatrix(touchPos.y), brushSize, brushType);
+                        matrix.applyCoolingByBrush(input);
                     }
                     break;
                 case PARTICLE:
@@ -610,6 +621,7 @@ public class InputManager {
 
     public void setMouseMode(MouseMode mode) {
         this.mouseMode = mode;
+        Gdx.app.log("ElementumInput", "mode=" + mode.name());
     }
 
     public void setBodyType(BodyDef.BodyType bodyType) {
