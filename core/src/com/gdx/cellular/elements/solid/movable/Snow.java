@@ -27,6 +27,8 @@ public class Snow extends MovableSolid {
 
     @Override
     public void restoreSaveState(String state) {
+        // Early V3 saves predate Snow's gradual melt reserve.
+        if (state == null || state.isEmpty()) return;
         int restored = Integer.parseInt(state);
         if (restored < 0 || restored > MAX_MELT_RESISTANCE) {
             throw new IllegalArgumentException("Out-of-range Snow melt state");
