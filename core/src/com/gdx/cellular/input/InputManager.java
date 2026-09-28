@@ -776,11 +776,11 @@ public class InputManager {
                 case LAVA:
                     return parseBoundedIntegerState(state, 0, 9);
                 case GUNPOWDER:
-                    return parseBoundedIntegerState(state, 0, 7);
+                    return state.isEmpty() || parseBoundedIntegerState(state, 0, 7);
                 case SNOW:
-                    return parseBoundedIntegerState(state, 0, 60);
+                    return state.isEmpty() || parseBoundedIntegerState(state, 0, 60);
                 case ACID:
-                    return parseBoundedIntegerState(state, 0, 3);
+                    return state.isEmpty() || parseBoundedIntegerState(state, 0, 3);
                 case LIGHTNING:
                     String[] lightning = state.split(",", -1);
                     if (lightning.length != 3 || !isSavedBoolean(lightning[1])) return false;
