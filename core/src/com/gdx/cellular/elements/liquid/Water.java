@@ -31,8 +31,14 @@ public class Water extends Liquid {
     public void restoreSaveState(String state) {
         String[] values = state.split(",", -1);
         if (values.length != 2) throw new IllegalArgumentException("Invalid Water save state");
-        boilResistance = Integer.parseInt(values[0]);
-        freezeResistance = Integer.parseInt(values[1]);
+        int restoredBoilResistance = Integer.parseInt(values[0]);
+        int restoredFreezeResistance = Integer.parseInt(values[1]);
+        if (restoredBoilResistance <= 0 || restoredBoilResistance > 80
+                || restoredFreezeResistance <= 0 || restoredFreezeResistance > 100) {
+            throw new IllegalArgumentException("Out-of-range Water phase state");
+        }
+        boilResistance = restoredBoilResistance;
+        freezeResistance = restoredFreezeResistance;
     }
 
     @Override
