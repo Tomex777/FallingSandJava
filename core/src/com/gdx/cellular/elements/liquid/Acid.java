@@ -26,6 +26,8 @@ public class Acid extends Liquid {
 
     @Override
     public void restoreSaveState(String state) {
+        // Early V3 saves predate corrosion-capacity persistence.
+        if (state == null || state.isEmpty()) return;
         int restoredCorrosionCount = Integer.parseInt(state);
         if (restoredCorrosionCount < 0 || restoredCorrosionCount > MAX_CORROSION_COUNT) {
             throw new IllegalArgumentException("Out-of-range Acid corrosion state");
