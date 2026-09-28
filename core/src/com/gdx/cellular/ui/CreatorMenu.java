@@ -38,6 +38,7 @@ public class CreatorMenu {
 
     public Map<SelectedSubList, Table> listTableMap = new HashMap<>();
     private Dialog loadDialog;
+    private Dialog helpDialog;
 
     public CreatorMenu(InputManager inputManager, Viewport viewport) {
         this.inputManager = inputManager;
@@ -100,6 +101,9 @@ public class CreatorMenu {
                 .width(CELL_WIDTH).height(CELL_HEIGHT);
         dropDownTopLevelTable.row();
         dropDownTopLevelTable.add(createActionButton(skin, "Load", inputManager::requestLoad))
+                .width(CELL_WIDTH).height(CELL_HEIGHT);
+        dropDownTopLevelTable.row();
+        dropDownTopLevelTable.add(createDialogButton(skin, "Help", this::showHelpDialog))
                 .width(CELL_WIDTH).height(CELL_HEIGHT);
 
 
@@ -244,6 +248,18 @@ public class CreatorMenu {
         return button;
     }
 
+    private Button createDialogButton(Skin skin, String text, Runnable action) {
+        Button button = new TextButton(text, skin);
+        button.setColor(Color.GRAY);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                action.run();
+            }
+        });
+        return button;
+    }
+
     public void prepareForRootMenu() {
         dropDownTopLevelTable.setVisible(true);
         dropDownElementList.setVisible(true);
@@ -262,6 +278,64 @@ public class CreatorMenu {
         loadDialog.remove();
         loadDialog = null;
         return true;
+    }
+
+    public boolean dismissHelpDialog() {
+        if (helpDialog == null) return false;
+        helpDialog.remove();
+        helpDialog = null;
+        return true;
+    }
+
+    private void showHelpDialog() {
+        dismissHelpDialog();
+
+        Skin skin = Skins.getSkin("uiskin");
+        final Dialog dialog = new Dialog("Elementum Controls", skin, "dialog") {
+            @Override
+            protected void result(Object object) {
+                helpDialog = null;
+                inputManager.closeCreatorMenu();
+                Gdx.app.log("ElementumInput", "help=closed");
+            }
+        };
+        helpDialog = dialog;
+
+        dropDownTopLevelTable.setVisible(false);
+        dropDownElementList.setVisible(false);
+        dropDownMouseMode.setVisible(false);
+        dropDownBodyType.setVisible(false);
+        dropDownWeather.setVisible(false);
+
+        Table help = new Table();
+        help.left().top();
+        addHelpLine(help, skin, "Draw", "One finger tap or stroke");
+        addHelpLine(help, skin, "Navigate", "Two fingers to pan or pinch");
+        addHelpLine(help, skin, "Heat / Cool", "Top-right thermal tools");
+        addHelpLine(help, skin, "Erase", "Top-right local erase");
+        addHelpLine(help, skin, "Pause", "Editing stays available while paused");
+        addHelpLine(help, skin, "Save / Load", "Open Tools and choose a scene");
+
+        float width = Math.max(280f, Math.min(330f, viewport.getWorldWidth() - 24f));
+        float height = Math.max(250f, Math.min(360f, viewport.getWorldHeight() - 120f));
+        dialog.getContentTable().add(help).width(width - 32f).pad(12f).left().top();
+        dialog.button("Close", false);
+        dialog.show(dropDownStage);
+        dialog.setSize(width, height);
+        dialog.setPosition((viewport.getWorldWidth() - width) / 2f,
+                (viewport.getWorldHeight() - height) / 2f);
+        Gdx.app.log("ElementumInput", "help=open");
+    }
+
+    private void addHelpLine(Table table, Skin skin, String title, String detail) {
+        Label titleLabel = new Label(title, skin);
+        titleLabel.setFontScale(0.72f);
+        Label detailLabel = new Label(detail, skin);
+        detailLabel.setFontScale(0.62f);
+        detailLabel.setWrap(true);
+        table.add(titleLabel).width(78f).left().padBottom(8f);
+        table.add(detailLabel).width(190f).left().padBottom(8f);
+        table.row();
     }
 
     public void showLoadDialog() {
