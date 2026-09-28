@@ -124,6 +124,10 @@ public class ShapeFactory {
     // Uses a triangulation algorithm
     // Creates Box2D Fixtures from the triangles and adds them to the body
     public static Body createPolygonFromElementArray(int x, int y, Array<Array<Element>> elements, BodyDef.BodyType shapeType) {
+        if (elements == null || elements.size == 0 || elements.get(0) == null || elements.get(0).size == 0) {
+            return null;
+        }
+
         int mod = CellularAutomaton.box2dSizeModifier/2;
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = shapeType;
@@ -133,11 +137,19 @@ public class ShapeFactory {
         Vector2 center = new Vector2((float) (xWidth + x) / mod, (float) (yWidth + y) / mod);
 
         bodyDef.position.set(center);
-        Body body = shapeFactory.world.createBody(bodyDef);
 
+        List<Vector2> allVerts;
         elements.reverse();
-        List<Vector2> allVerts = MooreNeighborTracing.getOutliningVerts(elements);
-        elements.reverse();
+        try {
+            allVerts = MooreNeighborTracing.getOutliningVerts(elements);
+        } finally {
+            // The actor owns this array. Boundary probing must never leave its
+            // row order inverted, even if tracing rejects malformed geometry.
+            elements.reverse();
+        }
+        if (allVerts == null || allVerts.size() < 3) {
+            return null;
+        }
         List<Vector2> allVertsTransformed = allVerts.stream().map(vector2 -> new Vector2((vector2.x - xWidth)/(mod), (vector2.y - yWidth)/(mod))).collect(Collectors.toList());
 //        List<Vector2> simplifiedVerts = Visvalingam.simplify(allVerts);
 //        simplifiedVerts = simplifiedVerts.stream().map(vector2 -> new Vector2((vector2.x - xWidth)/(mod), (vector2.y - yWidth)/(mod))).collect(Collectors.toList());
@@ -158,8 +170,8 @@ public class ShapeFactory {
 
         GeometryFactory geometryFactory = new GeometryFactory();
         CoordinateSequence coordinateSequence = new PackedCoordinateSequence.Float(earVerts, 2, 0);
-        if (!(coordinateSequence.size() == 0 || coordinateSequence.size() >= 4)) {
-            return body;
+        if (coordinateSequence.size() != 0 && coordinateSequence.size() < 4) {
+            return null;
         }
         LinearRing linearRing = new LinearRing(coordinateSequence, geometryFactory);
         Polygon polygon = geometryFactory.createPolygon(linearRing);
@@ -173,7 +185,8 @@ public class ShapeFactory {
         dyn4jVerts.remove(dyn4jVerts.size() - 1);
         List<Convex> convexes;
         if (dyn4jVerts.size() == 3) {
-            Convex convex = new org.dyn4j.geometry.Polygon((org.dyn4j.geometry.Vector2) dyn4jVerts);
+            Convex convex = new org.dyn4j.geometry.Polygon(
+                    dyn4jVerts.toArray(new org.dyn4j.geometry.Vector2[0]));
             convexes = new ArrayList<>();
             convexes.add(convex);
         } else if (dyn4jVerts.size() > 3) {
@@ -185,6 +198,8 @@ public class ShapeFactory {
         } else {
             return null;
         }
+
+        Body body = shapeFactory.world.createBody(bodyDef);
 
         for (Convex convex : convexes) {
             org.dyn4j.geometry.Polygon dynConvexPolygon = (org.dyn4j.geometry.Polygon) convex;
@@ -227,6 +242,12 @@ public class ShapeFactory {
                 body.createFixture(fixtureDef);
                 polygonForFixture.dispose();
             }
+        }
+
+
+        if (body.getFixtureList().size == 0) {
+            shapeFactory.world.destroyBody(body);
+            return null;
         }
 
 
