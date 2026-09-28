@@ -762,25 +762,27 @@ public class InputManager {
         try {
             switch (type) {
                 case WATER:
-                    return parseIntegerState(state, 2);
+                    String[] water = state.split(",", -1);
+                    if (water.length != 2) return false;
+                    int boil = Integer.parseInt(water[0]);
+                    int freeze = Integer.parseInt(water[1]);
+                    return boil > 0 && boil <= 80 && freeze > 0 && freeze <= 100;
                 case ICE:
+                    return parseBoundedIntegerState(state, 1, 120);
                 case COPPER:
+                    return parseBoundedIntegerState(state, 1, 700);
                 case MOLTENCOPPER:
+                    return parseBoundedIntegerState(state, 1, 500);
                 case STEAM:
+                    return parseBoundedIntegerState(state, 1, 140);
                 case LAVA:
-                    return parseIntegerState(state, 1);
+                    return parseBoundedIntegerState(state, 0, 9);
                 case GUNPOWDER:
-                    if (!parseIntegerState(state, 1)) return false;
-                    int fuse = Integer.parseInt(state);
-                    return fuse >= 0 && fuse <= 7;
+                    return parseBoundedIntegerState(state, 0, 7);
                 case SNOW:
-                    if (!parseIntegerState(state, 1)) return false;
-                    int snowMelt = Integer.parseInt(state);
-                    return snowMelt >= 0 && snowMelt <= 60;
+                    return parseBoundedIntegerState(state, 0, 60);
                 case ACID:
-                    if (!parseIntegerState(state, 1)) return false;
-                    int corrosion = Integer.parseInt(state);
-                    return corrosion >= 0 && corrosion <= 3;
+                    return parseBoundedIntegerState(state, 0, 3);
                 case LIGHTNING:
                     String[] lightning = state.split(",", -1);
                     if (lightning.length != 3 || !isSavedBoolean(lightning[1])) return false;
@@ -795,11 +797,10 @@ public class InputManager {
         }
     }
 
-    private boolean parseIntegerState(String state, int expectedParts) {
-        String[] parts = state.split(",", -1);
-        if (parts.length != expectedParts) return false;
-        for (String part : parts) Integer.parseInt(part);
-        return true;
+    private boolean parseBoundedIntegerState(String state, int min, int max) {
+        if (state.indexOf(',') >= 0) return false;
+        int value = Integer.parseInt(state);
+        return value >= min && value <= max;
     }
 
     private boolean isSavedBoolean(String value) {
