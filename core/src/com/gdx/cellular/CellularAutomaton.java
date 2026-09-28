@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class CellularAutomaton extends ApplicationAdapter {
@@ -44,8 +45,10 @@ public class CellularAutomaton extends ApplicationAdapter {
 
     private int numThreads = 12;
     private boolean useMultiThreading = true;
+    private static final int MAX_SIMULATION_WORKERS = 6;
     private ExecutorService simulationExecutor;
     private int simulationColumnCount;
+    private final AtomicInteger simulationWorkerSerial = new AtomicInteger();
     private final List<ElementColumnStepper> columnSteppers = new ArrayList<>();
     private final List<Future<?>> workerFutures = new ArrayList<>();
 
@@ -243,10 +246,13 @@ public class CellularAutomaton extends ApplicationAdapter {
 		if (simulationExecutor != null && simulationColumnCount == numThreads) return;
 		if (simulationExecutor != null) simulationExecutor.shutdownNow();
 		simulationColumnCount = numThreads;
-		int workerCount = Math.max(1, (numThreads + 1) / 2);
+		int workerCount = Math.max(1, Math.min(MAX_SIMULATION_WORKERS, (numThreads + 1) / 2));
+		Gdx.app.log("ElementumWorker", "pool-size=" + workerCount + " columns=" + numThreads);
 		simulationExecutor = Executors.newFixedThreadPool(workerCount, runnable -> {
-			Thread worker = new Thread(runnable, "ElementumSim");
+			String workerName = "ElementumSim-" + simulationWorkerSerial.incrementAndGet();
+			Thread worker = new Thread(runnable, workerName);
 			worker.setDaemon(true);
+			Gdx.app.log("ElementumWorker", "created=" + workerName);
 			return worker;
 		});
 		columnSteppers.clear();
