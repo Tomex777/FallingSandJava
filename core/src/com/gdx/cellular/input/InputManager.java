@@ -51,6 +51,8 @@ public class InputManager {
     public BodyDef.BodyType bodyType = BodyDef.BodyType.DynamicBody;
 
     private boolean paused = false;
+    private boolean pausedBeforeFileDialog = false;
+    private boolean fileDialogOpen = false;
     private final TextInputHandler saveLevelNameListener = new TextInputHandler(this, this::setFileNameForSave);
     private final TextInputHandler loadLevelNameListener = new TextInputHandler(this, this::setFileNameForLoad);
     private String fileNameForLevel;
@@ -198,15 +200,32 @@ public class InputManager {
     }
 
     public void requestSave() {
-        if (readyToSave) return;
+        if (readyToSave || fileDialogOpen) return;
+        pausedBeforeFileDialog = paused;
+        fileDialogOpen = true;
         paused = true;
         Gdx.input.getTextInput(saveLevelNameListener, "Save Level", "", "File Name");
     }
 
     public void requestLoad() {
-        if (readyToLoad) return;
+        if (readyToLoad || fileDialogOpen) return;
+        pausedBeforeFileDialog = paused;
+        fileDialogOpen = true;
         paused = true;
         Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "", "File Name");
+    }
+
+    public void cancelFileDialog() {
+        readyToSave = false;
+        readyToLoad = false;
+        fileDialogOpen = false;
+        paused = pausedBeforeFileDialog;
+        Gdx.app.log("ElementumSaveLoad", "dialog-cancelled paused=" + paused);
+    }
+
+    private void finishFileAction() {
+        fileDialogOpen = false;
+        paused = pausedBeforeFileDialog;
     }
 
     public void spawnElementByInput(CellularMatrix matrix) {
@@ -456,22 +475,31 @@ public class InputManager {
         }
 
         readyToSave = false;
-        setIsPaused(false);
-
-        StringBuilder builder = new StringBuilder("V2\n");
-        for (int r = 0; r < matrix.outerArraySize; r++) {
-            Array<Element> row = matrix.getRow(r);
-            for (int e = 0; e < row.size; e++) {
-                if (e > 0) builder.append(';');
-                Element element = row.get(e);
-                appendSavedElement(builder, element);
+        FileHandle tempFile = null;
+        try {
+            StringBuilder builder = new StringBuilder("V2\n");
+            for (int r = 0; r < matrix.outerArraySize; r++) {
+                Array<Element> row = matrix.getRow(r);
+                for (int e = 0; e < row.size; e++) {
+                    if (e > 0) builder.append(';');
+                    appendSavedElement(builder, row.get(e));
+                }
+                builder.append('\n');
             }
-            builder.append('\n');
-        }
 
-        FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
-        saveFile.parent().mkdirs();
-        saveFile.writeString(builder.toString(), false, "UTF-8");
+            FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
+            tempFile = Gdx.files.local("save/" + fileNameForLevel + ".ser.tmp");
+            saveFile.parent().mkdirs();
+            tempFile.writeString(builder.toString(), false, "UTF-8");
+            if (saveFile.exists()) saveFile.delete();
+            tempFile.moveTo(saveFile);
+            Gdx.app.log("ElementumSaveLoad", "saved=" + fileNameForLevel + " bytes=" + saveFile.length());
+        } catch (RuntimeException error) {
+            if (tempFile != null && tempFile.exists()) tempFile.delete();
+            Gdx.app.error("ElementumSaveLoad", "save-failed=" + fileNameForLevel, error);
+        } finally {
+            finishFileAction();
+        }
     }
 
     public void load(CellularMatrix matrix) {
@@ -484,24 +512,44 @@ public class InputManager {
         }
 
         readyToLoad = false;
-        setIsPaused(false);
+        try {
+            FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
+            if (!saveFile.exists()) {
+                Gdx.app.log("ElementumSaveLoad", "load-missing=" + fileNameForLevel);
+                return;
+            }
 
-        FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
-        if (!saveFile.exists()) {
-            return;
+            String level = saveFile.readString("UTF-8");
+            boolean versionTwo = level.startsWith("V2\n");
+            String payload = versionTwo ? level.substring(3) : level;
+            boolean valid = versionTwo ? validateVersionTwo(payload) : validateLegacyLevel(payload);
+            if (!valid) {
+                Gdx.app.error("ElementumSaveLoad", "load-invalid=" + fileNameForLevel);
+                return;
+            }
+
+            // Validation happens before clearAll so a malformed save can never
+            // destroy the scene the user currently has open.
+            matrix.clearAll();
+            if (versionTwo) {
+                loadVersionTwo(matrix, payload);
+            } else {
+                loadLegacyLevel(matrix, payload);
+            }
+            Gdx.app.log("ElementumSaveLoad", "loaded=" + fileNameForLevel + " format=" + (versionTwo ? "V2" : "legacy"));
+        } catch (RuntimeException error) {
+            Gdx.app.error("ElementumSaveLoad", "load-failed=" + fileNameForLevel, error);
+        } finally {
+            finishFileAction();
         }
-
-        String level = saveFile.readString("UTF-8");
-        matrix.clearAll();
-        if (level.startsWith("V2\n")) {
-            loadVersionTwo(matrix, level.substring(3));
-            return;
-        }
-
-        loadLegacyLevel(matrix, level);
     }
 
     private void appendSavedElement(StringBuilder builder, Element element) {
+        // Empty cells are implicit in V2. Omitting their enum names keeps large
+        // sparse mobile scenes small and avoids unnecessary save/load work.
+        if (element == null || element.elementType == ElementType.EMPTYCELL) {
+            return;
+        }
         if (element instanceof Particle) {
             Particle particle = (Particle) element;
             Color color = particle.color;
@@ -513,6 +561,52 @@ public class InputManager {
             builder.append("B:").append(element.vel.x).append(':').append(element.vel.y);
         } else {
             builder.append(element.elementType.name());
+        }
+    }
+
+    private boolean validateVersionTwo(String level) {
+        try {
+            String[] rows = level.split("\\n", -1);
+            for (String row : rows) {
+                String[] cells = row.split(";", -1);
+                for (String cell : cells) {
+                    if (cell.isEmpty()) continue;
+                    String[] values = cell.split(":");
+                    if (values[0].equals("P")) {
+                        if (values.length != 9) return false;
+                        ElementType containedType = ElementType.valueOf(values[1]);
+                        if (containedType == ElementType.PARTICLE || containedType == ElementType.BOID) return false;
+                        for (int i = 2; i <= 7; i++) Float.parseFloat(values[i]);
+                        if (!"true".equals(values[8]) && !"false".equals(values[8])) return false;
+                    } else if (values[0].equals("B")) {
+                        if (values.length != 3) return false;
+                        Float.parseFloat(values[1]);
+                        Float.parseFloat(values[2]);
+                    } else {
+                        if (values.length != 1) return false;
+                        ElementType type = ElementType.valueOf(cell);
+                        if (type == ElementType.PARTICLE || type == ElementType.BOID) return false;
+                    }
+                }
+            }
+            return true;
+        } catch (RuntimeException invalidSave) {
+            return false;
+        }
+    }
+
+    private boolean validateLegacyLevel(String level) {
+        try {
+            String[] splitLevel = level.split(",");
+            for (int i = 0; i + 1 < splitLevel.length; i += 2) {
+                int count = Integer.parseInt(splitLevel[i]);
+                if (count < 0) return false;
+                String clazz = splitLevel[i + 1].toUpperCase();
+                if (!clazz.equals("|")) ElementType.valueOf(clazz);
+            }
+            return splitLevel.length >= 2;
+        } catch (RuntimeException invalidSave) {
+            return false;
         }
     }
 
@@ -531,13 +625,16 @@ public class InputManager {
                             Float.parseFloat(values[6]), Float.parseFloat(values[7]));
                     ElementType.createParticleByMatrix(matrix, x, y, velocity, containedType, color,
                             Boolean.parseBoolean(values[8]));
+                    matrix.reportToChunkActive(x, y);
                 } else if (values[0].equals("B") && values.length == 3) {
                     Vector3 velocity = new Vector3(Float.parseFloat(values[1]), Float.parseFloat(values[2]), 0);
                     ElementType.createBoidByMatrix(matrix, x, y, velocity);
+                    matrix.reportToChunkActive(x, y);
                 } else {
                     ElementType elementType = ElementType.valueOf(cell);
                     Element element = elementType.createElementByMatrix(x, y);
                     matrix.setElementAtIndex(x, y, element);
+                    if (elementType != ElementType.EMPTYCELL) matrix.reportToChunkActive(x, y);
                 }
             }
         }
@@ -568,22 +665,35 @@ public class InputManager {
                 elementType = ElementType.EMPTYCELL;
             }
             for (int k = 0; k < count && k + lastElementIndex < row.size; k++) {
-                row.set(k + lastElementIndex,
-                        elementType.createElementByMatrix(k + lastElementIndex, rowIndex));
+                int x = k + lastElementIndex;
+                row.set(x, elementType.createElementByMatrix(x, rowIndex));
+                if (elementType != ElementType.EMPTYCELL) matrix.reportToChunkActive(x, rowIndex);
             }
             lastElementIndex += count;
         }
     }
 
     public boolean setFileNameForSave(String sane) {
+        if (sane == null || sane.trim().isEmpty()) {
+            Gdx.app.log("ElementumSaveLoad", "save-name-rejected");
+            cancelFileDialog();
+            return false;
+        }
         this.fileNameForLevel = sane;
         this.readyToSave = true;
+        this.fileDialogOpen = false;
         return true;
     }
 
     public boolean setFileNameForLoad(String sane) {
+        if (sane == null || sane.trim().isEmpty()) {
+            Gdx.app.log("ElementumSaveLoad", "load-name-rejected");
+            cancelFileDialog();
+            return false;
+        }
         this.fileNameForLevel = sane;
         this.readyToLoad = true;
+        this.fileDialogOpen = false;
         return true;
     }
 

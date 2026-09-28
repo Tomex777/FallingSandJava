@@ -23,6 +23,6 @@ public class TextInputHandler implements Input.TextInputListener {
 
     @Override
     public void canceled () {
-        inputManager.setIsPaused(false);
+        inputManager.cancelFileDialog();
     }
 }
