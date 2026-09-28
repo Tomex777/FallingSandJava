@@ -37,6 +37,7 @@ public class MobileControls {
 
     private final Table quickBar;
     private final Table toolsBar;
+    private final Table statusBar;
     private final Table materialGrid;
     private final ScrollPane materialPicker;
 
@@ -45,6 +46,7 @@ public class MobileControls {
 
     private TextButton pauseButton;
     private TextButton brushTypeButton;
+    private Label selectionLabel;
     private TextButton allMaterialsButton;
     private TextButton heatButton;
     private TextButton coolButton;
@@ -124,6 +126,18 @@ public class MobileControls {
         toolsBar.add(heatButton).width(54f).height(42f).padTop(3f).padRight(3f);
         toolsBar.add(coolButton).width(68f).height(42f).padTop(3f);
         stage.addActor(toolsBar);
+
+        // Persistent touch-transparent context: users can always see what the
+        // next world gesture will do without sacrificing simulation input.
+        statusBar = new Table();
+        statusBar.top().left();
+        statusBar.setFillParent(true);
+        statusBar.setTouchable(Touchable.disabled);
+        statusBar.pad(8f);
+        selectionLabel = new Label("", skin);
+        selectionLabel.setFontScale(0.72f);
+        statusBar.add(selectionLabel).height(42f).left();
+        stage.addActor(statusBar);
 
         addQuickMaterial("Sand", ElementType.SAND, 56f);
         addQuickMaterial("Water", ElementType.WATER, 56f);
@@ -320,6 +334,34 @@ public class MobileControls {
         if (brushTypeButton != null) {
             brushTypeButton.setText(brushTypeLabel());
         }
+        updateSelectionLabel();
+    }
+
+    private void updateSelectionLabel() {
+        if (selectionLabel == null) return;
+
+        MouseMode mode = inputManager.getMouseMode();
+        if (mode == MouseMode.HEAT) {
+            selectionLabel.setText("Heat  |  " + brushTypeLabel());
+            return;
+        }
+        if (mode == MouseMode.COOL) {
+            selectionLabel.setText("Cool  |  " + brushTypeLabel());
+            return;
+        }
+        if (mode == MouseMode.SPAWN && inputManager.currentlySelectedElement == ElementType.EMPTYCELL) {
+            selectionLabel.setText("Erase  |  " + brushTypeLabel());
+            return;
+        }
+
+        String material = displayName(inputManager.currentlySelectedElement);
+        String tool = mode == MouseMode.SPAWN ? "Draw" : displayName(mode);
+        selectionLabel.setText(material + "  |  " + tool + "  |  " + brushTypeLabel());
+    }
+
+    private String displayName(MouseMode mode) {
+        String lower = mode.name().toLowerCase();
+        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
     private void syncToolHighlights() {
@@ -329,6 +371,7 @@ public class MobileControls {
         if (coolButton != null) {
             coolButton.setColor(inputManager.getMouseMode() == MouseMode.COOL ? Color.CYAN : Color.WHITE);
         }
+        updateSelectionLabel();
     }
 
     private void layoutPicker() {
@@ -345,7 +388,9 @@ public class MobileControls {
         if (stage.getViewport().getScreenWidth() != width || stage.getViewport().getScreenHeight() != height) {
             resize(width, height);
         }
-        toolsBar.setVisible(!inputManager.drawMenu && !materialPicker.isVisible());
+        boolean overlaysHidden = !inputManager.drawMenu && !materialPicker.isVisible();
+        toolsBar.setVisible(overlaysHidden);
+        statusBar.setVisible(overlaysHidden);
         syncToolHighlights();
         stage.act();
         stage.draw();
