@@ -7,7 +7,8 @@ import com.gdx.cellular.elements.ElementType;
 
 public class Acid extends Liquid {
 
-    public int corrosionCount = 3;
+    private static final int MAX_CORROSION_COUNT = 3;
+    public int corrosionCount = MAX_CORROSION_COUNT;
     public Acid(int x, int y) {
         super(x, y);
         vel = new Vector3(0,-124f,0);
@@ -16,6 +17,20 @@ public class Acid extends Liquid {
         frictionFactor = 1f;
         density = 2;
         dispersionRate = 2;
+    }
+
+    @Override
+    public String getSaveState() {
+        return Integer.toString(corrosionCount);
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        int restoredCorrosionCount = Integer.parseInt(state);
+        if (restoredCorrosionCount < 0 || restoredCorrosionCount > MAX_CORROSION_COUNT) {
+            throw new IllegalArgumentException("Out-of-range Acid corrosion state");
+        }
+        corrosionCount = restoredCorrosionCount;
     }
 
     @Override
