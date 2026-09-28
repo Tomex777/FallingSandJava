@@ -1,5 +1,6 @@
 package com.gdx.cellular.elements.gas;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector3;
 import com.gdx.cellular.CellularAutomaton;
 import com.gdx.cellular.CellularMatrix;
@@ -74,7 +75,15 @@ public class Lightning extends Gas {
                 if (neighbor == null || neighbor instanceof EmptyCell || neighbor instanceof Lightning) continue;
 
                 if (neighbor instanceof Petrol) {
+                    boolean wasIgnited = neighbor.isIgnited;
                     neighbor.receiveHeat(matrix, 120);
+                    if (!neighbor.isIgnited) {
+                        neighbor.flammabilityResistance = 0;
+                        neighbor.checkIfIgnited();
+                    }
+                    if (!wasIgnited && neighbor.isIgnited) {
+                        Gdx.app.log("ElementumReaction", "lightning-ignited-petrol");
+                    }
                     continue;
                 }
 
