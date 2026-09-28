@@ -769,6 +769,14 @@ public class InputManager {
                 case STEAM:
                 case LAVA:
                     return parseIntegerState(state, 1);
+                case GUNPOWDER:
+                    if (!parseIntegerState(state, 1)) return false;
+                    int fuse = Integer.parseInt(state);
+                    return fuse >= 0 && fuse <= 7;
+                case ACID:
+                    if (!parseIntegerState(state, 1)) return false;
+                    int corrosion = Integer.parseInt(state);
+                    return corrosion >= 0 && corrosion <= 3;
                 case LIGHTNING:
                     String[] lightning = state.split(",", -1);
                     if (lightning.length != 3 || !isSavedBoolean(lightning[1])) return false;
