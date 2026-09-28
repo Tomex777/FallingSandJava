@@ -185,8 +185,19 @@ public class ShapeFactory {
         dyn4jVerts.remove(dyn4jVerts.size() - 1);
         List<Convex> convexes;
         if (dyn4jVerts.size() == 3) {
-            Convex convex = new org.dyn4j.geometry.Polygon(
-                    dyn4jVerts.toArray(new org.dyn4j.geometry.Vector2[0]));
+            org.dyn4j.geometry.Vector2[] triangle =
+                    dyn4jVerts.toArray(new org.dyn4j.geometry.Vector2[0]);
+            double signedCross = (triangle[1].x - triangle[0].x) * (triangle[2].y - triangle[0].y)
+                    - (triangle[1].y - triangle[0].y) * (triangle[2].x - triangle[0].x);
+            if (Math.abs(signedCross) < 0.000001d) {
+                return null;
+            }
+            if (signedCross < 0d) {
+                org.dyn4j.geometry.Vector2 swap = triangle[1];
+                triangle[1] = triangle[2];
+                triangle[2] = swap;
+            }
+            Convex convex = new org.dyn4j.geometry.Polygon(triangle);
             convexes = new ArrayList<>();
             convexes.add(convex);
         } else if (dyn4jVerts.size() > 3) {
