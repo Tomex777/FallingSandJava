@@ -562,7 +562,7 @@ public class InputManager {
         readyToSave = false;
         FileHandle tempFile = null;
         try {
-            StringBuilder builder = new StringBuilder("V2\n");
+            StringBuilder builder = new StringBuilder("V3\n");
             for (int r = 0; r < matrix.outerArraySize; r++) {
                 Array<Element> row = matrix.getRow(r);
                 for (int e = 0; e < row.size; e++) {
@@ -632,9 +632,12 @@ public class InputManager {
             }
 
             String level = saveFile.readString("UTF-8");
+            boolean versionThree = level.startsWith("V3\n");
             boolean versionTwo = level.startsWith("V2\n");
-            String payload = versionTwo ? level.substring(3) : level;
-            boolean valid = versionTwo ? validateVersionTwo(payload, matrix) : validateLegacyLevel(payload);
+            String payload = (versionThree || versionTwo) ? level.substring(3) : level;
+            boolean valid = versionThree
+                    ? validateVersionThree(payload, matrix)
+                    : versionTwo ? validateVersionTwo(payload, matrix) : validateLegacyLevel(payload);
             if (!valid) {
                 Gdx.app.error("ElementumSaveLoad", "load-invalid=" + fileNameForLevel);
                 return;
@@ -643,12 +646,15 @@ public class InputManager {
             // Validation happens before clearAll so a malformed save can never
             // destroy the scene the user currently has open.
             matrix.clearAll();
-            if (versionTwo) {
+            if (versionThree) {
+                loadVersionThree(matrix, payload);
+            } else if (versionTwo) {
                 loadVersionTwo(matrix, payload);
             } else {
                 loadLegacyLevel(matrix, payload);
             }
-            Gdx.app.log("ElementumSaveLoad", "loaded=" + fileNameForLevel + " format=" + (versionTwo ? "V2" : "legacy"));
+            String format = versionThree ? "V3" : versionTwo ? "V2" : "legacy";
+            Gdx.app.log("ElementumSaveLoad", "loaded=" + fileNameForLevel + " format=" + format);
         } catch (RuntimeException error) {
             Gdx.app.error("ElementumSaveLoad", "load-failed=" + fileNameForLevel, error);
         } finally {
@@ -672,8 +678,128 @@ public class InputManager {
         } else if (element instanceof Boid) {
             builder.append("B:").append(element.vel.x).append(':').append(element.vel.y);
         } else {
-            builder.append(element.elementType.name());
+            Vector3 velocity = element.vel == null ? new Vector3() : element.vel;
+            Color color = element.color;
+            String materialState = element.getSaveState();
+            if (materialState.indexOf(':') >= 0) {
+                throw new IllegalStateException("Material save state cannot contain ':' for " + element.elementType);
+            }
+            builder.append("E:").append(element.elementType.name())
+                    .append(':').append(velocity.x).append(':').append(velocity.y)
+                    .append(':').append(element.health)
+                    .append(':').append(element.flammabilityResistance)
+                    .append(':').append(element.isIgnited)
+                    .append(':').append(element.lifeSpan == null ? "N" : element.lifeSpan)
+                    .append(':').append(element.coolingFactor)
+                    .append(':').append(element.temperature)
+                    .append(':').append(color.r).append(':').append(color.g)
+                    .append(':').append(color.b).append(':').append(color.a)
+                    .append(':').append(element.discolored)
+                    .append(':').append(element.isFreeFalling)
+                    .append(':').append(element.stoppedMovingCount)
+                    .append(':').append(element.xThreshold)
+                    .append(':').append(element.yThreshold)
+                    .append(':').append(materialState);
         }
+    }
+
+    private boolean validateVersionThree(String level, CellularMatrix matrix) {
+        try {
+            String[] rows = level.split("\\n", -1);
+            if (rows.length != matrix.outerArraySize + 1 || !rows[rows.length - 1].isEmpty()) {
+                return false;
+            }
+
+            for (int y = 0; y < matrix.outerArraySize; y++) {
+                String[] cells = rows[y].split(";", -1);
+                if (cells.length != matrix.innerArraySize) return false;
+
+                for (String cell : cells) {
+                    if (cell.isEmpty()) continue;
+                    String[] values = cell.split(":", -1);
+                    if ("P".equals(values[0])) {
+                        if (values.length != 9) return false;
+                        ElementType containedType = ElementType.valueOf(values[1]);
+                        if (containedType == ElementType.PARTICLE || containedType == ElementType.BOID) return false;
+                        for (int i = 2; i <= 7; i++) parseFiniteFloat(values[i]);
+                        if (!isSavedBoolean(values[8])) return false;
+                    } else if ("B".equals(values[0])) {
+                        if (values.length != 3) return false;
+                        parseFiniteFloat(values[1]);
+                        parseFiniteFloat(values[2]);
+                    } else if ("E".equals(values[0])) {
+                        if (values.length != 20) return false;
+                        ElementType type = ElementType.valueOf(values[1]);
+                        if (type == ElementType.EMPTYCELL || type == ElementType.PARTICLE || type == ElementType.BOID) {
+                            return false;
+                        }
+                        parseFiniteFloat(values[2]);
+                        parseFiniteFloat(values[3]);
+                        Integer.parseInt(values[4]);
+                        Integer.parseInt(values[5]);
+                        if (!isSavedBoolean(values[6])) return false;
+                        if (!"N".equals(values[7])) Integer.parseInt(values[7]);
+                        Integer.parseInt(values[8]);
+                        Integer.parseInt(values[9]);
+                        for (int i = 10; i <= 13; i++) parseFiniteFloat(values[i]);
+                        if (!isSavedBoolean(values[14]) || !isSavedBoolean(values[15])) return false;
+                        Integer.parseInt(values[16]);
+                        parseFiniteFloat(values[17]);
+                        parseFiniteFloat(values[18]);
+                        if (!validateMaterialSaveState(type, values[19])) return false;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } catch (RuntimeException invalidSave) {
+            return false;
+        }
+    }
+
+    private boolean validateMaterialSaveState(ElementType type, String state) {
+        try {
+            switch (type) {
+                case WATER:
+                    return parseIntegerState(state, 2);
+                case ICE:
+                case COPPER:
+                case MOLTENCOPPER:
+                case STEAM:
+                case LAVA:
+                    return parseIntegerState(state, 1);
+                case LIGHTNING:
+                    String[] lightning = state.split(",", -1);
+                    if (lightning.length != 3 || !isSavedBoolean(lightning[1])) return false;
+                    int generation = Integer.parseInt(lightning[0]);
+                    int children = Integer.parseInt(lightning[2]);
+                    return generation >= 0 && generation <= 20 && children >= 0 && children <= 2;
+                default:
+                    return state.isEmpty();
+            }
+        } catch (RuntimeException invalidState) {
+            return false;
+        }
+    }
+
+    private boolean parseIntegerState(String state, int expectedParts) {
+        String[] parts = state.split(",", -1);
+        if (parts.length != expectedParts) return false;
+        for (String part : parts) Integer.parseInt(part);
+        return true;
+    }
+
+    private boolean isSavedBoolean(String value) {
+        return "true".equals(value) || "false".equals(value);
+    }
+
+    private float parseFiniteFloat(String value) {
+        float parsed = Float.parseFloat(value);
+        if (Float.isNaN(parsed) || Float.isInfinite(parsed)) {
+            throw new IllegalArgumentException("Non-finite save value");
+        }
+        return parsed;
     }
 
     private boolean validateVersionTwo(String level, CellularMatrix matrix) {
@@ -698,17 +824,11 @@ public class InputManager {
                         if (values.length != 9) return false;
                         ElementType containedType = ElementType.valueOf(values[1]);
                         if (containedType == ElementType.PARTICLE || containedType == ElementType.BOID) return false;
-                        for (int i = 2; i <= 7; i++) {
-                            float value = Float.parseFloat(values[i]);
-                            if (Float.isNaN(value) || Float.isInfinite(value)) return false;
-                        }
+                        for (int i = 2; i <= 7; i++) parseFiniteFloat(values[i]);
                         if (!"true".equals(values[8]) && !"false".equals(values[8])) return false;
                     } else if (values[0].equals("B")) {
                         if (values.length != 3) return false;
-                        for (int i = 1; i <= 2; i++) {
-                            float value = Float.parseFloat(values[i]);
-                            if (Float.isNaN(value) || Float.isInfinite(value)) return false;
-                        }
+                        for (int i = 1; i <= 2; i++) parseFiniteFloat(values[i]);
                     } else {
                         if (values.length != 1) return false;
                         ElementType type = ElementType.valueOf(cell);
@@ -735,6 +855,60 @@ public class InputManager {
         } catch (RuntimeException invalidSave) {
             return false;
         }
+    }
+
+    private void loadVersionThree(CellularMatrix matrix, String level) {
+        int restoredStateful = 0;
+        int restoredIgnited = 0;
+        String[] rows = level.split("\\n", -1);
+        for (int y = 0; y < matrix.outerArraySize; y++) {
+            String[] cells = rows[y].split(";", -1);
+            for (int x = 0; x < matrix.innerArraySize; x++) {
+                String cell = cells[x];
+                if (cell.isEmpty()) continue;
+                String[] values = cell.split(":", -1);
+
+                if ("P".equals(values[0])) {
+                    ElementType containedType = ElementType.valueOf(values[1]);
+                    Vector3 velocity = new Vector3(parseFiniteFloat(values[2]), parseFiniteFloat(values[3]), 0);
+                    Color color = new Color(parseFiniteFloat(values[4]), parseFiniteFloat(values[5]),
+                            parseFiniteFloat(values[6]), parseFiniteFloat(values[7]));
+                    boolean ignited = Boolean.parseBoolean(values[8]);
+                    ElementType.createParticleByMatrix(matrix, x, y, velocity, containedType, color, ignited);
+                    if (ignited) restoredIgnited++;
+                    matrix.reportToChunkActive(x, y);
+                } else if ("B".equals(values[0])) {
+                    Vector3 velocity = new Vector3(parseFiniteFloat(values[1]), parseFiniteFloat(values[2]), 0);
+                    ElementType.createBoidByMatrix(matrix, x, y, velocity);
+                    matrix.reportToChunkActive(x, y);
+                } else {
+                    ElementType type = ElementType.valueOf(values[1]);
+                    Element element = type.createElementByMatrix(x, y);
+                    if (element.vel == null) element.vel = new Vector3();
+                    element.vel.set(parseFiniteFloat(values[2]), parseFiniteFloat(values[3]), 0);
+                    element.health = Integer.parseInt(values[4]);
+                    element.flammabilityResistance = Integer.parseInt(values[5]);
+                    element.isIgnited = Boolean.parseBoolean(values[6]);
+                    element.lifeSpan = "N".equals(values[7]) ? null : Integer.parseInt(values[7]);
+                    element.coolingFactor = Integer.parseInt(values[8]);
+                    element.temperature = Integer.parseInt(values[9]);
+                    element.color = new Color(parseFiniteFloat(values[10]), parseFiniteFloat(values[11]),
+                            parseFiniteFloat(values[12]), parseFiniteFloat(values[13]));
+                    element.discolored = Boolean.parseBoolean(values[14]);
+                    element.isFreeFalling = Boolean.parseBoolean(values[15]);
+                    element.stoppedMovingCount = Integer.parseInt(values[16]);
+                    element.xThreshold = parseFiniteFloat(values[17]);
+                    element.yThreshold = parseFiniteFloat(values[18]);
+                    element.restoreSaveState(values[19]);
+                    matrix.setElementAtIndex(x, y, element);
+                    matrix.reportToChunkActive(x, y);
+                    if (!values[19].isEmpty()) restoredStateful++;
+                    if (element.isIgnited) restoredIgnited++;
+                }
+            }
+        }
+        Gdx.app.log("ElementumSaveLoad", "restored-stateful=" + restoredStateful
+                + " restored-ignited=" + restoredIgnited);
     }
 
     private void loadVersionTwo(CellularMatrix matrix, String level) {

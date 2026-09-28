@@ -23,6 +23,16 @@ public class Lava extends Liquid {
     }
 
     @Override
+    public String getSaveState() {
+        return Integer.toString(magmatizeDamage);
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        magmatizeDamage = Integer.parseInt(state);
+    }
+
+    @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
         return false;
     }

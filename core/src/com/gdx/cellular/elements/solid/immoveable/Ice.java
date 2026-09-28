@@ -27,6 +27,16 @@ public class Ice extends ImmovableSolid {
     }
 
     @Override
+    public String getSaveState() {
+        return Integer.toString(meltResistance);
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        meltResistance = Integer.parseInt(state);
+    }
+
+    @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
         if (heat <= 0 || isDead()) return false;
         meltResistance -= Math.max(1, heat);

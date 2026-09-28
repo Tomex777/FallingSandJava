@@ -68,6 +68,22 @@ public abstract class Element {
 
     public void customElementFunctions(CellularMatrix matrix) { }
 
+    /**
+     * Compact material-specific state used by the V3 save format. Common
+     * movement, colour, combustion and lifetime fields are serialized by the
+     * save system; subclasses only expose private phase/reaction state here.
+     */
+    public String getSaveState() {
+        return "";
+    }
+
+    public void restoreSaveState(String state) {
+        if (state != null && !state.isEmpty()) {
+            throw new IllegalArgumentException("Unexpected save state for " + elementType + ": " + state);
+        }
+    }
+
+
     public void setVelocity(Vector3 vel) {
         this.vel = vel;
     }

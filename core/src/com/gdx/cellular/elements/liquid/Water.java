@@ -23,6 +23,19 @@ public class Water extends Liquid {
     }
 
     @Override
+    public String getSaveState() {
+        return boilResistance + "," + freezeResistance;
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        String[] values = state.split(",", -1);
+        if (values.length != 2) throw new IllegalArgumentException("Invalid Water save state");
+        boilResistance = Integer.parseInt(values[0]);
+        freezeResistance = Integer.parseInt(values[1]);
+    }
+
+    @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
         if (heat <= 0 || isDead()) return false;
         boilResistance -= Math.max(1, heat);

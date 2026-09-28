@@ -27,6 +27,16 @@ public class MoltenCopper extends Liquid {
     }
 
     @Override
+    public String getSaveState() {
+        return Integer.toString(solidificationResistance);
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        solidificationResistance = Integer.parseInt(state);
+    }
+
+    @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
         return heat > 0 && !isDead();
     }

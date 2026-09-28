@@ -24,7 +24,7 @@ public class Lightning extends Gas {
     private static final int MAX_GENERATION = 20;
     private static final int EARLY_BRANCH_GENERATIONS = 4;
 
-    private final int generation;
+    private int generation;
     private boolean discharged;
     private int childrenSpawned;
 
@@ -45,6 +45,27 @@ public class Lightning extends Gas {
         heatFactor = 30;
         explosionResistance = 0;
         lifeSpan = getRandomInt(7) + 8;
+    }
+
+    @Override
+    public String getSaveState() {
+        return generation + "," + discharged + "," + childrenSpawned;
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        String[] values = state.split(",", -1);
+        if (values.length != 3) throw new IllegalArgumentException("Invalid Lightning save state");
+        int restoredGeneration = Integer.parseInt(values[0]);
+        int restoredChildren = Integer.parseInt(values[2]);
+        if (restoredGeneration < 0 || restoredGeneration > MAX_GENERATION
+                || restoredChildren < 0 || restoredChildren > 2
+                || (!"true".equals(values[1]) && !"false".equals(values[1]))) {
+            throw new IllegalArgumentException("Out-of-range Lightning save state");
+        }
+        generation = restoredGeneration;
+        discharged = Boolean.parseBoolean(values[1]);
+        childrenSpawned = restoredChildren;
     }
 
     @Override

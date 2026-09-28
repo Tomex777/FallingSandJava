@@ -299,6 +299,8 @@ tap_ok Save
 sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
 adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
+adb shell run-as com.tomex.elementum cat files/save/elementum_qa.ser | head -c 3 > "$evidence/save-format.txt"
+grep -q '^V3' "$evidence/save-format.txt"
 
 # A truncated V2 file can still contain individually valid tokens. Keep the
 # current world paused and prove dimension validation rejects it before clearAll.
@@ -507,7 +509,8 @@ if [ "$save_count" -lt 2 ]; then
 fi
 grep -q 'ElementumSaveLoad.*browser-scenes=1' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat.txt"
-grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V2' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V3' "$evidence/logcat.txt"
+grep -Eq 'ElementumSaveLoad.*restored-stateful=[1-9][0-9]*' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*load-invalid=elementum_corrupt' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"

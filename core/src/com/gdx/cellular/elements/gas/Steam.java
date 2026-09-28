@@ -20,6 +20,16 @@ public class Steam extends Gas {
     }
 
     @Override
+    public String getSaveState() {
+        return Integer.toString(condensationResistance);
+    }
+
+    @Override
+    public void restoreSaveState(String state) {
+        condensationResistance = Integer.parseInt(state);
+    }
+
+    @Override
     public void checkLifeSpan(CellularMatrix matrix) {
         if (lifeSpan != null) {
             lifeSpan--;
