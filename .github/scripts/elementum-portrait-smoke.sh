@@ -432,6 +432,22 @@ capture petrol-lightning-before
 tap 240 765
 sleep 2
 capture petrol-lightning-after
+
+# Water is a local conductor, not a world-wide electrical flood. With the same
+# one-cell brush, place a water strip and a Lightning trace directly above it.
+# The strike must cross a water contact using the existing child budget.
+tap 240 765
+tap 90 715
+adb shell input swipe 110 545 230 545 450
+sleep 1
+tap 210 715
+adb shell input swipe 110 539 230 539 450
+sleep 1
+capture water-lightning-before
+tap 240 765
+sleep 2
+capture water-lightning-after
+
 tap 90 765
 tap 40 715
 
@@ -521,5 +537,6 @@ grep -q 'ElementumReaction.*molten-copper-to-copper' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-molten-copper-steam' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*copper-thermal-conduction' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-conducted-copper' "$evidence/logcat.txt"
+grep -q 'ElementumReaction.*lightning-conducted-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-ignited-petrol' "$evidence/logcat.txt"
 grep -q 'ElementumPerf.*avgFrameUs=' "$evidence/logcat.txt"
