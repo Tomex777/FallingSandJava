@@ -119,7 +119,7 @@ test -n "$(adb shell pidof com.tomex.elementum)"
 # The former empty controls placeholder is now a real Help modal. It should
 # remain touch-friendly and dismiss through the same Android Back contract.
 tap 326 29
-tap 220 270
+tap 220 260
 sleep 1
 capture help-dialog
 adb shell input keyevent KEYCODE_BACK
@@ -302,7 +302,7 @@ printf '%s\n' "device=$device rangeX=$x_min..$x_max rangeY=$y_min..$y_max inject
 tap 240 765
 
 tap 326 29
-tap 220 230
+tap 220 220
 capture save-dialog
 dialog Save
 adb shell input text elementum_qa
@@ -321,7 +321,7 @@ capture invalid-load-before
 adb shell "run-as com.tomex.elementum sh -c 'printf \"V2\\nSAND\\n\" > files/save/elementum_corrupt.ser'"
 sleep 1
 tap 326 29
-tap 220 250
+tap 220 240
 capture corrupt-load-browser
 sleep 1
 tap 120 255
@@ -336,7 +336,7 @@ adb shell run-as com.tomex.elementum rm files/save/elementum_corrupt.ser
 # Saving the same name again must use the safe overwrite path rather than
 # deleting the existing valid scene before the replacement is ready.
 tap 326 29
-tap 220 230
+tap 220 220
 capture overwrite-save-dialog
 dialog Save
 adb shell input text elementum_qa
@@ -358,7 +358,7 @@ adb shell input swipe 90 300 160 340 400
 sleep 1
 capture after-clear-redraw
 tap 326 29
-tap 220 250
+tap 220 240
 capture load-browser
 sleep 1
 adb shell input keyevent KEYCODE_BACK
@@ -366,7 +366,7 @@ sleep 1
 capture load-browser-back-dismissed
 test -n "$(adb shell pidof com.tomex.elementum)"
 tap 326 29
-tap 220 250
+tap 220 240
 capture load-browser-reopened
 sleep 1
 # Android Load is a touch-first scene browser. The newest saved scene is the
@@ -576,7 +576,7 @@ test -n "$(adb shell pidof com.tomex.elementum)"
 adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
 
 tap 326 29
-tap 220 250
+tap 220 240
 capture process-restart-load-browser
 sleep 1
 tap 120 255
