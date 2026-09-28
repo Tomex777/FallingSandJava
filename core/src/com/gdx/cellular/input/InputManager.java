@@ -641,15 +641,21 @@ public class InputManager {
                 return;
             }
 
-            // Validation happens before clearAll so a malformed save can never
-            // destroy the scene the user currently has open.
-            matrix.clearAll();
+            // V3 goes one step further than syntax validation: reconstruct every
+            // saved object off-matrix first. A constructor/state-restore failure
+            // therefore cannot clear the live sandbox.
             if (versionThree) {
-                loadVersionThree(matrix, payload);
-            } else if (versionTwo) {
-                loadVersionTwo(matrix, payload);
+                DecodedV3 decoded = decodeVersionThree(matrix, payload);
+                commitVersionThree(matrix, decoded);
             } else {
-                loadLegacyLevel(matrix, payload);
+                // V2/legacy payloads are fully validated before this point and
+                // contain no material-specific private restore hooks.
+                matrix.clearAll();
+                if (versionTwo) {
+                    loadVersionTwo(matrix, payload);
+                } else {
+                    loadLegacyLevel(matrix, payload);
+                }
             }
             String format = versionThree ? "V3" : versionTwo ? "V2" : "legacy";
             Gdx.app.log("ElementumSaveLoad", "loaded=" + fileNameForLevel + " format=" + format);
@@ -868,16 +874,19 @@ public class InputManager {
         }
     }
 
-    private void loadVersionThree(CellularMatrix matrix, String level) {
+    private DecodedV3 decodeVersionThree(CellularMatrix matrix, String level) {
+        Element[][] staged = new Element[matrix.outerArraySize][matrix.innerArraySize];
         int restoredStateful = 0;
         int restoredIgnited = 0;
         String[] rows = level.split("\\n", -1);
+
         for (int y = 0; y < matrix.outerArraySize; y++) {
             String[] cells = rows[y].split(";", -1);
             for (int x = 0; x < matrix.innerArraySize; x++) {
                 String cell = cells[x];
                 if (cell.isEmpty()) continue;
                 String[] values = cell.split(":", -1);
+                Element element;
 
                 if ("P".equals(values[0])) {
                     ElementType containedType = ElementType.valueOf(values[1]);
@@ -885,16 +894,14 @@ public class InputManager {
                     Color color = new Color(parseFiniteFloat(values[4]), parseFiniteFloat(values[5]),
                             parseFiniteFloat(values[6]), parseFiniteFloat(values[7]));
                     boolean ignited = Boolean.parseBoolean(values[8]);
-                    ElementType.createParticleByMatrix(matrix, x, y, velocity, containedType, color, ignited);
+                    element = new Particle(x, y, velocity, containedType, color, ignited);
                     if (ignited) restoredIgnited++;
-                    matrix.reportToChunkActive(x, y);
                 } else if ("B".equals(values[0])) {
                     Vector3 velocity = new Vector3(parseFiniteFloat(values[1]), parseFiniteFloat(values[2]), 0);
-                    ElementType.createBoidByMatrix(matrix, x, y, velocity);
-                    matrix.reportToChunkActive(x, y);
+                    element = new Boid(x, y, velocity);
                 } else {
                     ElementType type = ElementType.valueOf(values[1]);
-                    Element element = type.createElementByMatrix(x, y);
+                    element = type.createElementByMatrix(x, y);
                     if (element.vel == null) element.vel = new Vector3();
                     element.vel.set(parseFiniteFloat(values[2]), parseFiniteFloat(values[3]), 0);
                     element.health = Integer.parseInt(values[4]);
@@ -911,15 +918,47 @@ public class InputManager {
                     element.xThreshold = parseFiniteFloat(values[17]);
                     element.yThreshold = parseFiniteFloat(values[18]);
                     element.restoreSaveState(values[19]);
-                    matrix.setElementAtIndex(x, y, element);
-                    matrix.reportToChunkActive(x, y);
                     if (!values[19].isEmpty()) restoredStateful++;
                     if (element.isIgnited) restoredIgnited++;
                 }
+
+                staged[y][x] = element;
             }
         }
-        Gdx.app.log("ElementumSaveLoad", "restored-stateful=" + restoredStateful
-                + " restored-ignited=" + restoredIgnited);
+
+        return new DecodedV3(staged, restoredStateful, restoredIgnited);
+    }
+
+    private void commitVersionThree(CellularMatrix matrix, DecodedV3 decoded) {
+        matrix.clearAll();
+        for (int y = 0; y < decoded.elements.length; y++) {
+            for (int x = 0; x < decoded.elements[y].length; x++) {
+                Element element = decoded.elements[y][x];
+                if (element == null) continue;
+
+                matrix.setElementAtIndex(x, y, element);
+                if (element instanceof Boid) {
+                    matrix.addBoid((Boid) element);
+                }
+                matrix.reportToChunkActive(x, y);
+            }
+        }
+
+        Gdx.app.log("ElementumSaveLoad", "restored-stateful=" + decoded.restoredStateful
+                + " restored-ignited=" + decoded.restoredIgnited
+                + " transactional=true");
+    }
+
+    private static final class DecodedV3 {
+        private final Element[][] elements;
+        private final int restoredStateful;
+        private final int restoredIgnited;
+
+        private DecodedV3(Element[][] elements, int restoredStateful, int restoredIgnited) {
+            this.elements = elements;
+            this.restoredStateful = restoredStateful;
+            this.restoredIgnited = restoredIgnited;
+        }
     }
 
     private void loadVersionTwo(CellularMatrix matrix, String level) {
