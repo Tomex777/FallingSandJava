@@ -93,6 +93,10 @@ if [ "$(stat -c%s "$evidence/elementum-startup.png")" -le 5000 ]; then
   if [ -n "$app_pid" ]; then adb shell kill -3 "$app_pid" || true; fi
   adb shell ls -l /data/anr > "$evidence/startup-anr-files.txt" 2>&1 || true
   adb shell cat /data/anr/traces.txt > "$evidence/startup-traces.txt" 2>&1 || true
+  if [ -n "$app_pid" ]; then
+    adb shell debuggerd -b "$app_pid" > "$evidence/startup-native-traces.txt" 2>&1 || true
+    adb shell ps -T -p "$app_pid" -o PID,TID,STAT,NAME > "$evidence/startup-threads.txt" 2>&1 || true
+  fi
   adb shell dumpsys gfxinfo com.tomex.elementum > "$evidence/startup-gfxinfo.txt" || true
   adb shell dumpsys activity top > "$evidence/startup-activity.txt" || true
   sleep 2
