@@ -38,8 +38,8 @@ print(round(low + screen * (high-low) / 799))
 PY
   }
   local x0 y0 x1 y1 x0m x1m ym
-  x0=$(raw_x 105); x1=$(raw_x 225); y0=$(raw_y 330)
-  x0m=$(raw_x 60); x1m=$(raw_x 220); ym=$(raw_y 370)
+  x0=$(raw_x 120); x1=$(raw_x 240); y0=$(raw_y 330)
+  x0m=$(raw_x 115); x1m=$(raw_x 255); ym=$(raw_y 340)
   local events=""
   add_event() { events+="sendevent $device $1 $2 $3; "; }
   add_event 1 330 1; add_event 1 325 1
