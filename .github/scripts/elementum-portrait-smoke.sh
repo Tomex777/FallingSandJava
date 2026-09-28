@@ -354,7 +354,7 @@ tap 240 765
 tap 315 765
 sleep 1
 capture clear-confirm
-tap 255 465
+tap 212 478
 sleep 1
 capture cleared
 tap 40 715
