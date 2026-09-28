@@ -1,5 +1,6 @@
 package com.gdx.cellular.elements;
 
+import com.badlogic.gdx.Gdx;
 import com.gdx.cellular.CellularMatrix;
 
 import java.util.HashMap;
@@ -24,7 +25,7 @@ public final class ReactionRegistry {
     static {
         registerSymmetric(ElementType.PETROL, ElementType.LAVA, (first, second, matrix) -> {
             Element petrol = ofType(first, second, ElementType.PETROL);
-            petrol.receiveHeat(matrix, 120);
+            igniteReliably(petrol, matrix, 120, "petrol-ignited-by-lava");
             return false;
         });
 
@@ -32,7 +33,7 @@ public final class ReactionRegistry {
         // depending on one small random heat roll.
         registerSymmetric(ElementType.PETROL, ElementType.SPARK, (first, second, matrix) -> {
             Element petrol = ofType(first, second, ElementType.PETROL);
-            petrol.receiveHeat(matrix, 120);
+            igniteReliably(petrol, matrix, 120, "petrol-ignited-by-spark");
             return false;
         });
 
@@ -45,6 +46,7 @@ public final class ReactionRegistry {
             Element lava = ofType(first, second, ElementType.LAVA);
             water.receiveHeat(matrix, 120);
             lava.receiveCooling(matrix, 2);
+            Gdx.app.log("ElementumReaction", "water-lava-steam");
             return true;
         });
 
@@ -79,6 +81,18 @@ public final class ReactionRegistry {
     }
 
     private ReactionRegistry() {
+    }
+
+    private static void igniteReliably(Element fuel, CellularMatrix matrix, int heat, String reactionName) {
+        boolean wasIgnited = fuel.isIgnited;
+        fuel.receiveHeat(matrix, heat);
+        if (!fuel.isIgnited) {
+            fuel.flammabilityResistance = 0;
+            fuel.checkIfIgnited();
+        }
+        if (!wasIgnited && fuel.isIgnited) {
+            Gdx.app.log("ElementumReaction", reactionName);
+        }
     }
 
     private static Element ofType(Element first, Element second, ElementType type) {
