@@ -39,6 +39,7 @@ import java.util.Map;
 public class MobileControls {
 
     private static final float DOCK_HEIGHT = 52f;
+    private static final float QUICK_STRIP_HEIGHT = 36f;
     private static final Color PANEL = Color.valueOf("12161C");
     private static final Color PANEL_ALT = Color.valueOf("1A2028");
     private static final Color CONTROL = Color.valueOf("252C35");
@@ -55,6 +56,8 @@ public class MobileControls {
 
     private final Table quickBar;
     private final Table dock;
+    private final Table quickStripRoot;
+    private final Table quickStrip;
     private final Table statusBar;
     private final Table materialPanel;
     private final Table materialGrid;
@@ -65,10 +68,10 @@ public class MobileControls {
     private final Table clearSheet;
 
     private final Map<ElementType, TextButton> pickerButtons = new EnumMap<>(ElementType.class);
+    private final Map<ElementType, TextButton> quickButtons = new EnumMap<>(ElementType.class);
     private final Map<MouseMode, TextButton> modeButtons = new EnumMap<>(MouseMode.class);
     private final Map<String, TextButton> categoryButtons = new LinkedHashMap<>();
 
-    private TextButton materialButton;
     private TextButton toolButton;
     private TextButton brushTypeButton;
     private TextButton pauseButton;
@@ -148,6 +151,16 @@ public class MobileControls {
         statusBar.add(selectionLabel).height(28f).left();
         stage.addActor(statusBar);
 
+        quickStripRoot = new Table();
+        quickStripRoot.bottom();
+        quickStripRoot.setFillParent(true);
+        quickStripRoot.setTouchable(Touchable.childrenOnly);
+        quickStrip = new Table();
+        quickStrip.setBackground(skin.newDrawable("white", Color.valueOf("10151A")));
+        buildQuickStrip();
+        quickStripRoot.add(quickStrip).height(QUICK_STRIP_HEIGHT).padBottom(DOCK_HEIGHT);
+        stage.addActor(quickStripRoot);
+
         quickBar = new Table();
         quickBar.bottom();
         quickBar.setFillParent(true);
@@ -170,10 +183,26 @@ public class MobileControls {
         selectMaterial(ElementType.SAND);
     }
 
-    private void buildDock() {
-        materialButton = createFlatButton("Sand", materialColor(ElementType.SAND).cpy().lerp(Color.BLACK, 0.28f), materialColor(ElementType.SAND));
-        materialButton.getLabel().setFontScale(0.65f);
-        materialButton.addListener(new ClickListener() {
+    private void buildQuickStrip() {
+        addQuickMaterial("Sand", ElementType.SAND, 60f);
+        addQuickMaterial("Water", ElementType.WATER, 60f);
+        addQuickMaterial("Petrol", ElementType.PETROL, 60f);
+        addQuickMaterial("Bolt", ElementType.LIGHTNING, 60f);
+
+        TextButton erase = createFlatButton("Erase", DANGER.cpy().lerp(Color.BLACK, 0.24f), DANGER);
+        erase.getLabel().setFontScale(0.54f);
+        quickButtons.put(ElementType.EMPTYCELL, erase);
+        erase.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                setEraseMode();
+            }
+        });
+        quickStrip.add(erase).width(60f).height(34f);
+
+        TextButton all = createFlatButton("All", CONTROL, ACCENT);
+        all.getLabel().setFontScale(0.60f);
+        all.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (clearSheet.isVisible()) return;
@@ -183,19 +212,24 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        dock.add(materialButton).width(82f).height(48f).padRight(2f);
+        quickStrip.add(all).width(60f).height(34f);
+    }
 
-        toolButton = createFlatButton("Draw", CONTROL, ACCENT);
-        toolButton.getLabel().setFontScale(0.63f);
-        toolButton.addListener(new ClickListener() {
+    private void addQuickMaterial(String label, ElementType type, float width) {
+        Color color = materialColor(type);
+        TextButton button = createFlatButton(label, color.cpy().lerp(Color.BLACK, 0.32f), color);
+        button.getLabel().setFontScale(0.53f);
+        quickButtons.put(type, button);
+        button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                if (clearSheet.isVisible()) return;
-                cyclePrimaryTool();
+                selectMaterial(type);
             }
         });
-        dock.add(toolButton).width(50f).height(48f).padRight(2f);
+        quickStrip.add(button).width(width).height(34f);
+    }
 
+    private void buildDock() {
         TextButton minus = createFlatButton("-", CONTROL, CONTROL_PRESSED);
         minus.getLabel().setFontScale(0.9f);
         minus.addListener(new ClickListener() {
@@ -205,18 +239,7 @@ public class MobileControls {
                 updateBrushTypeButton();
             }
         });
-        dock.add(minus).width(34f).height(48f).padRight(2f);
-
-        brushTypeButton = createFlatButton(brushTypeLabel(), CONTROL, CONTROL_PRESSED);
-        brushTypeButton.getLabel().setFontScale(0.57f);
-        brushTypeButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                inputManager.cycleBrushType();
-                updateBrushTypeButton();
-            }
-        });
-        dock.add(brushTypeButton).width(52f).height(48f).padRight(2f);
+        dock.add(minus).width(44f).height(48f);
 
         TextButton plus = createFlatButton("+", CONTROL, CONTROL_PRESSED);
         plus.getLabel().setFontScale(0.9f);
@@ -227,7 +250,18 @@ public class MobileControls {
                 updateBrushTypeButton();
             }
         });
-        dock.add(plus).width(34f).height(48f).padRight(2f);
+        dock.add(plus).width(56f).height(48f);
+
+        brushTypeButton = createFlatButton(brushTypeLabel(), CONTROL, CONTROL_PRESSED);
+        brushTypeButton.getLabel().setFontScale(0.57f);
+        brushTypeButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.cycleBrushType();
+                updateBrushTypeButton();
+            }
+        });
+        dock.add(brushTypeButton).width(90f).height(48f);
 
         pauseButton = createFlatButton("II", CONTROL, ACCENT);
         pauseButton.getLabel().setFontScale(0.72f);
@@ -239,7 +273,18 @@ public class MobileControls {
                 updatePauseButton();
             }
         });
-        dock.add(pauseButton).width(46f).height(48f).padRight(2f);
+        dock.add(pauseButton).width(70f).height(48f);
+
+        toolButton = createFlatButton("Draw", CONTROL, ACCENT);
+        toolButton.getLabel().setFontScale(0.58f);
+        toolButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (clearSheet.isVisible()) return;
+                cyclePrimaryTool();
+            }
+        });
+        dock.add(toolButton).width(50f).height(48f);
 
         TextButton more = createFlatButton("...", CONTROL, CONTROL_PRESSED);
         more.getLabel().setFontScale(0.82f);
@@ -255,7 +300,7 @@ public class MobileControls {
                 }
             }
         });
-        dock.add(more).width(46f).height(48f);
+        dock.add(more).width(50f).height(48f);
     }
 
     private void buildMaterialPanel() {
@@ -824,17 +869,10 @@ public class MobileControls {
             entry.getValue().setChecked(inputManager.getMouseMode() == MouseMode.SPAWN
                     && inputManager.currentlySelectedElement == entry.getKey());
         }
-
-        ElementType shown = inputManager.currentlySelectedElement == ElementType.EMPTYCELL
-                ? lastMaterial
-                : inputManager.currentlySelectedElement;
-        Color color = materialColor(shown);
-        materialButton.setStyle(flatStyle(
-                color.cpy().lerp(Color.BLACK, 0.28f),
-                color,
-                Color.WHITE
-        ));
-        materialButton.setText(displayName(shown));
+        for (Map.Entry<ElementType, TextButton> entry : quickButtons.entrySet()) {
+            entry.getValue().setChecked(inputManager.getMouseMode() == MouseMode.SPAWN
+                    && inputManager.currentlySelectedElement == entry.getKey());
+        }
     }
 
     private void syncToolHighlights() {
@@ -1051,7 +1089,7 @@ public class MobileControls {
         float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
         panelWidth = Math.max(300f, panelWidth);
         float x = (width - panelWidth) / 2f;
-        float y = DOCK_HEIGHT + 4f;
+        float y = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
         float available = Math.max(120f, height - y - 14f);
 
         materialPanel.setBounds(x, y, panelWidth, Math.min(260f, Math.max(185f, height * 0.34f)));
@@ -1070,6 +1108,7 @@ public class MobileControls {
 
         boolean legacyOverlay = inputManager.drawMenu;
         quickBar.setVisible(!legacyOverlay);
+        quickStripRoot.setVisible(!legacyOverlay);
         statusBar.setVisible(!legacyOverlay);
 
         syncToolHighlights();
