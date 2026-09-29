@@ -14,6 +14,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish live QA pointer
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/elementum-ci
+          cat > /tmp/elementum-ci/current.txt <<EOF
+          run_id=${GITHUB_RUN_ID}
+          run_number=${GITHUB_RUN_NUMBER}
+          source_sha=${GITHUB_SHA}
+          source_ref=${GITHUB_REF_NAME}
+          status=running
+          workflow=${GITHUB_WORKFLOW}
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin elementum-ci-state:refs/remotes/origin/elementum-ci-state || true
+          if git show-ref --verify --quiet refs/remotes/origin/elementum-ci-state; then
+            git switch -C elementum-ci-state refs/remotes/origin/elementum-ci-state
+          else
+            git switch --orphan elementum-ci-state
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          mkdir -p ci
+          cp /tmp/elementum-ci/current.txt ci/current.txt
+          git add ci/current.txt
+          git commit -m "Track Elementum QA run ${GITHUB_RUN_NUMBER}"
+          git push origin HEAD:elementum-ci-state
+
   build-release:
     runs-on: ubuntu-latest
     timeout-minutes: 20
