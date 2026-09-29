@@ -70,6 +70,8 @@ public class InputManager {
     private BooleanSupplier mobileOverlayDismiss;
     private boolean drawCursor = true;
     private Runnable worldResetHook = () -> { };
+    private Runnable mobileSaveRequest;
+    private Runnable mobileLoadRequest;
 
     public InputProcessor creatorInputProcessor;
     private final CreatorMenu creatorMenu;
@@ -108,6 +110,11 @@ public class InputManager {
 
     public void setMobileOverlayDismiss(BooleanSupplier mobileOverlayDismiss) {
         this.mobileOverlayDismiss = mobileOverlayDismiss;
+    }
+
+    public void setMobileFileRequestHandlers(Runnable saveRequest, Runnable loadRequest) {
+        this.mobileSaveRequest = saveRequest;
+        this.mobileLoadRequest = loadRequest;
     }
 
     public void calculateNewBrushSize(int delta) {
@@ -245,6 +252,10 @@ public class InputManager {
 
     public void requestSave() {
         if (readyToSave || fileDialogOpen) return;
+        if (Gdx.app.getType() == Application.ApplicationType.Android && mobileSaveRequest != null) {
+            mobileSaveRequest.run();
+            return;
+        }
         pausedBeforeFileDialog = paused;
         fileDialogOpen = true;
         paused = true;
@@ -253,19 +264,49 @@ public class InputManager {
 
     public void requestLoad() {
         if (readyToLoad || fileDialogOpen) return;
+        if (Gdx.app.getType() == Application.ApplicationType.Android && mobileLoadRequest != null) {
+            mobileLoadRequest.run();
+            return;
+        }
         pausedBeforeFileDialog = paused;
         fileDialogOpen = true;
         paused = true;
+        Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "", "File Name");
+    }
 
-        if (Gdx.app.getType() == Application.ApplicationType.Android) {
-            drawMenu = true;
-            creatorMenu.showLoadDialog();
-            activateCreatorMenuInput();
-            Gdx.app.log("ElementumSaveLoad", "browser-open");
-            return;
+    public boolean queueMobileSave(String name) {
+        return queueMobileFileAction(name, true);
+    }
+
+    public boolean queueMobileLoad(String name) {
+        return queueMobileFileAction(name, false);
+    }
+
+    private boolean queueMobileFileAction(String name, boolean saveAction) {
+        if (readyToSave || readyToLoad || fileDialogOpen || !isSafeLevelName(name)) {
+            Gdx.app.error("ElementumSaveLoad", "mobile-invalid-request=" + name);
+            return false;
+        }
+        if (!saveAction) {
+            FileHandle saveFile = Gdx.files.local("save/" + name + ".ser");
+            if (!saveFile.exists()) {
+                Gdx.app.error("ElementumSaveLoad", "load-missing=" + name);
+                return false;
+            }
         }
 
-        Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "", "File Name");
+        pausedBeforeFileDialog = paused;
+        fileDialogOpen = true;
+        paused = true;
+        fileNameForLevel = name;
+        readyToSave = saveAction;
+        readyToLoad = !saveAction;
+        if (saveAction) {
+            Gdx.app.log("ElementumSaveLoad", "mobile-save-selected=" + name);
+        } else {
+            Gdx.app.log("ElementumSaveLoad", "browser-selected=" + name);
+        }
+        return true;
     }
 
     public FileHandle[] getSavedLevels() {
