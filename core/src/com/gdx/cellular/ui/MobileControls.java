@@ -709,7 +709,7 @@ public class MobileControls {
     }
 
     private String formatModified(FileHandle file) {
-        return new SimpleDateFormat("MMM d · HH:mm", Locale.getDefault())
+        return new SimpleDateFormat("MMM d | HH:mm", Locale.getDefault())
                 .format(new Date(file.lastModified()));
     }
 
@@ -950,7 +950,7 @@ public class MobileControls {
         String material = inputManager.currentlySelectedElement == ElementType.EMPTYCELL
                 ? "Erase"
                 : displayName(inputManager.currentlySelectedElement);
-        selectionLabel.setText(material + " · " + toolLabel() + " · " + brushTypeLabel());
+        selectionLabel.setText(material + " | " + toolLabel() + " | " + brushTypeLabel());
     }
 
     private String brushTypeLabel() {
