@@ -574,6 +574,7 @@ grep -q 'ElementumReaction.*lightning-conducted-copper' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-conducted-water' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*lightning-ignited-petrol' "$evidence/logcat.txt"
 grep -q 'ElementumPerf.*avgFrameUs=' "$evidence/logcat.txt"
+grep -q 'ElementumLifecycle.*autosave=__autosave.*atomic=true' "$evidence/logcat.txt"
 
 # With no overlay active, Android Back should finish the activity rather than
 # being swallowed by libGDX. Then prove a true process restart can still reopen
@@ -606,4 +607,5 @@ adb logcat -d > "$evidence/logcat-after-process-restart.txt"
 grep -q 'ElementumSaveLoad.*browser-selected=scene_1' "$evidence/logcat-after-process-restart.txt"
 grep -q 'ElementumSaveLoad.*loaded=scene_1.*format=V3' "$evidence/logcat-after-process-restart.txt"
 grep -q 'ElementumSaveLoad.*transactional=true' "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumLifecycle.*autosave-restored format=V3 transactional=true' "$evidence/logcat-after-process-restart.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"
