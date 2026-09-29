@@ -253,7 +253,7 @@ public class InputManager {
     public void requestSave() {
         if (readyToSave || fileDialogOpen) return;
         if (Gdx.app.getType() == Application.ApplicationType.Android && mobileSaveRequest != null) {
-            mobileSaveRequest.run();
+            beginMobileFileRequest(mobileSaveRequest);
             return;
         }
         pausedBeforeFileDialog = paused;
@@ -265,13 +265,20 @@ public class InputManager {
     public void requestLoad() {
         if (readyToLoad || fileDialogOpen) return;
         if (Gdx.app.getType() == Application.ApplicationType.Android && mobileLoadRequest != null) {
-            mobileLoadRequest.run();
+            beginMobileFileRequest(mobileLoadRequest);
             return;
         }
         pausedBeforeFileDialog = paused;
         fileDialogOpen = true;
         paused = true;
         Gdx.input.getTextInput(loadLevelNameListener, "Load Level", "", "File Name");
+    }
+
+    private void beginMobileFileRequest(Runnable request) {
+        pausedBeforeFileDialog = paused;
+        fileDialogOpen = true;
+        paused = true;
+        request.run();
     }
 
     public boolean queueMobileSave(String name) {
@@ -283,7 +290,7 @@ public class InputManager {
     }
 
     private boolean queueMobileFileAction(String name, boolean saveAction) {
-        if (readyToSave || readyToLoad || fileDialogOpen || !isSafeLevelName(name)) {
+        if (readyToSave || readyToLoad || !fileDialogOpen || !isSafeLevelName(name)) {
             Gdx.app.error("ElementumSaveLoad", "mobile-invalid-request=" + name);
             return false;
         }
@@ -295,9 +302,6 @@ public class InputManager {
             }
         }
 
-        pausedBeforeFileDialog = paused;
-        fileDialogOpen = true;
-        paused = true;
         fileNameForLevel = name;
         readyToSave = saveAction;
         readyToLoad = !saveAction;
