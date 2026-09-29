@@ -98,8 +98,12 @@ public class CreatorInputProcessor implements InputProcessor {
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
         if (button == Input.Buttons.LEFT) {
             if (Gdx.app.getType() == Application.ApplicationType.Android
-                    && !inputManager.touchedLastFrame && !inputManager.drawMenu) {
-                inputManager.spawnElementByInput(matrix);
+                    && !inputManager.drawMenu) {
+                if (inputManager.getMouseMode() == com.gdx.cellular.input.MouseMode.SOURCE) {
+                    inputManager.placeSpout(matrix);
+                } else if (!inputManager.touchedLastFrame) {
+                    inputManager.spawnElementByInput(matrix);
+                }
             }
             inputManager.setTouchedLastFrame(false);
             inputManager.touchUpLMB(matrix);

@@ -170,7 +170,9 @@ public class InputManager {
                 this.mouseMode = MouseMode.RECTANGLE;
                 break;
             case RECTANGLE:
+            case SOURCE:
                 this.mouseMode = MouseMode.SPAWN;
+                break;
         }
     }
 
@@ -192,11 +194,16 @@ public class InputManager {
         Vector3 touchPos = new Vector3();
         touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
         camera.unproject(touchPos);
-        if (mouseMode == MouseMode.SPAWN) {
-            matrix.addSpout(currentlySelectedElement, touchPos, brushSize, brushType, false);
-        } else if (mouseMode == MouseMode.PARTICLE) {
-            matrix.addSpout(currentlySelectedElement, touchPos, brushSize, brushType, true);
+
+        boolean particleSource = mouseMode == MouseMode.PARTICLE;
+        boolean elementSource = mouseMode == MouseMode.SPAWN || mouseMode == MouseMode.SOURCE;
+        if (!particleSource && !elementSource) {
+            return;
         }
+
+        matrix.addSpout(currentlySelectedElement, touchPos, brushSize, brushType, particleSource);
+        Gdx.app.log("ElementumInput", "source-added material=" + currentlySelectedElement.name()
+                + " particle=" + particleSource);
     }
 
     public void setTouchedLastFrame(boolean touchedLastFrame) {
@@ -373,6 +380,10 @@ public class InputManager {
             touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
             camera.unproject(touchPos);
             switch (mouseMode) {
+                case SOURCE:
+                    // A source is placed once on touch-up. Dragging in Source
+                    // mode must not paint ordinary material into the sandbox.
+                    return;
                 case SPAWN:
                     switch (brushType) {
                         case SQUARE:

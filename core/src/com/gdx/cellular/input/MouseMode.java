@@ -9,5 +9,6 @@ public enum MouseMode {
     PARTICALIZE,
     PHYSICSOBJ,
     RECTANGLE,
-    COOL
+    COOL,
+    SOURCE
 }

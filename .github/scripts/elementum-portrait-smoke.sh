@@ -234,6 +234,7 @@ tool_draw() { open_more; tap 48 490; }
 tool_heat() { open_more; tap 114 490; }
 tool_cool() { open_more; tap 180 490; }
 tool_erase() { open_more; tap 246 490; }
+tool_source() { open_more; tap 312 490; }
 open_save_sheet() { open_more; tap 48 580; }
 open_load_sheet() { open_more; tap 114 580; }
 open_clear_sheet() { open_more; tap 180 580; }
@@ -680,8 +681,18 @@ if [ "$pool_configs" -lt 1 ] || [ "$sim_threads" -lt 1 ] || [ "$sim_threads" -gt
   exit 1
 fi
 
-pss_first=$(awk '/TOTAL PSS:/ {print $3; exit}' "$evidence/meminfo-1.txt")
-pss_last=$(awk '/TOTAL PSS:/ {print $3; exit}' "$evidence/meminfo-4.txt")
+parse_total_pss() {
+  awk '
+    /TOTAL PSS:/ { print $3; exit }
+    /^[[:space:]]*TOTAL[[:space:]]+[0-9]+/ { print $2; exit }
+  ' "$1"
+}
+pss_first=$(parse_total_pss "$evidence/meminfo-1.txt")
+pss_last=$(parse_total_pss "$evidence/meminfo-4.txt")
+if [ -z "$pss_first" ] || [ -z "$pss_last" ]; then
+  echo "Could not parse TOTAL PSS from Android meminfo evidence" >&2
+  exit 1
+fi
 pss_growth=$((pss_last - pss_first))
 if [ "$pss_growth" -gt 32768 ]; then
   echo "Elementum PSS grew by more than 32 MiB during the 20-second busy-world soak: ${pss_growth} KiB" >&2
@@ -803,4 +814,21 @@ grep -q 'ElementumSaveLoad.*browser-selected=scene_1' "$evidence/logcat-after-pr
 grep -q 'ElementumSaveLoad.*loaded=scene_1.*format=V3' "$evidence/logcat-after-process-restart.txt"
 grep -q 'ElementumSaveLoad.*transactional=true' "$evidence/logcat-after-process-restart.txt"
 grep -q 'ElementumLifecycle.*autosave-restored format=V3 transactional=true' "$evidence/logcat-after-process-restart.txt"
+test -n "$(adb shell pidof com.tomex.elementum)"
+
+# The original engine already supports persistent spouts/sources. Exercise the
+# mobile product path end-to-end: select Water, enter Source, tap once, and
+# prove the emitter changes the live canvas without a crash.
+tap 90 715
+tool_source
+capture source-before
+tap 300 320
+sleep 2
+capture source-after
+if same_canvas_pixels "$evidence/elementum-source-before.png" "$evidence/elementum-source-after.png"; then
+  echo "Source placement did not change the sandbox canvas" >&2
+  exit 1
+fi
+adb logcat -d > "$evidence/logcat-after-source.txt"
+grep -q 'ElementumInput.*source-added material=WATER particle=false' "$evidence/logcat-after-source.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"

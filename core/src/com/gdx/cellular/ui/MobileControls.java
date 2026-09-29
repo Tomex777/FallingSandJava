@@ -58,7 +58,6 @@ public class MobileControls {
     private final Table dock;
     private final Table quickStripRoot;
     private final Table quickStrip;
-    private final Table statusBar;
     private final Table overlayBlocker;
     private final Table materialPanel;
     private final Table materialGrid;
@@ -77,7 +76,6 @@ public class MobileControls {
     private TextButton brushTypeButton;
     private TextButton pauseButton;
     private TextButton eraseModeButton;
-    private Label selectionLabel;
 
     private String currentCategory = "Solids";
     private ElementType lastMaterial = ElementType.SAND;
@@ -152,17 +150,6 @@ public class MobileControls {
         clearSheet.setBackground(skin.newDrawable("white", PANEL));
         clearSheet.setVisible(false);
         stage.addActor(clearSheet);
-
-        statusBar = new Table();
-        statusBar.top().left();
-        statusBar.setFillParent(true);
-        statusBar.setTouchable(Touchable.disabled);
-        statusBar.pad(8f);
-        selectionLabel = new Label("", skin);
-        selectionLabel.setFontScale(0.66f);
-        selectionLabel.setColor(Color.valueOf("D9E2EA"));
-        statusBar.add(selectionLabel).height(28f).left();
-        stage.addActor(statusBar);
 
         quickStripRoot = new Table();
         quickStripRoot.bottom();
@@ -266,7 +253,7 @@ public class MobileControls {
         dock.add(plus).width(56f).height(48f);
 
         brushTypeButton = createFlatButton(brushTypeLabel(), CONTROL, CONTROL_PRESSED);
-        brushTypeButton.getLabel().setFontScale(0.57f);
+        brushTypeButton.getLabel().setFontScale(0.48f);
         brushTypeButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -276,8 +263,8 @@ public class MobileControls {
         });
         dock.add(brushTypeButton).width(90f).height(48f);
 
-        pauseButton = createFlatButton("II", CONTROL, ACCENT);
-        pauseButton.getLabel().setFontScale(0.72f);
+        pauseButton = createFlatButton("Pause", CONTROL, ACCENT);
+        pauseButton.getLabel().setFontScale(0.48f);
         pauseButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -422,7 +409,7 @@ public class MobileControls {
             }
         });
         moreSheet.add(eraseModeButton).width(62f).height(40f).pad(2f);
-        moreSheet.add().width(62f);
+        addAdvancedModeButton("Source", MouseMode.SOURCE);
         moreSheet.row();
 
         addAdvancedModeButton("Particle", MouseMode.PARTICLE);
@@ -567,6 +554,7 @@ public class MobileControls {
         addHelpLine("Navigate", "Two fingers to pan or pinch");
         addHelpLine("Materials", "Tap the material chip to open the tray");
         addHelpLine("Tool", "Tap Draw/Heat/Cool/Erase to cycle quickly");
+        addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
         addHelpLine("Scenes", "Open More, then Save or Load");
         addHelpLine("Pause", "Drawing and tools still work while paused");
@@ -917,7 +905,6 @@ public class MobileControls {
                     || (mode == MouseMode.SPAWN && inputManager.currentlySelectedElement == ElementType.EMPTYCELL));
             toolButton.setText(toolLabel());
         }
-        updateSelectionLabel();
     }
 
     private String toolLabel() {
@@ -942,45 +929,38 @@ public class MobileControls {
                 return "Boom";
             case BOID:
                 return "Boid";
+            case SOURCE:
+                return "Source";
             default:
                 return mode.name();
         }
-    }
-
-    private void updateSelectionLabel() {
-        if (selectionLabel == null) return;
-        String material = inputManager.currentlySelectedElement == ElementType.EMPTYCELL
-                ? "Erase"
-                : displayName(inputManager.currentlySelectedElement);
-        selectionLabel.setText(material + " | " + toolLabel() + " | " + brushTypeLabel());
     }
 
     private String brushTypeLabel() {
         String shape;
         switch (inputManager.brushType) {
             case SQUARE:
-                shape = "S";
+                shape = "Square";
                 break;
             case RECTANGLE:
-                shape = "R";
+                shape = "Rect";
                 break;
             case CIRCLE:
             default:
-                shape = "C";
+                shape = "Circle";
                 break;
         }
-        return shape + inputManager.brushSize;
+        return shape + " " + inputManager.brushSize;
     }
 
     private void updateBrushTypeButton() {
         if (brushTypeButton != null) brushTypeButton.setText(brushTypeLabel());
-        updateSelectionLabel();
     }
 
     private void updatePauseButton() {
         if (pauseButton == null) return;
         boolean paused = inputManager.getIsPaused();
-        pauseButton.setText(paused ? ">" : "II");
+        pauseButton.setText(paused ? "Play" : "Pause");
         pauseButton.setChecked(paused);
     }
 
@@ -1133,7 +1113,6 @@ public class MobileControls {
         boolean legacyOverlay = inputManager.drawMenu;
         quickBar.setVisible(!legacyOverlay);
         quickStripRoot.setVisible(!legacyOverlay);
-        statusBar.setVisible(!legacyOverlay);
 
         syncToolHighlights();
         syncMaterialHighlights();
