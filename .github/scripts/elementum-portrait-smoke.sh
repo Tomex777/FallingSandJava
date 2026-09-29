@@ -9,43 +9,33 @@ DESIGN_W=360
 DESIGN_H=800
 SCREEN_W=$DESIGN_W
 SCREEN_H=$DESIGN_H
-SCALE_NUM=1
-SCALE_DEN=1
-OFFSET_X=0
-OFFSET_Y=0
 
 capture() { adb exec-out screencap -p > "$evidence/elementum-$1.png"; }
-configure_input_transform() {
-  # wm size can be represented by Android as an aspect-fitted logical surface
-  # inside the physical framebuffer (notably API 26). Map the 360x800 design
-  # coordinates through that fitted rectangle so taps hit the same controls.
-  if (( SCREEN_W * DESIGN_H > SCREEN_H * DESIGN_W )); then
-    SCALE_NUM=$SCREEN_H
-    SCALE_DEN=$DESIGN_H
-    OFFSET_X=$(( (SCREEN_W * SCALE_DEN - DESIGN_W * SCALE_NUM) / (2 * SCALE_DEN) ))
-    OFFSET_Y=0
-  else
-    SCALE_NUM=$SCREEN_W
-    SCALE_DEN=$DESIGN_W
-    OFFSET_X=0
-    OFFSET_Y=$(( (SCREEN_H * SCALE_DEN - DESIGN_H * SCALE_NUM) / (2 * SCALE_DEN) ))
-  fi
-}
-scale_x() { echo $(( OFFSET_X + ($1 * SCALE_NUM + SCALE_DEN / 2) / SCALE_DEN )); }
-scale_y() { echo $(( OFFSET_Y + ($1 * SCALE_NUM + SCALE_DEN / 2) / SCALE_DEN )); }
+
+# The smoke workflow applies a 360x800 logical wm override before launch.
+# Android 8 may still return a 1080x1920 physical framebuffer from screencap,
+# but input injection remains in the logical display coordinate space. Keep
+# touch coordinates logical so API 26 and API 36 exercise the same controls.
 tap() {
-  adb shell input tap "$(scale_x "$1")" "$(scale_y "$2")"
+  adb shell input tap "$1" "$2"
   sleep 1
 }
 tap_fast() {
-  adb shell input tap "$(scale_x "$1")" "$(scale_y "$2")"
+  adb shell input tap "$1" "$2"
 }
 swipe() {
-  local x1 y1 x2 y2 duration
-  x1=$(scale_x "$1"); y1=$(scale_y "$2")
-  x2=$(scale_x "$3"); y2=$(scale_y "$4")
-  duration="$5"
-  adb shell input swipe "$x1" "$y1" "$x2" "$y2" "$duration"
+  adb shell input swipe "$1" "$2" "$3" "$4" "$5"
+}
+
+assert_foreground() {
+  local label="$1"
+  local state="$evidence/activity-$label.txt"
+  adb shell dumpsys activity activities > "$state" || true
+  if ! grep -Eq 'mResumedActivity.*com\.tomex\.elementum|ResumedActivity.*com\.tomex\.elementum' "$state"; then
+    echo "Elementum lost foreground during $label" >&2
+    adb shell dumpsys activity top >> "$state" || true
+    return 1
+  fi
 }
 
 # Compare only the sandbox viewport, not transient button pressed/checked state.
@@ -240,16 +230,17 @@ assert w >= 320 and h >= 568, f'Unexpectedly small Android surface: {w}x{h}'
 print(w, h)
 PY
 )
-configure_input_transform
-printf 'screen=%sx%s design=%sx%s scale=%s/%s offset=%s,%s\n' \
-  "$SCREEN_W" "$SCREEN_H" "$DESIGN_W" "$DESIGN_H" \
-  "$SCALE_NUM" "$SCALE_DEN" "$OFFSET_X" "$OFFSET_Y" > "$evidence/screen-size.txt"
+{
+  printf 'screencap=%sx%s design=%sx%s\n' "$SCREEN_W" "$SCREEN_H" "$DESIGN_W" "$DESIGN_H"
+  adb shell wm size || true
+} > "$evidence/screen-size.txt"
 
 open_more
 capture more-sheet
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture more-back-dismissed
+assert_foreground more-back-dismiss
 test -n "$(adb shell pidof com.tomex.elementum)"
 
 # Help is now a compact in-game bottom sheet instead of a desktop dialog.
@@ -259,6 +250,7 @@ capture help-sheet
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture help-back-dismissed
+assert_foreground help-back-dismiss
 test -n "$(adb shell pidof com.tomex.elementum)"
 
 tool_heat
@@ -271,6 +263,7 @@ capture material-picker-solids
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture material-picker-back-dismissed
+assert_foreground material-picker-back-dismiss
 test -n "$(adb shell pidof com.tomex.elementum)"
 tap 310 715
 
@@ -323,7 +316,7 @@ capture molten-copper-water-after
 # adjacent lightning trace while paused, then resume to prove bounded transfer.
 tap 240 765
 tap 310 715
-tap 88 473
+tap 210 545
 swipe 70 590 150 590 400
 sleep 1
 tap 210 715
@@ -504,6 +497,7 @@ sleep 1
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture load-browser-back-dismissed
+assert_foreground load-browser-back-dismiss
 test -n "$(adb shell pidof com.tomex.elementum)"
 open_load_sheet
 capture load-browser-reopened
