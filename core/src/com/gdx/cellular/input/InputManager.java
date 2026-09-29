@@ -317,7 +317,8 @@ public class InputManager {
         FileHandle saveDirectory = Gdx.files.local("save");
         if (!saveDirectory.exists()) return new FileHandle[0];
 
-        FileHandle[] saves = saveDirectory.list(".ser");
+        FileHandle[] saves = saveDirectory.list((dir, name) ->
+                name.endsWith(".ser") && !name.startsWith("__"));
         Arrays.sort(saves, (left, right) -> Long.compare(right.lastModified(), left.lastModified()));
         return saves;
     }
@@ -619,6 +620,55 @@ public class InputManager {
         }
 
         readyToSave = false;
+        try {
+            persistVersionThree(matrix, fileNameForLevel, "ElementumSaveLoad", "saved=");
+        } catch (RuntimeException error) {
+            Gdx.app.error("ElementumSaveLoad", "save-failed=" + fileNameForLevel, error);
+        } finally {
+            finishFileAction();
+        }
+    }
+
+    public void saveLifecycleSnapshot(CellularMatrix matrix) {
+        if (matrix == null) return;
+        try {
+            persistVersionThree(matrix, "__autosave", "ElementumLifecycle", "autosave=");
+        } catch (RuntimeException error) {
+            Gdx.app.error("ElementumLifecycle", "autosave-failed", error);
+        }
+    }
+
+    public boolean restoreLifecycleSnapshot(CellularMatrix matrix) {
+        if (matrix == null) return false;
+        FileHandle saveFile = Gdx.files.local("save/__autosave.ser");
+        if (!saveFile.exists()) return false;
+
+        try {
+            String level = saveFile.readString("UTF-8");
+            if (!level.startsWith("V3\n")) {
+                Gdx.app.error("ElementumLifecycle", "autosave-invalid-format");
+                return false;
+            }
+            String payload = level.substring(3);
+            if (!validateVersionThree(payload, matrix)) {
+                Gdx.app.error("ElementumLifecycle", "autosave-invalid");
+                return false;
+            }
+            DecodedV3 decoded = decodeVersionThree(matrix, payload);
+            commitVersionThree(matrix, decoded);
+            Gdx.app.log("ElementumLifecycle", "autosave-restored format=V3 transactional=true");
+            return true;
+        } catch (RuntimeException error) {
+            Gdx.app.error("ElementumLifecycle", "autosave-restore-failed", error);
+            return false;
+        }
+    }
+
+    private void persistVersionThree(CellularMatrix matrix, String name, String logTag, String logPrefix) {
+        if (!isSafeLevelName(name)) {
+            throw new IllegalArgumentException("Unsafe save name " + name);
+        }
+
         FileHandle tempFile = null;
         try {
             StringBuilder builder = new StringBuilder("V3\n");
@@ -631,18 +681,16 @@ public class InputManager {
                 builder.append('\n');
             }
 
-            FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
-            tempFile = Gdx.files.local("save/" + fileNameForLevel + ".ser.tmp");
+            FileHandle saveFile = Gdx.files.local("save/" + name + ".ser");
+            tempFile = Gdx.files.local("save/" + name + ".ser.tmp");
             saveFile.parent().mkdirs();
             tempFile.writeString(builder.toString(), false, "UTF-8");
             boolean atomicReplace = commitSaveFile(tempFile, saveFile);
-            Gdx.app.log("ElementumSaveLoad", "saved=" + fileNameForLevel
+            Gdx.app.log(logTag, logPrefix + name
                     + " bytes=" + saveFile.length() + " atomic=" + atomicReplace);
         } catch (RuntimeException error) {
             if (tempFile != null && tempFile.exists()) tempFile.delete();
-            Gdx.app.error("ElementumSaveLoad", "save-failed=" + fileNameForLevel, error);
-        } finally {
-            finishFileAction();
+            throw error;
         }
     }
 
@@ -670,60 +718,6 @@ public class InputManager {
             }
         } catch (IOException moveFailure) {
             throw new RuntimeException("Could not atomically replace save " + saveFile.path(), moveFailure);
-        }
-    }
-
-    public void load(CellularMatrix matrix) {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.L) && !readyToLoad) {
-            requestLoad();
-        }
-
-        if (!readyToLoad) {
-            return;
-        }
-
-        readyToLoad = false;
-        try {
-            FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
-            if (!saveFile.exists()) {
-                Gdx.app.log("ElementumSaveLoad", "load-missing=" + fileNameForLevel);
-                return;
-            }
-
-            String level = saveFile.readString("UTF-8");
-            boolean versionThree = level.startsWith("V3\n");
-            boolean versionTwo = level.startsWith("V2\n");
-            String payload = (versionThree || versionTwo) ? level.substring(3) : level;
-            boolean valid = versionThree
-                    ? validateVersionThree(payload, matrix)
-                    : versionTwo ? validateVersionTwo(payload, matrix) : validateLegacyLevel(payload);
-            if (!valid) {
-                Gdx.app.error("ElementumSaveLoad", "load-invalid=" + fileNameForLevel);
-                return;
-            }
-
-            // V3 goes one step further than syntax validation: reconstruct every
-            // saved object off-matrix first. A constructor/state-restore failure
-            // therefore cannot clear the live sandbox.
-            if (versionThree) {
-                DecodedV3 decoded = decodeVersionThree(matrix, payload);
-                commitVersionThree(matrix, decoded);
-            } else {
-                // V2/legacy payloads are fully validated before this point and
-                // contain no material-specific private restore hooks.
-                resetActiveWorld(matrix);
-                if (versionTwo) {
-                    loadVersionTwo(matrix, payload);
-                } else {
-                    loadLegacyLevel(matrix, payload);
-                }
-            }
-            String format = versionThree ? "V3" : versionTwo ? "V2" : "legacy";
-            Gdx.app.log("ElementumSaveLoad", "loaded=" + fileNameForLevel + " format=" + format);
-        } catch (RuntimeException error) {
-            Gdx.app.error("ElementumSaveLoad", "load-failed=" + fileNameForLevel, error);
-        } finally {
-            finishFileAction();
         }
     }
 
