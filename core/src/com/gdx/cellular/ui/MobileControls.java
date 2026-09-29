@@ -59,6 +59,7 @@ public class MobileControls {
     private final Table quickStripRoot;
     private final Table quickStrip;
     private final Table statusBar;
+    private final Table overlayBlocker;
     private final Table materialPanel;
     private final Table materialGrid;
     private final ScrollPane materialPicker;
@@ -92,6 +93,18 @@ public class MobileControls {
         this.matrix = matrix;
         this.skin = Skins.getSkin("uiskin");
         this.stage = new Stage(new ScreenViewport());
+
+        overlayBlocker = new Table();
+        overlayBlocker.setFillParent(true);
+        overlayBlocker.setTouchable(Touchable.enabled);
+        overlayBlocker.setVisible(false);
+        overlayBlocker.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                dismissMobileOverlay();
+            }
+        });
+        stage.addActor(overlayBlocker);
 
         materialGrid = new Table();
         materialGrid.top().left();
@@ -611,6 +624,7 @@ public class MobileControls {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 sceneSheet.setVisible(false);
+                inputManager.cancelFileDialog();
                 Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
             }
         });
@@ -738,7 +752,6 @@ public class MobileControls {
         clearSheet.add(clear).width(126f).height(42f).pad(3f);
 
         clearSheet.setVisible(true);
-        quickBar.setTouchable(Touchable.disabled);
         Gdx.app.log("ElementumInput", "clear-confirm=open");
     }
 
@@ -778,7 +791,6 @@ public class MobileControls {
         }
 
         clearSheet.setVisible(false);
-        quickBar.setTouchable(Touchable.childrenOnly);
         updatePauseButton();
     }
 
@@ -794,6 +806,7 @@ public class MobileControls {
         }
         if (sceneSheet.isVisible()) {
             sceneSheet.setVisible(false);
+            inputManager.cancelFileDialog();
             Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
             return true;
         }
@@ -815,6 +828,15 @@ public class MobileControls {
         moreSheet.setVisible(false);
         sceneSheet.setVisible(false);
         helpSheet.setVisible(false);
+    }
+
+    private void refreshOverlayState() {
+        boolean sheetOpen = materialPanel.isVisible() || moreSheet.isVisible()
+                || sceneSheet.isVisible() || helpSheet.isVisible() || clearSheet.isVisible();
+        boolean modal = sceneSheet.isVisible() || helpSheet.isVisible() || clearSheet.isVisible();
+        overlayBlocker.setVisible(sheetOpen);
+        quickBar.setTouchable(modal ? Touchable.disabled : Touchable.childrenOnly);
+        quickStripRoot.setTouchable(modal ? Touchable.disabled : Touchable.childrenOnly);
     }
 
     private void cyclePrimaryTool() {
@@ -1114,6 +1136,7 @@ public class MobileControls {
         syncToolHighlights();
         syncMaterialHighlights();
         updatePauseButton();
+        refreshOverlayState();
 
         if (clearSettlementPending) {
             Gdx.app.log("ElementumInput", "clear-settled"
