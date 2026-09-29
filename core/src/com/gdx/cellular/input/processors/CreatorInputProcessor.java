@@ -45,7 +45,7 @@ public class CreatorInputProcessor implements InputProcessor {
         if (keycode == Input.Keys.SPACE) {
             inputManager.placeSpout(matrix);
         }
-        if (keycode == Input.Keys.C) {
+        if (keycode == Input.Keys.C && Gdx.app.getType() != Application.ApplicationType.Android) {
             inputManager.clearMatrix(matrix);
             inputManager.clearBox2dActors();
         }
@@ -86,7 +86,8 @@ public class CreatorInputProcessor implements InputProcessor {
             if (Gdx.app.getType() != Application.ApplicationType.Android) {
                 inputManager.spawnElementByInput(matrix);
             }
-        } else if (button == Input.Buttons.RIGHT) {
+        } else if (button == Input.Buttons.RIGHT
+                && Gdx.app.getType() != Application.ApplicationType.Android) {
             inputManager.setTouchedLastFrame(false);
             inputManager.openCreatorMenuAtScreen(screenX, screenY);
         }

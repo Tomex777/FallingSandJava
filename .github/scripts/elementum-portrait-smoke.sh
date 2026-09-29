@@ -5,8 +5,28 @@ evidence=android/build/runtime-smoke
 mkdir -p "$evidence"
 trap 'adb logcat -d > "$evidence/logcat.txt" || true' EXIT
 
+DESIGN_W=360
+DESIGN_H=800
+SCREEN_W=$DESIGN_W
+SCREEN_H=$DESIGN_H
+
 capture() { adb exec-out screencap -p > "$evidence/elementum-$1.png"; }
-tap() { adb shell input tap "$1" "$2"; sleep 1; }
+scale_x() { echo $(( ($1 * SCREEN_W + DESIGN_W / 2) / DESIGN_W )); }
+scale_y() { echo $(( ($1 * SCREEN_H + DESIGN_H / 2) / DESIGN_H )); }
+tap() {
+  adb shell input tap "$(scale_x "$1")" "$(scale_y "$2")"
+  sleep 1
+}
+tap_fast() {
+  adb shell input tap "$(scale_x "$1")" "$(scale_y "$2")"
+}
+swipe() {
+  local x1 y1 x2 y2 duration
+  x1=$(scale_x "$1"); y1=$(scale_y "$2")
+  x2=$(scale_x "$3"); y2=$(scale_y "$4")
+  duration="$5"
+  adb shell input swipe "$x1" "$y1" "$x2" "$y2" "$duration"
+}
 
 # Compare only the sandbox viewport, not transient button pressed/checked state.
 # Android screencap PNG output is decoded with Python's standard library so CI
@@ -88,8 +108,8 @@ if left[:3] != right[:3]:
     raise SystemExit(1)
 
 width, height, bpp = left[:3]
-top = min(40, height)
-bottom = min(700, height)
+top = min(height - 1, max(1, round(height * 40 / 800)))
+bottom = min(height, max(top + 1, round(height * 700 / 800)))
 for y in range(top, bottom):
     if left[3][y][:width * bpp] != right[3][y][:width * bpp]:
         raise SystemExit(1)
@@ -190,12 +210,17 @@ if [ "$(stat -c%s "$evidence/elementum-startup.png")" -le 5000 ]; then
   sleep 2
   exit 1
 fi
-python3 - "$evidence/elementum-startup.png" <<'PY'
+read -r SCREEN_W SCREEN_H < <(python3 - "$evidence/elementum-startup.png" <<'PY'
 import struct,sys
-with open(sys.argv[1],'rb') as f: header=f.read(24)
+with open(sys.argv[1],'rb') as f:
+    header=f.read(24)
 w,h=struct.unpack('>II',header[16:24])
-assert (w,h)==(360,800),f'Expected portrait 360x800, got {w}x{h}'
+assert h > w, f'Expected portrait output, got {w}x{h}'
+assert w >= 320 and h >= 568, f'Unexpectedly small Android surface: {w}x{h}'
+print(w, h)
 PY
+)
+printf 'screen=%sx%s design=%sx%s\n' "$SCREEN_W" "$SCREEN_H" "$DESIGN_W" "$DESIGN_H" > "$evidence/screen-size.txt"
 
 open_more
 capture more-sheet
@@ -232,15 +257,15 @@ tap 310 715
 tap 210 545
 tap 240 765
 tap 40 765
-adb shell input swipe 70 630 150 630 400
+swipe 70 630 150 630 400
 sleep 1
 capture copper-solid
 tool_heat
-adb shell input swipe 70 630 150 630 400
+swipe 70 630 150 630 400
 sleep 1
 capture copper-molten
 tool_cool
-adb shell input swipe 70 630 150 630 400
+swipe 70 630 150 630 400
 sleep 1
 capture copper-refrozen
 
@@ -259,12 +284,12 @@ tool_heat
 # The preceding conduction pass can equalize the strip above a fresh Copper's
 # 500-point melt resistance. Two bounded heat strokes guarantee this quench
 # fixture is actually molten instead of depending on conduction timing.
-adb shell input swipe 70 630 150 630 400
-adb shell input swipe 70 630 150 630 400
+swipe 70 630 150 630 400
+swipe 70 630 150 630 400
 sleep 1
 capture copper-remelted
 tap 90 715
-adb shell input swipe 70 624 150 624 400
+swipe 70 624 150 624 400
 sleep 1
 capture molten-copper-water-before
 tap 240 765
@@ -276,10 +301,10 @@ capture molten-copper-water-after
 tap 240 765
 tap 310 715
 tap 88 473
-adb shell input swipe 70 590 150 590 400
+swipe 70 590 150 590 400
 sleep 1
 tap 210 715
-adb shell input swipe 70 584 150 584 400
+swipe 70 584 150 584 400
 sleep 1
 capture copper-lightning-before
 tap 240 765
@@ -299,43 +324,43 @@ tap 290 500
 capture material-picker-energy
 tap 310 715
 tap 145 715
-adb shell input swipe 190 230 190 340 500
+swipe 190 230 190 340 500
 sleep 1
 capture petrol
 tap 210 715
-adb shell input swipe 190 230 190 340 500
+swipe 190 230 190 340 500
 sleep 2
 capture interactions
 
 # Rapidly switch among the four touch-first materials and leave overlapping
 # strokes in the same busy area.
 tap 40 715
-adb shell input swipe 80 250 130 300 300
+swipe 80 250 130 300 300
 tap 90 715
-adb shell input swipe 120 250 170 300 300
+swipe 120 250 170 300 300
 tap 145 715
-adb shell input swipe 160 250 210 300 300
+swipe 160 250 210 300 300
 tap 210 715
-adb shell input swipe 200 250 245 300 300
+swipe 200 250 245 300 300
 sleep 2
 capture rapid-material-switching
 
 # Increase the brush materially rather than only exercising the +/- buttons.
 # Use raw taps here so the stress case does not spend a second per increment.
-for _ in {1..8}; do adb shell input tap 90 765; done
+for _ in {1..8}; do tap_fast 90 765; done
 sleep 1
 tap 40 715
-adb shell input swipe 70 360 250 390 550
+swipe 70 360 250 390 550
 sleep 2
 capture large-brush-stroke
-for _ in {1..8}; do adb shell input tap 40 765; done
+for _ in {1..8}; do tap_fast 40 765; done
 sleep 1
 
 # Paused drawing should edit the world without advancing the simulation.
 tap 240 765
 capture pause-draw-before
 tap 90 715
-adb shell input swipe 110 410 220 430 450
+swipe 110 410 220 430 450
 sleep 1
 capture pause-draw-after
 if same_canvas_pixels "$evidence/elementum-pause-draw-before.png" "$evidence/elementum-pause-draw-after.png"; then
@@ -347,18 +372,18 @@ sleep 2
 capture pause-draw-resumed
 
 tap 40 715
-adb shell input swipe 100 260 130 290 500
+swipe 100 260 130 290 500
 sleep 1
 capture brush-circle-stroke
 
 tap 160 765
 capture brush-rect
-adb shell input swipe 150 260 180 290 500
+swipe 150 260 180 290 500
 sleep 1
 capture brush-rect-stroke
 tap 160 765
 capture brush-square
-adb shell input swipe 200 260 230 290 500
+swipe 200 260 230 290 500
 sleep 1
 capture brush-square-stroke
 tap 160 765
@@ -443,7 +468,7 @@ tap 244 640
 sleep 1
 capture cleared
 tap 40 715
-adb shell input swipe 90 300 160 340 400
+swipe 90 300 160 340 400
 sleep 1
 capture after-clear-redraw
 if same_canvas_pixels "$evidence/elementum-cleared.png" "$evidence/elementum-after-clear-redraw.png"; then
@@ -473,7 +498,7 @@ capture resumed
 # Local erase is a first-class material-strip action.
 tap 270 715
 capture erase-selected
-adb shell input swipe 160 300 205 330 450
+swipe 160 300 205 330 450
 sleep 1
 capture erase-stroke
 
@@ -481,11 +506,11 @@ capture erase-stroke
 # between drawing and cooling. Thermal tools are on the second top-right row.
 tap 90 715
 tap 240 765
-adb shell input swipe 125 410 205 410 400
+swipe 125 410 205 410 400
 sleep 1
 capture cooling-water-before
 tool_cool
-adb shell input swipe 125 410 205 410 400
+swipe 125 410 205 410 400
 sleep 1
 capture cooling-water-after
 
@@ -494,14 +519,14 @@ capture cooling-water-after
 # Water to prove the reverse gas/liquid phase transition without movement
 # hiding the result.
 tool_heat
-adb shell input swipe 125 410 205 410 400
+swipe 125 410 205 410 400
 sleep 1
 capture melting-ice-after
-adb shell input swipe 125 410 205 410 400
+swipe 125 410 205 410 400
 sleep 1
 capture evaporation-steam-after
 tool_cool
-adb shell input swipe 125 410 205 410 400
+swipe 125 410 205 410 400
 sleep 1
 capture condensation-water-after
 tap 240 765
@@ -509,11 +534,11 @@ tap 240 765
 # Heat is paired with Cool. Ignite a Petrol strip, then a material shortcut
 # must restore SPAWN before the session continues.
 tap 145 715
-adb shell input swipe 115 445 220 445 450
+swipe 115 445 220 445 450
 sleep 1
 capture heat-petrol-before
 tool_heat
-adb shell input swipe 115 445 220 445 450
+swipe 115 445 220 445 450
 sleep 2
 capture heat-petrol-after
 tap 40 715
@@ -524,10 +549,10 @@ tap 40 715
 tap 240 765
 tap 40 765
 tap 145 715
-adb shell input swipe 110 500 230 500 450
+swipe 110 500 230 500 450
 sleep 1
 tap 210 715
-adb shell input swipe 110 494 230 494 450
+swipe 110 494 230 494 450
 sleep 1
 capture petrol-lightning-before
 tap 240 765
@@ -539,10 +564,10 @@ capture petrol-lightning-after
 # The strike must cross a water contact using the existing child budget.
 tap 240 765
 tap 90 715
-adb shell input swipe 110 545 230 545 450
+swipe 110 545 230 545 450
 sleep 1
 tap 210 715
-adb shell input swipe 110 539 230 539 450
+swipe 110 539 230 539 450
 sleep 1
 capture water-lightning-before
 tap 240 765

@@ -385,6 +385,8 @@ public class MobileControls {
                     @Override
                     public void clicked(InputEvent event, float x, float y) {
                         selectMaterial(selectedType);
+                        materialPanel.setVisible(false);
+                        Gdx.app.log("ElementumInput", "material-picker=closed selection=" + selectedType.name());
                     }
                 });
             }
@@ -402,7 +404,7 @@ public class MobileControls {
     }
 
     private void buildMoreSheet() {
-        Label title = sectionLabel("Tools & sandbox");
+        Label title = sectionLabel("Tools");
         moreSheet.add(title).colspan(5).left().padBottom(6f);
         moreSheet.row();
 
@@ -479,8 +481,8 @@ public class MobileControls {
         moreSheet.add(help).width(62f).height(42f).pad(2f);
         moreSheet.row();
 
-        TextButton weatherMaterial = createFlatButton("Weather mat", CONTROL, CONTROL_PRESSED);
-        weatherMaterial.getLabel().setFontScale(0.50f);
+        TextButton weatherMaterial = createFlatButton("Weather material", CONTROL, CONTROL_PRESSED);
+        weatherMaterial.getLabel().setFontScale(0.44f);
         weatherMaterial.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -566,7 +568,7 @@ public class MobileControls {
         addHelpLine("Materials", "Tap the material chip to open the tray");
         addHelpLine("Tool", "Tap Draw/Heat/Cool/Erase to cycle quickly");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
-        addHelpLine("Scenes", "More > Save/Load uses in-game slots");
+        addHelpLine("Scenes", "Open More, then Save or Load");
         addHelpLine("Pause", "Drawing and tools still work while paused");
 
         TextButton close = createFlatButton("Close", CONTROL, CONTROL_PRESSED);
@@ -680,8 +682,8 @@ public class MobileControls {
         sceneSheet.add(action).width(82f).height(40f).pad(2f);
 
         if (existing != null) {
-            TextButton delete = createFlatButton("Del", DANGER, Color.valueOf("B94B50"));
-            delete.getLabel().setFontScale(0.50f);
+            TextButton delete = createFlatButton("Delete", DANGER, Color.valueOf("B94B50"));
+            delete.getLabel().setFontScale(0.43f);
             delete.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
