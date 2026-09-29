@@ -7,6 +7,94 @@ trap 'adb logcat -d > "$evidence/logcat.txt" || true' EXIT
 
 capture() { adb exec-out screencap -p > "$evidence/elementum-$1.png"; }
 tap() { adb shell input tap "$1" "$2"; sleep 1; }
+
+# Compare only the sandbox viewport, not transient button pressed/checked state.
+# Android screencap PNG output is decoded with Python's standard library so CI
+# does not depend on Pillow/ImageMagick being preinstalled on the runner.
+same_canvas_pixels() {
+  python3 - "$1" "$2" <<'PY'
+import struct
+import sys
+import zlib
+
+PNG = b"\x89PNG\r\n\x1a\n"
+
+def paeth(a, b, c):
+    p = a + b - c
+    pa = abs(p - a)
+    pb = abs(p - b)
+    pc = abs(p - c)
+    if pa <= pb and pa <= pc:
+        return a
+    if pb <= pc:
+        return b
+    return c
+
+def decode(path):
+    data = open(path, "rb").read()
+    if not data.startswith(PNG):
+        raise SystemExit(f"Not a PNG: {path}")
+    pos = len(PNG)
+    width = height = bit_depth = color_type = interlace = None
+    chunks = []
+    while pos + 12 <= len(data):
+        size = struct.unpack(">I", data[pos:pos + 4])[0]
+        kind = data[pos + 4:pos + 8]
+        payload = data[pos + 8:pos + 8 + size]
+        pos += 12 + size
+        if kind == b"IHDR":
+            width, height, bit_depth, color_type, _, _, interlace = struct.unpack(">IIBBBBB", payload)
+        elif kind == b"IDAT":
+            chunks.append(payload)
+        elif kind == b"IEND":
+            break
+    if bit_depth != 8 or color_type not in (2, 6) or interlace != 0:
+        raise SystemExit(f"Unsupported screencap PNG layout in {path}: bit={bit_depth} color={color_type} interlace={interlace}")
+    bpp = 3 if color_type == 2 else 4
+    stride = width * bpp
+    raw = zlib.decompress(b"".join(chunks))
+    expected = height * (stride + 1)
+    if len(raw) != expected:
+        raise SystemExit(f"Unexpected PNG payload size in {path}: {len(raw)} != {expected}")
+    rows = []
+    offset = 0
+    previous = bytearray(stride)
+    for _ in range(height):
+        filter_type = raw[offset]
+        offset += 1
+        row = bytearray(raw[offset:offset + stride])
+        offset += stride
+        for i in range(stride):
+            left = row[i - bpp] if i >= bpp else 0
+            up = previous[i]
+            upper_left = previous[i - bpp] if i >= bpp else 0
+            if filter_type == 1:
+                row[i] = (row[i] + left) & 0xff
+            elif filter_type == 2:
+                row[i] = (row[i] + up) & 0xff
+            elif filter_type == 3:
+                row[i] = (row[i] + ((left + up) // 2)) & 0xff
+            elif filter_type == 4:
+                row[i] = (row[i] + paeth(left, up, upper_left)) & 0xff
+            elif filter_type != 0:
+                raise SystemExit(f"Unsupported PNG filter {filter_type} in {path}")
+        rows.append(bytes(row))
+        previous = row
+    return width, height, bpp, rows
+
+left = decode(sys.argv[1])
+right = decode(sys.argv[2])
+if left[:3] != right[:3]:
+    raise SystemExit(1)
+
+width, height, bpp = left[:3]
+top = min(40, height)
+bottom = min(700, height)
+for y in range(top, bottom):
+    if left[3][y][:width * bpp] != right[3][y][:width * bpp]:
+        raise SystemExit(1)
+PY
+}
 multitouch_pan() {
   adb root >/dev/null
   adb wait-for-device
@@ -68,7 +156,13 @@ open_help_sheet() { open_more; tap 312 580; }
 adb shell wm size 360x800
 adb shell wm density 160
 adb install -r android/build/outputs/apk/debug/android-debug.apk
-adb logcat -c
+# Clearing logcat is useful for evidence isolation but is not a product check.
+# Older/slow emulator images can reject the clear even while adb/app execution
+# is healthy, so recover and continue into the actual Elementum validation.
+if ! adb logcat -c; then
+  echo "CI emulator could not clear logcat; continuing with tagged product assertions" >&2
+  adb wait-for-device
+fi
 adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb shell am force-stop com.tomex.elementum
 adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
@@ -244,7 +338,7 @@ tap 90 715
 adb shell input swipe 110 410 220 430 450
 sleep 1
 capture pause-draw-after
-if cmp -s "$evidence/elementum-pause-draw-before.png" "$evidence/elementum-pause-draw-after.png"; then
+if same_canvas_pixels "$evidence/elementum-pause-draw-before.png" "$evidence/elementum-pause-draw-after.png"; then
   echo "Drawing while paused produced no visible world edit" >&2
   exit 1
 fi
@@ -278,7 +372,7 @@ capture navigation-before
 multitouch_pan
 sleep 1
 capture navigation-after
-if cmp -s "$evidence/elementum-navigation-before.png" "$evidence/elementum-navigation-after.png"; then
+if same_canvas_pixels "$evidence/elementum-navigation-before.png" "$evidence/elementum-navigation-after.png"; then
   echo "Two-pointer navigation produced no visible camera change" >&2
   exit 1
 fi
@@ -307,7 +401,7 @@ sleep 1
 tap 210 585
 sleep 1
 capture invalid-load-after
-if ! cmp -s "$evidence/elementum-invalid-load-before.png" "$evidence/elementum-invalid-load-after.png"; then
+if ! same_canvas_pixels "$evidence/elementum-invalid-load-before.png" "$evidence/elementum-invalid-load-after.png"; then
   echo "Rejected V2 load changed the live paused sandbox" >&2
   exit 1
 fi
@@ -335,7 +429,7 @@ capture clear-confirm-cancel
 tap 112 640
 sleep 1
 capture clear-cancelled
-if ! cmp -s "$evidence/elementum-paused.png" "$evidence/elementum-clear-cancelled.png"; then
+if ! same_canvas_pixels "$evidence/elementum-paused.png" "$evidence/elementum-clear-cancelled.png"; then
   echo "Cancelling Clear changed the paused sandbox" >&2
   exit 1
 fi
@@ -352,7 +446,7 @@ tap 40 715
 adb shell input swipe 90 300 160 340 400
 sleep 1
 capture after-clear-redraw
-if cmp -s "$evidence/elementum-cleared.png" "$evidence/elementum-after-clear-redraw.png"; then
+if same_canvas_pixels "$evidence/elementum-cleared.png" "$evidence/elementum-after-clear-redraw.png"; then
   echo "Drawing immediately after Clear produced no visible world edit" >&2
   exit 1
 fi
