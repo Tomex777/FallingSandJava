@@ -1,16 +1,18 @@
 package com.gdx.cellular.ui;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
-import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.gdx.cellular.CellularMatrix;
@@ -18,17 +20,32 @@ import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
 import com.gdx.cellular.input.MouseMode;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
- * Touch-first Android controls layered over the original simulation.
+ * Mobile-first controls layered over the original simulation.
  *
- * The controls only change input/tool state. Rendering, movement and cellular
- * stepping stay in the original engine.
+ * The sandbox remains the product surface. Android controls follow a compact
+ * bottom-dock + material-tray model instead of exposing the old desktop menu
+ * hierarchy. The simulation, materials and save format stay in their original
+ * engine classes.
  */
 public class MobileControls {
+
+    private static final float DOCK_HEIGHT = 52f;
+    private static final Color PANEL = Color.valueOf("12161C");
+    private static final Color PANEL_ALT = Color.valueOf("1A2028");
+    private static final Color CONTROL = Color.valueOf("252C35");
+    private static final Color CONTROL_PRESSED = Color.valueOf("34404D");
+    private static final Color ACCENT = Color.valueOf("55C7E8");
+    private static final Color DANGER = Color.valueOf("8C353A");
+    private static final Color MUTED = Color.valueOf("9AA6B2");
 
     public final Stage stage;
 
@@ -37,22 +54,35 @@ public class MobileControls {
     private final Skin skin;
 
     private final Table quickBar;
-    private final Table toolsBar;
+    private final Table dock;
     private final Table statusBar;
+    private final Table materialPanel;
     private final Table materialGrid;
     private final ScrollPane materialPicker;
+    private final Table moreSheet;
+    private final Table sceneSheet;
+    private final Table helpSheet;
+    private final Table clearSheet;
 
-    private final Map<ElementType, TextButton> quickButtons = new EnumMap<>(ElementType.class);
     private final Map<ElementType, TextButton> pickerButtons = new EnumMap<>(ElementType.class);
+    private final Map<MouseMode, TextButton> modeButtons = new EnumMap<>(MouseMode.class);
+    private final Map<String, TextButton> categoryButtons = new LinkedHashMap<>();
 
-    private TextButton pauseButton;
+    private TextButton materialButton;
+    private TextButton toolButton;
     private TextButton brushTypeButton;
+    private TextButton pauseButton;
+    private TextButton eraseModeButton;
     private Label selectionLabel;
-    private TextButton allMaterialsButton;
-    private TextButton heatButton;
-    private TextButton coolButton;
-    private Dialog clearDialog;
+
+    private String currentCategory = "Solids";
+    private ElementType lastMaterial = ElementType.SAND;
+
     private boolean clearSettlementPending;
+    private int clearNonEmptyBefore;
+    private int clearWidthBefore;
+    private int clearHeightBefore;
+    private boolean clearPausedBefore;
 
     public MobileControls(InputManager inputManager, CellularMatrix matrix) {
         this.inputManager = inputManager;
@@ -62,114 +92,123 @@ public class MobileControls {
 
         materialGrid = new Table();
         materialGrid.top().left();
-        materialGrid.pad(8f);
-        buildMaterialPicker();
 
-        materialPicker = new ScrollPane(materialGrid, skin);
-        materialPicker.setFadeScrollBars(false);
+        ScrollPane.ScrollPaneStyle cleanScrollStyle = new ScrollPane.ScrollPaneStyle();
+        materialPicker = new ScrollPane(materialGrid, cleanScrollStyle);
+        materialPicker.setFadeScrollBars(true);
         materialPicker.setScrollingDisabled(true, false);
         materialPicker.setOverscroll(false, true);
-        materialPicker.setVisible(false);
-        stage.addActor(materialPicker);
 
-        quickBar = new Table();
-        quickBar.bottom().left();
-        quickBar.setFillParent(true);
-        // The layout table spans the whole screen, but only its buttons should
-        // block world navigation gestures.
-        quickBar.setTouchable(Touchable.childrenOnly);
-        quickBar.pad(8f);
+        materialPanel = new Table();
+        materialPanel.top().left();
+        materialPanel.pad(7f);
+        materialPanel.setBackground(skin.newDrawable("white", PANEL));
+        buildMaterialPanel();
+        materialPanel.setVisible(false);
+        stage.addActor(materialPanel);
 
-        TextButton toolsButton = createButton("Tools");
-        toolsButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                inputManager.openCreatorMenuTopRight();
-            }
-        });
+        moreSheet = new Table();
+        moreSheet.top().left();
+        moreSheet.pad(9f);
+        moreSheet.setBackground(skin.newDrawable("white", PANEL));
+        buildMoreSheet();
+        moreSheet.setVisible(false);
+        stage.addActor(moreSheet);
 
-        heatButton = createButton("Heat");
-        heatButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                inputManager.setMouseMode(MouseMode.HEAT);
-                syncToolHighlights();
-            }
-        });
+        sceneSheet = new Table();
+        sceneSheet.top().left();
+        sceneSheet.pad(9f);
+        sceneSheet.setBackground(skin.newDrawable("white", PANEL));
+        sceneSheet.setVisible(false);
+        stage.addActor(sceneSheet);
 
-        coolButton = createButton("Cool");
-        coolButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                inputManager.setMouseMode(MouseMode.COOL);
-                syncToolHighlights();
-            }
-        });
+        helpSheet = new Table();
+        helpSheet.top().left();
+        helpSheet.pad(10f);
+        helpSheet.setBackground(skin.newDrawable("white", PANEL));
+        buildHelpSheet();
+        helpSheet.setVisible(false);
+        stage.addActor(helpSheet);
 
-        TextButton eraseButton = createButton("Erase");
-        quickButtons.put(ElementType.EMPTYCELL, eraseButton);
-        eraseButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                selectMaterial(ElementType.EMPTYCELL);
-            }
-        });
+        clearSheet = new Table();
+        clearSheet.top().left();
+        clearSheet.pad(10f);
+        clearSheet.setBackground(skin.newDrawable("white", PANEL));
+        clearSheet.setVisible(false);
+        stage.addActor(clearSheet);
 
-        toolsBar = new Table();
-        toolsBar.top().right();
-        toolsBar.setFillParent(true);
-        // Keep empty table space transparent to two-finger world navigation.
-        toolsBar.setTouchable(Touchable.childrenOnly);
-        toolsBar.pad(8f);
-        // Preserve the proven top row hit targets from #92.
-        toolsBar.add(eraseButton).width(54f).height(42f).padRight(3f);
-        toolsBar.add(toolsButton).width(68f).height(42f);
-        toolsBar.row();
-        // Thermal tools sit underneath instead of expanding left over status.
-        toolsBar.add(heatButton).width(54f).height(42f).padTop(3f).padRight(3f);
-        toolsBar.add(coolButton).width(68f).height(42f).padTop(3f);
-        stage.addActor(toolsBar);
-
-        // Persistent touch-transparent context: users can always see what the
-        // next world gesture will do without sacrificing simulation input.
         statusBar = new Table();
         statusBar.top().left();
         statusBar.setFillParent(true);
         statusBar.setTouchable(Touchable.disabled);
         statusBar.pad(8f);
         selectionLabel = new Label("", skin);
-        selectionLabel.setFontScale(0.72f);
-        statusBar.add(selectionLabel).height(42f).left();
+        selectionLabel.setFontScale(0.66f);
+        selectionLabel.setColor(Color.valueOf("D9E2EA"));
+        statusBar.add(selectionLabel).height(28f).left();
         stage.addActor(statusBar);
 
-        addQuickMaterial("Sand", ElementType.SAND, 56f);
-        addQuickMaterial("Water", ElementType.WATER, 56f);
-        addQuickMaterial("Petrol", ElementType.PETROL, 56f);
-        addQuickMaterial("Lightning", ElementType.LIGHTNING, 78f);
+        quickBar = new Table();
+        quickBar.bottom();
+        quickBar.setFillParent(true);
+        quickBar.setTouchable(Touchable.childrenOnly);
 
-        allMaterialsButton = createButton("All");
-        allMaterialsButton.addListener(new ClickListener() {
+        dock = new Table();
+        dock.setBackground(skin.newDrawable("white", Color.valueOf("0E1217")));
+        buildDock();
+        quickBar.add(dock).height(DOCK_HEIGHT);
+        stage.addActor(quickBar);
+
+        inputManager.setMobileOverlayDismiss(this::dismissMobileOverlay);
+        inputManager.setMobileFileRequestHandlers(
+                () -> showSceneSheet(true),
+                () -> showSceneSheet(false)
+        );
+
+        layoutSheets();
+        showMaterialCategory("Solids");
+        selectMaterial(ElementType.SAND);
+    }
+
+    private void buildDock() {
+        materialButton = createFlatButton("Sand", materialColor(ElementType.SAND).cpy().lerp(Color.BLACK, 0.28f), materialColor(ElementType.SAND));
+        materialButton.getLabel().setFontScale(0.65f);
+        materialButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                boolean visible = !materialPicker.isVisible();
-                materialPicker.setVisible(visible);
+                if (clearSheet.isVisible()) return;
+                boolean visible = !materialPanel.isVisible();
+                closeNonDestructiveSheets();
+                materialPanel.setVisible(visible);
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickBar.add(allMaterialsButton).width(48f).height(52f).padRight(3f);
-        quickBar.row();
+        dock.add(materialButton).width(82f).height(48f).padRight(2f);
 
-        addAction("-", 40f, () -> {
-            inputManager.calculateNewBrushSize(-2);
-            updateBrushTypeButton();
+        toolButton = createFlatButton("Draw", CONTROL, ACCENT);
+        toolButton.getLabel().setFontScale(0.63f);
+        toolButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (clearSheet.isVisible()) return;
+                cyclePrimaryTool();
+            }
         });
-        addAction("+", 40f, () -> {
-            inputManager.calculateNewBrushSize(2);
-            updateBrushTypeButton();
-        });
+        dock.add(toolButton).width(50f).height(48f).padRight(2f);
 
-        brushTypeButton = createButton(brushTypeLabel());
-        brushTypeButton.getLabel().setFontScale(0.63f);
+        TextButton minus = createFlatButton("-", CONTROL, CONTROL_PRESSED);
+        minus.getLabel().setFontScale(0.9f);
+        minus.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.calculateNewBrushSize(-2);
+                updateBrushTypeButton();
+            }
+        });
+        dock.add(minus).width(34f).height(48f).padRight(2f);
+
+        brushTypeButton = createFlatButton(brushTypeLabel(), CONTROL, CONTROL_PRESSED);
+        brushTypeButton.getLabel().setFontScale(0.57f);
         brushTypeButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -177,292 +216,849 @@ public class MobileControls {
                 updateBrushTypeButton();
             }
         });
-        quickBar.add(brushTypeButton).width(68f).height(52f).padRight(3f);
+        dock.add(brushTypeButton).width(52f).height(48f).padRight(2f);
 
-        pauseButton = createButton("Pause");
+        TextButton plus = createFlatButton("+", CONTROL, CONTROL_PRESSED);
+        plus.getLabel().setFontScale(0.9f);
+        plus.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.calculateNewBrushSize(2);
+                updateBrushTypeButton();
+            }
+        });
+        dock.add(plus).width(34f).height(48f).padRight(2f);
+
+        pauseButton = createFlatButton("II", CONTROL, ACCENT);
+        pauseButton.getLabel().setFontScale(0.72f);
         pauseButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                if (clearSheet.isVisible()) return;
                 inputManager.togglePause();
-                pauseButton.setText(inputManager.getIsPaused() ? "Play" : "Pause");
+                updatePauseButton();
             }
         });
-        quickBar.add(pauseButton).width(68f).height(52f).padRight(3f);
+        dock.add(pauseButton).width(46f).height(48f).padRight(2f);
 
-        TextButton clearButton = createButton("Clear");
-        // Destructive state-changing actions should not look identical to
-        // harmless brush controls on a phone.
-        clearButton.setColor(new Color(0.72f, 0.28f, 0.28f, 1f));
-        clearButton.addListener(new ClickListener() {
+        TextButton more = createFlatButton("...", CONTROL, CONTROL_PRESSED);
+        more.getLabel().setFontScale(0.82f);
+        more.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (clearSheet.isVisible()) return;
+                boolean visible = !moreSheet.isVisible();
+                closeNonDestructiveSheets();
+                moreSheet.setVisible(visible);
+                if (visible) {
+                    Gdx.app.log("ElementumInput", "more-sheet=open");
+                }
+            }
+        });
+        dock.add(more).width(46f).height(48f);
+    }
+
+    private void buildMaterialPanel() {
+        Label title = sectionLabel("Materials");
+        materialPanel.add(title).colspan(4).left().padBottom(5f);
+        materialPanel.row();
+
+        addCategoryButton("Solids", Color.valueOf("9C7B35"));
+        addCategoryButton("Liquids", Color.valueOf("326DB0"));
+        addCategoryButton("Gases", Color.valueOf("497B78"));
+        addCategoryButton("Energy", Color.valueOf("B36D31"));
+        materialPanel.row();
+
+        materialPanel.add(materialPicker).colspan(4).grow().padTop(6f);
+    }
+
+    private void addCategoryButton(String name, Color tint) {
+        TextButton button = createFlatButton(name, tint.cpy().lerp(Color.BLACK, 0.38f), tint);
+        button.getLabel().setFontScale(0.61f);
+        categoryButtons.put(name, button);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showMaterialCategory(name);
+            }
+        });
+        materialPanel.add(button).width(78f).height(34f).padRight(3f);
+    }
+
+    private void showMaterialCategory(String name) {
+        currentCategory = name;
+        for (Map.Entry<String, TextButton> entry : categoryButtons.entrySet()) {
+            entry.getValue().setChecked(entry.getKey().equals(name));
+        }
+
+        materialGrid.clearChildren();
+        List<ElementType> types;
+        switch (name) {
+            case "Liquids":
+                types = ElementType.getLiquids();
+                break;
+            case "Gases":
+                types = ElementType.getGasses();
+                break;
+            case "Energy":
+                types = ElementType.getEnergies();
+                break;
+            case "Solids":
+            default:
+                types = ElementType.getSolids();
+                break;
+        }
+
+        float contentWidth = Math.max(280f, Math.min(510f, stage.getViewport().getWorldWidth() - 24f));
+        int columns = contentWidth >= 470f ? 6 : 4;
+        float tileWidth = Math.max(58f, (contentWidth - 24f - (columns - 1) * 4f) / columns);
+
+        int column = 0;
+        for (ElementType type : types) {
+            TextButton button = pickerButtons.get(type);
+            if (button == null) {
+                Color color = materialColor(type);
+                button = createFlatButton(displayName(type), color.cpy().lerp(Color.BLACK, 0.32f), color);
+                button.getLabel().setFontScale(0.56f);
+                button.getLabel().setWrap(true);
+                pickerButtons.put(type, button);
+                final ElementType selectedType = type;
+                button.addListener(new ClickListener() {
+                    @Override
+                    public void clicked(InputEvent event, float x, float y) {
+                        selectMaterial(selectedType);
+                    }
+                });
+            }
+            materialGrid.add(button).width(tileWidth).height(43f).pad(2f);
+            column++;
+            if (column == columns) {
+                materialGrid.row();
+                column = 0;
+            }
+        }
+        if (column != 0) materialGrid.row();
+        materialGrid.pack();
+        syncMaterialHighlights();
+        Gdx.app.log("ElementumInput", "material-category=" + name.toLowerCase(Locale.ROOT));
+    }
+
+    private void buildMoreSheet() {
+        Label title = sectionLabel("Tools & sandbox");
+        moreSheet.add(title).colspan(5).left().padBottom(6f);
+        moreSheet.row();
+
+        addModeButton("Draw", MouseMode.SPAWN);
+        addModeButton("Heat", MouseMode.HEAT);
+        addModeButton("Cool", MouseMode.COOL);
+
+        eraseModeButton = createFlatButton("Erase", CONTROL, ACCENT);
+        eraseModeButton.getLabel().setFontScale(0.60f);
+        eraseModeButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                setEraseMode();
+                moreSheet.setVisible(false);
+            }
+        });
+        moreSheet.add(eraseModeButton).width(62f).height(40f).pad(2f);
+        moreSheet.add().width(62f);
+        moreSheet.row();
+
+        addAdvancedModeButton("Particle", MouseMode.PARTICLE);
+        addAdvancedModeButton("Boid", MouseMode.BOID);
+        addAdvancedModeButton("Blast", MouseMode.EXPLOSION);
+        addAdvancedModeButton("Physics", MouseMode.PHYSICSOBJ);
+        addAdvancedModeButton("Rect", MouseMode.RECTANGLE);
+        moreSheet.row();
+
+        TextButton save = createFlatButton("Save", CONTROL, CONTROL_PRESSED);
+        save.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.requestSave();
+            }
+        });
+        moreSheet.add(save).width(62f).height(42f).pad(2f);
+
+        TextButton load = createFlatButton("Load", CONTROL, CONTROL_PRESSED);
+        load.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.requestLoad();
+            }
+        });
+        moreSheet.add(load).width(62f).height(42f).pad(2f);
+
+        TextButton clear = createFlatButton("Clear", DANGER, Color.valueOf("B94B50"));
+        clear.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 showClearConfirmation();
             }
         });
-        quickBar.add(clearButton).width(60f).height(52f).padRight(3f);
+        moreSheet.add(clear).width(62f).height(42f).pad(2f);
 
-        stage.addActor(quickBar);
-        selectMaterial(ElementType.SAND);
-        layoutPicker();
-        inputManager.setMobileOverlayDismiss(this::dismissMobileOverlay);
+        TextButton weather = createFlatButton("Weather", CONTROL, CONTROL_PRESSED);
+        weather.getLabel().setFontScale(0.55f);
+        weather.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.weatherSystem.toggle();
+                moreSheet.setVisible(false);
+                Gdx.app.log("ElementumInput", "weather=toggled");
+            }
+        });
+        moreSheet.add(weather).width(62f).height(42f).pad(2f);
+
+        TextButton help = createFlatButton("Help", CONTROL, CONTROL_PRESSED);
+        help.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showHelpSheet();
+            }
+        });
+        moreSheet.add(help).width(62f).height(42f).pad(2f);
+        moreSheet.row();
+
+        TextButton weatherMaterial = createFlatButton("Weather mat", CONTROL, CONTROL_PRESSED);
+        weatherMaterial.getLabel().setFontScale(0.50f);
+        weatherMaterial.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.setCurrentElementOnWeather();
+                moreSheet.setVisible(false);
+                Gdx.app.log("ElementumInput", "weather-material=" + inputManager.currentlySelectedElement.name());
+            }
+        });
+        moreSheet.add(weatherMaterial).width(126f).height(38f).colspan(2).pad(2f);
+
+        TextButton body = createFlatButton("Body: " + shortBodyType(inputManager.bodyType), CONTROL, CONTROL_PRESSED);
+        body.getLabel().setFontScale(0.50f);
+        body.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                BodyDef.BodyType[] values = BodyDef.BodyType.values();
+                int next = 0;
+                for (int i = 0; i < values.length; i++) {
+                    if (values[i] == inputManager.bodyType) {
+                        next = (i + 1) % values.length;
+                        break;
+                    }
+                }
+                inputManager.setBodyType(values[next]);
+                body.setText("Body: " + shortBodyType(values[next]));
+                Gdx.app.log("ElementumInput", "body-type=" + values[next].name());
+            }
+        });
+        moreSheet.add(body).width(126f).height(38f).colspan(2).pad(2f);
+
+        TextButton close = createFlatButton("Close", CONTROL, CONTROL_PRESSED);
+        close.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                moreSheet.setVisible(false);
+            }
+        });
+        moreSheet.add(close).width(62f).height(38f).pad(2f);
+    }
+
+    private void addModeButton(String label, MouseMode mode) {
+        TextButton button = createFlatButton(label, CONTROL, ACCENT);
+        button.getLabel().setFontScale(0.60f);
+        modeButtons.put(mode, button);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (mode == MouseMode.SPAWN) {
+                    setDrawMode();
+                } else {
+                    inputManager.setMouseMode(mode);
+                    syncToolHighlights();
+                }
+                moreSheet.setVisible(false);
+            }
+        });
+        moreSheet.add(button).width(62f).height(40f).pad(2f);
+    }
+
+    private void addAdvancedModeButton(String label, MouseMode mode) {
+        TextButton button = createFlatButton(label, CONTROL, ACCENT);
+        button.getLabel().setFontScale(label.length() > 6 ? 0.48f : 0.55f);
+        modeButtons.put(mode, button);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                inputManager.setCurrentlySelectedElement(lastMaterial);
+                inputManager.setMouseMode(mode);
+                syncToolHighlights();
+                moreSheet.setVisible(false);
+                Gdx.app.log("ElementumInput", "mode=" + mode.name());
+            }
+        });
+        moreSheet.add(button).width(62f).height(40f).pad(2f);
+    }
+
+    private void buildHelpSheet() {
+        Label title = sectionLabel("Elementum");
+        helpSheet.add(title).colspan(2).left().padBottom(8f);
+        helpSheet.row();
+        addHelpLine("Draw", "One finger tap or stroke");
+        addHelpLine("Navigate", "Two fingers to pan or pinch");
+        addHelpLine("Materials", "Tap the material chip to open the tray");
+        addHelpLine("Tool", "Tap Draw/Heat/Cool/Erase to cycle quickly");
+        addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
+        addHelpLine("Scenes", "More > Save/Load uses in-game slots");
+        addHelpLine("Pause", "Drawing and tools still work while paused");
+
+        TextButton close = createFlatButton("Close", CONTROL, CONTROL_PRESSED);
+        close.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                helpSheet.setVisible(false);
+                Gdx.app.log("ElementumInput", "help=closed");
+            }
+        });
+        helpSheet.add(close).colspan(2).width(100f).height(40f).padTop(5f);
+    }
+
+    private void addHelpLine(String title, String detail) {
+        Label titleLabel = new Label(title, skin);
+        titleLabel.setFontScale(0.60f);
+        Label detailLabel = new Label(detail, skin);
+        detailLabel.setFontScale(0.55f);
+        detailLabel.setColor(MUTED);
+        detailLabel.setWrap(true);
+        helpSheet.add(titleLabel).width(72f).left().padBottom(6f);
+        helpSheet.add(detailLabel).width(220f).left().padBottom(6f);
+        helpSheet.row();
+    }
+
+    private void showHelpSheet() {
+        closeNonDestructiveSheets();
+        helpSheet.setVisible(true);
+        Gdx.app.log("ElementumInput", "help=open");
+    }
+
+    private void showSceneSheet(boolean saveMode) {
+        closeNonDestructiveSheets();
+        sceneSheet.clearChildren();
+
+        Label title = sectionLabel(saveMode ? "Save scene" : "Load scene");
+        sceneSheet.add(title).colspan(3).left().padBottom(6f);
+        sceneSheet.row();
+
+        FileHandle[] saves = inputManager.getSavedLevels();
+        for (int slot = 1; slot <= 4; slot++) {
+            addSceneSlot(slot, saveMode, saves);
+        }
+
+        if (!saveMode) {
+            for (FileHandle save : saves) {
+                String name = save.nameWithoutExtension();
+                if (isSlotName(name)) continue;
+                addSceneRow(name, name, save, false);
+            }
+        }
+
+        TextButton close = createFlatButton("Close", CONTROL, CONTROL_PRESSED);
+        close.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                sceneSheet.setVisible(false);
+                Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
+            }
+        });
+        sceneSheet.add(close).colspan(3).width(104f).height(40f).padTop(6f);
+
+        sceneSheet.setVisible(true);
+        Gdx.app.log("ElementumSaveLoad", "browser-open mode=" + (saveMode ? "save" : "load"));
+        Gdx.app.log("ElementumSaveLoad", "browser-scenes=" + saves.length);
+    }
+
+    private void addSceneSlot(int slot, boolean saveMode, FileHandle[] saves) {
+        String name = "scene_" + slot;
+        FileHandle existing = findSave(saves, name);
+        addSceneRow("Scene " + slot, name, existing, saveMode);
+    }
+
+    private void addSceneRow(String display, String name, FileHandle existing, boolean saveMode) {
+        Table info = new Table();
+        info.left();
+        Label sceneName = new Label(display, skin);
+        sceneName.setFontScale(0.62f);
+        Label detail = new Label(existing == null ? "Empty" : formatModified(existing), skin);
+        detail.setFontScale(0.48f);
+        detail.setColor(MUTED);
+        info.add(sceneName).left();
+        info.row();
+        info.add(detail).left();
+
+        sceneSheet.add(info).width(150f).height(42f).left().pad(2f);
+
+        String actionLabel;
+        if (saveMode) {
+            actionLabel = existing == null ? "Save" : "Overwrite";
+        } else {
+            actionLabel = existing == null ? "--" : "Load";
+        }
+        TextButton action = createFlatButton(actionLabel, CONTROL, saveMode ? ACCENT : Color.valueOf("4C86C6"));
+        action.getLabel().setFontScale(actionLabel.length() > 6 ? 0.50f : 0.58f);
+        if (!saveMode && existing == null) {
+            action.setTouchable(Touchable.disabled);
+            action.setColor(Color.valueOf("666666"));
+        } else {
+            action.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    boolean queued = saveMode
+                            ? inputManager.queueMobileSave(name)
+                            : inputManager.queueMobileLoad(name);
+                    if (queued) sceneSheet.setVisible(false);
+                }
+            });
+        }
+        sceneSheet.add(action).width(82f).height(40f).pad(2f);
+
+        if (existing != null) {
+            TextButton delete = createFlatButton("Del", DANGER, Color.valueOf("B94B50"));
+            delete.getLabel().setFontScale(0.50f);
+            delete.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    inputManager.deleteSavedLevel(name);
+                    Gdx.app.postRunnable(() -> showSceneSheet(saveMode));
+                }
+            });
+            sceneSheet.add(delete).width(52f).height(40f).pad(2f);
+        } else {
+            sceneSheet.add().width(52f);
+        }
+        sceneSheet.row();
+    }
+
+    private FileHandle findSave(FileHandle[] saves, String name) {
+        for (FileHandle save : saves) {
+            if (save.nameWithoutExtension().equals(name)) return save;
+        }
+        return null;
+    }
+
+    private boolean isSlotName(String name) {
+        return "scene_1".equals(name) || "scene_2".equals(name)
+                || "scene_3".equals(name) || "scene_4".equals(name);
+    }
+
+    private String formatModified(FileHandle file) {
+        return new SimpleDateFormat("MMM d · HH:mm", Locale.getDefault())
+                .format(new Date(file.lastModified()));
     }
 
     private void showClearConfirmation() {
-        if (clearDialog != null) return;
+        closeNonDestructiveSheets();
+        clearNonEmptyBefore = matrix.countNonEmptyCells();
+        clearWidthBefore = matrix.innerArraySize;
+        clearHeightBefore = matrix.outerArraySize;
+        clearPausedBefore = inputManager.getIsPaused();
+        inputManager.setIsPaused(true);
 
-        materialPicker.setVisible(false);
-        final int clearNonEmptyBefore = matrix.countNonEmptyCells();
-        final int clearWidthBefore = matrix.innerArraySize;
-        final int clearHeightBefore = matrix.outerArraySize;
-        final boolean clearPausedBefore = inputManager.getIsPaused();
+        clearSheet.clearChildren();
+        Label title = sectionLabel("Clear sandbox?");
+        clearSheet.add(title).colspan(2).left().padBottom(5f);
+        clearSheet.row();
 
-        final Dialog dialog = new Dialog("Clear sandbox?", skin, "dialog") {
+        Label message = new Label("Remove the current sandbox? Saved scenes stay untouched.", skin);
+        message.setFontScale(0.56f);
+        message.setColor(MUTED);
+        message.setWrap(true);
+        clearSheet.add(message).colspan(2).width(290f).left().padBottom(8f);
+        clearSheet.row();
+
+        TextButton cancel = createFlatButton("Cancel", CONTROL, CONTROL_PRESSED);
+        cancel.addListener(new ClickListener() {
             @Override
-            protected void result(Object object) {
-                clearDialog = null;
-                if (Boolean.TRUE.equals(object)) {
-                    inputManager.clearMatrix(matrix);
-
-                    int remaining = matrix.countNonEmptyCells();
-                    boolean dimensionsPreserved = clearWidthBefore == matrix.innerArraySize
-                            && clearHeightBefore == matrix.outerArraySize;
-                    boolean clearPausedAfter = inputManager.getIsPaused();
-                    Gdx.app.log("ElementumInput", "clear-confirmed"
-                            + " before=" + clearNonEmptyBefore
-                            + " remaining=" + remaining
-                            + " removed=" + (clearNonEmptyBefore - remaining)
-                            + " dimensions=" + matrix.innerArraySize + "x" + matrix.outerArraySize
-                            + " dimensionsPreserved=" + dimensionsPreserved
-                            + " pausedBefore=" + clearPausedBefore
-                            + " pausedAfter=" + clearPausedAfter);
-                    clearSettlementPending = true;
-                } else {
-                    int clearNonEmptyAfter = matrix.countNonEmptyCells();
-                    boolean dimensionsPreserved = clearWidthBefore == matrix.innerArraySize
-                            && clearHeightBefore == matrix.outerArraySize;
-                    boolean clearPausedAfter = inputManager.getIsPaused();
-                    Gdx.app.log("ElementumInput", "clear-cancelled"
-                            + " before=" + clearNonEmptyBefore
-                            + " after=" + clearNonEmptyAfter
-                            + " dimensions=" + matrix.innerArraySize + "x" + matrix.outerArraySize
-                            + " dimensionsPreserved=" + dimensionsPreserved
-                            + " pausedBefore=" + clearPausedBefore
-                            + " pausedAfter=" + clearPausedAfter);
-                }
+            public void clicked(InputEvent event, float x, float y) {
+                finishClear(false, false);
             }
-        };
-        clearDialog = dialog;
+        });
+        clearSheet.add(cancel).width(126f).height(42f).pad(3f);
 
-        Label warning = new Label(
-                "Remove the current sandbox? Saved scenes are not deleted.",
-                skin);
-        warning.setWrap(true);
-        warning.setFontScale(0.72f);
+        TextButton clear = createFlatButton("Clear", DANGER, Color.valueOf("B94B50"));
+        clear.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                finishClear(true, false);
+            }
+        });
+        clearSheet.add(clear).width(126f).height(42f).pad(3f);
 
-        float width = Math.max(280f,
-                Math.min(330f, stage.getViewport().getWorldWidth() - 24f));
-        float height = 190f;
-        dialog.getContentTable().add(warning)
-                .width(width - 36f).pad(14f).left();
-        dialog.button("Cancel", false);
-        dialog.button("Clear", true);
-        dialog.show(stage);
-        dialog.setSize(width, height);
-        dialog.setPosition(
-                (stage.getViewport().getWorldWidth() - width) / 2f,
-                (stage.getViewport().getWorldHeight() - height) / 2f);
+        clearSheet.setVisible(true);
+        quickBar.setTouchable(Touchable.disabled);
         Gdx.app.log("ElementumInput", "clear-confirm=open");
     }
 
-    private boolean dismissMobileOverlay() {
-        if (clearDialog != null) {
-            clearDialog.remove();
-            clearDialog = null;
+    private void finishClear(boolean confirm, boolean fromBack) {
+        if (!clearSheet.isVisible()) return;
+
+        if (confirm) {
+            inputManager.clearMatrix(matrix);
+        }
+
+        inputManager.setIsPaused(clearPausedBefore);
+        int after = matrix.countNonEmptyCells();
+        boolean dimensionsPreserved = clearWidthBefore == matrix.innerArraySize
+                && clearHeightBefore == matrix.outerArraySize;
+        boolean clearPausedAfter = inputManager.getIsPaused();
+
+        if (confirm) {
+            Gdx.app.log("ElementumInput", "clear-confirmed"
+                    + " before=" + clearNonEmptyBefore
+                    + " remaining=" + after
+                    + " removed=" + (clearNonEmptyBefore - after)
+                    + " dimensions=" + matrix.innerArraySize + "x" + matrix.outerArraySize
+                    + " dimensionsPreserved=" + dimensionsPreserved
+                    + " pausedBefore=" + clearPausedBefore
+                    + " pausedAfter=" + clearPausedAfter);
+            clearSettlementPending = true;
+        } else if (fromBack) {
             Gdx.app.log("ElementumInput", "clear-cancelled-back");
+        } else {
+            Gdx.app.log("ElementumInput", "clear-cancelled"
+                    + " before=" + clearNonEmptyBefore
+                    + " after=" + after
+                    + " dimensions=" + matrix.innerArraySize + "x" + matrix.outerArraySize
+                    + " dimensionsPreserved=" + dimensionsPreserved
+                    + " pausedBefore=" + clearPausedBefore
+                    + " pausedAfter=" + clearPausedAfter);
+        }
+
+        clearSheet.setVisible(false);
+        quickBar.setTouchable(Touchable.childrenOnly);
+        updatePauseButton();
+    }
+
+    private boolean dismissMobileOverlay() {
+        if (clearSheet.isVisible()) {
+            finishClear(false, true);
             return true;
         }
-        if (!materialPicker.isVisible()) return false;
-        materialPicker.setVisible(false);
-        Gdx.app.log("ElementumInput", "material-picker=back-closed");
-        return true;
-    }
-
-    private void buildMaterialPicker() {
-        addCategory("Solids", ElementType.getSolids());
-        addCategory("Liquids", ElementType.getLiquids());
-        addCategory("Gases", ElementType.getGasses());
-        addCategory("Energy", ElementType.getEnergies());
-    }
-
-    private void addCategory(String title, List<ElementType> elements) {
-        Label heading = new Label(title, skin);
-        heading.setFontScale(0.9f);
-        materialGrid.add(heading).colspan(4).left().padTop(6f).padBottom(4f);
-        materialGrid.row();
-
-        int column = 0;
-        for (ElementType type : elements) {
-            TextButton button = createButton(displayName(type));
-            pickerButtons.put(type, button);
-            button.addListener(new ClickListener() {
-                @Override
-                public void clicked(InputEvent event, float x, float y) {
-                    selectMaterial(type);
-                    materialPicker.setVisible(false);
-                }
-            });
-
-            materialGrid.add(button).width(132f).height(48f).pad(3f);
-            column++;
-            if (column == 2) {
-                materialGrid.row();
-                column = 0;
-            }
+        if (helpSheet.isVisible()) {
+            helpSheet.setVisible(false);
+            Gdx.app.log("ElementumInput", "help=back-closed");
+            return true;
         }
-
-        if (column != 0) {
-            materialGrid.row();
+        if (sceneSheet.isVisible()) {
+            sceneSheet.setVisible(false);
+            Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
+            return true;
         }
+        if (moreSheet.isVisible()) {
+            moreSheet.setVisible(false);
+            Gdx.app.log("ElementumInput", "more-sheet=back-closed");
+            return true;
+        }
+        if (materialPanel.isVisible()) {
+            materialPanel.setVisible(false);
+            Gdx.app.log("ElementumInput", "material-picker=back-closed");
+            return true;
+        }
+        return false;
     }
 
-    private void addQuickMaterial(String label, ElementType type, float width) {
-        TextButton button = createButton(label);
-        quickButtons.put(type, button);
-        button.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                selectMaterial(type);
-            }
-        });
-        quickBar.add(button).width(width).height(52f).padRight(3f);
+    private void closeNonDestructiveSheets() {
+        materialPanel.setVisible(false);
+        moreSheet.setVisible(false);
+        sceneSheet.setVisible(false);
+        helpSheet.setVisible(false);
     }
 
-    private void addAction(String label, float width, Runnable action) {
-        TextButton button = createButton(label);
-        button.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                action.run();
-            }
-        });
-        quickBar.add(button).width(width).height(52f).padRight(3f);
+    private void cyclePrimaryTool() {
+        MouseMode mode = inputManager.getMouseMode();
+        if (mode == MouseMode.SPAWN && inputManager.currentlySelectedElement != ElementType.EMPTYCELL) {
+            inputManager.setMouseMode(MouseMode.HEAT);
+            Gdx.app.log("ElementumInput", "mode=HEAT");
+        } else if (mode == MouseMode.HEAT) {
+            inputManager.setMouseMode(MouseMode.COOL);
+            Gdx.app.log("ElementumInput", "mode=COOL");
+        } else if (mode == MouseMode.COOL) {
+            setEraseMode();
+            return;
+        } else {
+            setDrawMode();
+            return;
+        }
+        syncToolHighlights();
     }
 
-    private TextButton createButton(String label) {
-        TextButton button = new TextButton(label, skin);
-        button.getLabel().setFontScale(0.82f);
-        return button;
+    private void setDrawMode() {
+        inputManager.setCurrentlySelectedElement(lastMaterial);
+        inputManager.setMouseMode(MouseMode.SPAWN);
+        Gdx.app.log("ElementumInput", "mode=SPAWN");
+        syncToolHighlights();
+        syncMaterialHighlights();
+    }
+
+    private void setEraseMode() {
+        inputManager.setCurrentlySelectedElement(ElementType.EMPTYCELL);
+        inputManager.setMouseMode(MouseMode.SPAWN);
+        Gdx.app.log("ElementumInput", "material=EMPTYCELL");
+        Gdx.app.log("ElementumInput", "mode=SPAWN");
+        syncToolHighlights();
+        syncMaterialHighlights();
     }
 
     private void selectMaterial(ElementType type) {
+        if (type != ElementType.EMPTYCELL) {
+            lastMaterial = type;
+        }
         inputManager.setMouseMode(MouseMode.SPAWN);
         inputManager.setCurrentlySelectedElement(type);
-        syncToolHighlights();
         Gdx.app.log("ElementumInput", "material=" + type.name());
+        Gdx.app.log("ElementumInput", "mode=SPAWN");
+        syncToolHighlights();
+        syncMaterialHighlights();
+    }
 
-        for (TextButton button : quickButtons.values()) {
-            button.setColor(Color.WHITE);
-        }
-        for (TextButton button : pickerButtons.values()) {
-            button.setColor(Color.WHITE);
-        }
-
-        TextButton quickButton = quickButtons.get(type);
-        if (quickButton != null) {
-            quickButton.setColor(Color.CYAN);
+    private void syncMaterialHighlights() {
+        for (Map.Entry<ElementType, TextButton> entry : pickerButtons.entrySet()) {
+            entry.getValue().setChecked(inputManager.getMouseMode() == MouseMode.SPAWN
+                    && inputManager.currentlySelectedElement == entry.getKey());
         }
 
-        TextButton pickerButton = pickerButtons.get(type);
-        if (pickerButton != null) {
-            pickerButton.setColor(Color.CYAN);
+        ElementType shown = inputManager.currentlySelectedElement == ElementType.EMPTYCELL
+                ? lastMaterial
+                : inputManager.currentlySelectedElement;
+        Color color = materialColor(shown);
+        materialButton.setStyle(flatStyle(
+                color.cpy().lerp(Color.BLACK, 0.28f),
+                color,
+                Color.WHITE
+        ));
+        materialButton.setText(displayName(shown));
+    }
+
+    private void syncToolHighlights() {
+        MouseMode mode = inputManager.getMouseMode();
+        for (Map.Entry<MouseMode, TextButton> entry : modeButtons.entrySet()) {
+            boolean checked = entry.getKey() == mode;
+            if (entry.getKey() == MouseMode.SPAWN && inputManager.currentlySelectedElement == ElementType.EMPTYCELL) {
+                checked = false;
+            }
+            entry.getValue().setChecked(checked);
+        }
+        if (eraseModeButton != null) {
+            eraseModeButton.setChecked(mode == MouseMode.SPAWN
+                    && inputManager.currentlySelectedElement == ElementType.EMPTYCELL);
+        }
+        if (toolButton != null) {
+            toolButton.setChecked(mode == MouseMode.HEAT || mode == MouseMode.COOL
+                    || (mode == MouseMode.SPAWN && inputManager.currentlySelectedElement == ElementType.EMPTYCELL));
+            toolButton.setText(toolLabel());
+        }
+        updateSelectionLabel();
+    }
+
+    private String toolLabel() {
+        MouseMode mode = inputManager.getMouseMode();
+        if (mode == MouseMode.SPAWN) {
+            return inputManager.currentlySelectedElement == ElementType.EMPTYCELL ? "Erase" : "Draw";
+        }
+        switch (mode) {
+            case HEAT:
+                return "Heat";
+            case COOL:
+                return "Cool";
+            case PARTICLE:
+                return "Part";
+            case PARTICALIZE:
+                return "Dust";
+            case PHYSICSOBJ:
+                return "Phys";
+            case RECTANGLE:
+                return "Rect";
+            case EXPLOSION:
+                return "Boom";
+            case BOID:
+                return "Boid";
+            default:
+                return mode.name();
         }
     }
 
-    private String displayName(ElementType type) {
-        switch (type) {
-            case FLAMMABLEGAS:
-                return "Flammable Gas";
-            case EXPLOSIONSPARK:
-                return "Explosion Spark";
-            case SLIMEMOLD:
-                return "Slime Mold";
-            case GUNPOWDER:
-                return "Gunpowder";
-            case MOLTENCOPPER:
-                return "Molten Copper";
-            default:
-                String lower = type.name().toLowerCase();
-                return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
-        }
+    private void updateSelectionLabel() {
+        if (selectionLabel == null) return;
+        String material = inputManager.currentlySelectedElement == ElementType.EMPTYCELL
+                ? "Erase"
+                : displayName(inputManager.currentlySelectedElement);
+        selectionLabel.setText(material + " · " + toolLabel() + " · " + brushTypeLabel());
     }
 
     private String brushTypeLabel() {
         String shape;
         switch (inputManager.brushType) {
             case SQUARE:
-                shape = "Square";
+                shape = "S";
                 break;
             case RECTANGLE:
-                shape = "Rect";
+                shape = "R";
                 break;
             case CIRCLE:
             default:
-                shape = "Circle";
+                shape = "C";
                 break;
         }
-        return shape + " " + inputManager.brushSize;
+        return shape + inputManager.brushSize;
     }
 
     private void updateBrushTypeButton() {
-        if (brushTypeButton != null) {
-            brushTypeButton.setText(brushTypeLabel());
-        }
+        if (brushTypeButton != null) brushTypeButton.setText(brushTypeLabel());
         updateSelectionLabel();
     }
 
-    private void updateSelectionLabel() {
-        if (selectionLabel == null) return;
-
-        MouseMode mode = inputManager.getMouseMode();
-        if (mode == MouseMode.HEAT) {
-            selectionLabel.setText("Heat  |  " + brushTypeLabel());
-            return;
-        }
-        if (mode == MouseMode.COOL) {
-            selectionLabel.setText("Cool  |  " + brushTypeLabel());
-            return;
-        }
-        if (mode == MouseMode.SPAWN && inputManager.currentlySelectedElement == ElementType.EMPTYCELL) {
-            selectionLabel.setText("Erase  |  " + brushTypeLabel());
-            return;
-        }
-
-        String material = displayName(inputManager.currentlySelectedElement);
-        String tool = mode == MouseMode.SPAWN ? "Draw" : displayName(mode);
-        selectionLabel.setText(material + "  |  " + tool + "  |  " + brushTypeLabel());
+    private void updatePauseButton() {
+        if (pauseButton == null) return;
+        boolean paused = inputManager.getIsPaused();
+        pauseButton.setText(paused ? ">" : "II");
+        pauseButton.setChecked(paused);
     }
 
-    private String displayName(MouseMode mode) {
-        String lower = mode.name().toLowerCase();
-        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+    private TextButton createFlatButton(String label, Color base, Color checked) {
+        TextButton button = new TextButton(label, flatStyle(base, checked, Color.WHITE));
+        button.getLabel().setFontScale(0.60f);
+        return button;
     }
 
-    private void syncToolHighlights() {
-        if (heatButton != null) {
-            heatButton.setColor(inputManager.getMouseMode() == MouseMode.HEAT ? Color.CYAN : Color.WHITE);
-        }
-        if (coolButton != null) {
-            coolButton.setColor(inputManager.getMouseMode() == MouseMode.COOL ? Color.CYAN : Color.WHITE);
-        }
-        updateSelectionLabel();
+    private TextButtonStyle flatStyle(Color base, Color checked, Color fontColor) {
+        TextButtonStyle style = new TextButtonStyle();
+        style.up = skin.newDrawable("white", base);
+        style.down = skin.newDrawable("white", base.cpy().lerp(Color.WHITE, 0.10f));
+        style.over = skin.newDrawable("white", base.cpy().lerp(Color.WHITE, 0.06f));
+        style.checked = skin.newDrawable("white", checked);
+        style.font = skin.getFont("default-font");
+        style.fontColor = fontColor;
+        style.checkedFontColor = Color.WHITE;
+        style.downFontColor = Color.WHITE;
+        return style;
     }
 
-    private void layoutPicker() {
+    private Label sectionLabel(String text) {
+        Label label = new Label(text, skin);
+        label.setFontScale(0.72f);
+        label.setColor(Color.valueOf("EEF4F8"));
+        return label;
+    }
+
+    private Color materialColor(ElementType type) {
+        switch (type) {
+            case GROUND:
+                return Color.valueOf("696F76");
+            case STONE:
+                return Color.valueOf("7C858C");
+            case COPPER:
+                return Color.valueOf("B96F45");
+            case ICE:
+                return Color.valueOf("77B9D9");
+            case BRICK:
+                return Color.valueOf("A85446");
+            case SAND:
+                return Color.valueOf("C9A64D");
+            case SNOW:
+                return Color.valueOf("BFD6E0");
+            case DIRT:
+                return Color.valueOf("7C583D");
+            case GUNPOWDER:
+                return Color.valueOf("635F68");
+            case WATER:
+                return Color.valueOf("377FC4");
+            case CEMENT:
+                return Color.valueOf("7E8588");
+            case OIL:
+                return Color.valueOf("4E4B39");
+            case PETROL:
+                return Color.valueOf("8A7F46");
+            case ACID:
+                return Color.valueOf("75A843");
+            case WOOD:
+                return Color.valueOf("8B6242");
+            case TITANIUM:
+                return Color.valueOf("8A98A4");
+            case SPARK:
+                return Color.valueOf("E8BE48");
+            case LIGHTNING:
+                return Color.valueOf("F1D84E");
+            case EXPLOSIONSPARK:
+                return Color.valueOf("D87A35");
+            case EMBER:
+                return Color.valueOf("B65332");
+            case LAVA:
+                return Color.valueOf("CB542E");
+            case MOLTENCOPPER:
+                return Color.valueOf("E36C2F");
+            case COAL:
+                return Color.valueOf("41454B");
+            case SMOKE:
+                return Color.valueOf("6A7077");
+            case FLAMMABLEGAS:
+                return Color.valueOf("7A677E");
+            case BLOOD:
+                return Color.valueOf("8E3940");
+            case SLIMEMOLD:
+                return Color.valueOf("6F8D4D");
+            case STEAM:
+                return Color.valueOf("839CAB");
+            default:
+                return Color.valueOf("65727D");
+        }
+    }
+
+    private String displayName(ElementType type) {
+        switch (type) {
+            case FLAMMABLEGAS:
+                return "Flam Gas";
+            case EXPLOSIONSPARK:
+                return "Spark";
+            case SLIMEMOLD:
+                return "Slime";
+            case GUNPOWDER:
+                return "Powder";
+            case MOLTENCOPPER:
+                return "Molten Cu";
+            case EMPTYCELL:
+                return "Erase";
+            default:
+                String lower = type.name().toLowerCase(Locale.ROOT);
+                return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
+        }
+    }
+
+    private String shortBodyType(BodyDef.BodyType type) {
+        switch (type) {
+            case StaticBody:
+                return "Static";
+            case KinematicBody:
+                return "Kinematic";
+            case DynamicBody:
+            default:
+                return "Dynamic";
+        }
+    }
+
+    private void layoutSheets() {
         float width = stage.getViewport().getWorldWidth();
         float height = stage.getViewport().getWorldHeight();
-        float pickerWidth = Math.max(280f, width - 20f);
-        float pickerHeight = Math.max(120f, Math.min(height - 160f, 330f));
-        materialPicker.setBounds(10f, 120f, pickerWidth, pickerHeight);
+        if (width <= 0f || height <= 0f) return;
+
+        float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
+        panelWidth = Math.max(300f, panelWidth);
+        float x = (width - panelWidth) / 2f;
+        float y = DOCK_HEIGHT + 4f;
+        float available = Math.max(120f, height - y - 14f);
+
+        materialPanel.setBounds(x, y, panelWidth, Math.min(260f, Math.max(185f, height * 0.34f)));
+        moreSheet.setBounds(x, y, panelWidth, Math.min(270f, available));
+        sceneSheet.setBounds(x, y, panelWidth, Math.min(360f, available));
+        helpSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
+        clearSheet.setBounds(x, y, panelWidth, Math.min(165f, available));
     }
 
     public void draw() {
@@ -471,10 +1067,15 @@ public class MobileControls {
         if (stage.getViewport().getScreenWidth() != width || stage.getViewport().getScreenHeight() != height) {
             resize(width, height);
         }
-        boolean overlaysHidden = !inputManager.drawMenu && !materialPicker.isVisible();
-        toolsBar.setVisible(overlaysHidden);
-        statusBar.setVisible(overlaysHidden);
+
+        boolean legacyOverlay = inputManager.drawMenu;
+        quickBar.setVisible(!legacyOverlay);
+        statusBar.setVisible(!legacyOverlay);
+
         syncToolHighlights();
+        syncMaterialHighlights();
+        updatePauseButton();
+
         if (clearSettlementPending) {
             Gdx.app.log("ElementumInput", "clear-settled"
                     + " remaining=" + matrix.countNonEmptyCells()
@@ -482,13 +1083,15 @@ public class MobileControls {
                     + " paused=" + inputManager.getIsPaused());
             clearSettlementPending = false;
         }
+
         stage.act();
         stage.draw();
     }
 
     public void resize(int width, int height) {
         stage.getViewport().update(width, height, true);
-        layoutPicker();
+        layoutSheets();
+        showMaterialCategory(currentCategory);
     }
 
     public void dispose() {
