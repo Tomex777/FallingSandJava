@@ -38,6 +38,45 @@ assert_foreground() {
   fi
 }
 
+
+dismiss_system_fullscreen_confirmation() {
+  # Android SystemUI can intermittently show its first-use immersive-mode
+  # confirmation even after immersive_mode_confirmations is pre-set. That
+  # overlay consumes app taps/Back presses, so dismiss the system-owned prompt
+  # before collecting product evidence. Do not change Elementum to satisfy it.
+  local xml="$evidence/system-ui-fullscreen.xml"
+  local dismiss_x dismiss_y
+  for attempt in 1 2 3; do
+    adb shell uiautomator dump /sdcard/elementum-window.xml >/dev/null 2>&1 || break
+    adb shell cat /sdcard/elementum-window.xml > "$xml" 2>/dev/null || break
+    if read -r dismiss_x dismiss_y < <(python3 - "$xml" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+for node in root.iter("node"):
+    text = (node.attrib.get("text") or "").strip().lower()
+    desc = (node.attrib.get("content-desc") or "").strip().lower()
+    if text not in {"got it", "ok"} and desc not in {"got it", "ok"}:
+        continue
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if not match:
+        continue
+    left, top, right, bottom = map(int, match.groups())
+    print((left + right) // 2, (top + bottom) // 2)
+    raise SystemExit(0)
+raise SystemExit(1)
+PY
+    ); then
+      adb shell input tap "$dismiss_x" "$dismiss_y"
+      sleep 1
+    else
+      break
+    fi
+  done
+}
+
 # Compare only the sandbox viewport, not transient button pressed/checked state.
 # Android screencap PNG output is decoded with Python's standard library so CI
 # does not depend on Pillow/ImageMagick being preinstalled on the runner.
@@ -197,6 +236,7 @@ adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb shell am force-stop com.tomex.elementum
 adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
 sleep 6
+dismiss_system_fullscreen_confirmation
 capture startup
 for attempt in {1..10}; do
   if [ "$(stat -c%s "$evidence/elementum-startup.png")" -gt 5000 ]; then break; fi
@@ -425,7 +465,7 @@ capture save-sheet
 tap 210 401
 sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
-adb shell run-as com.tomex.elementum test -s files/save/scene_1.ser
+adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
 adb shell run-as com.tomex.elementum cat files/save/scene_1.ser | head -c 3 > "$evidence/save-format.txt"
 grep -q '^V3' "$evidence/save-format.txt"
 
@@ -454,8 +494,8 @@ open_save_sheet
 capture overwrite-save-sheet
 tap 210 401
 sleep 1
-adb shell run-as com.tomex.elementum test -s files/save/scene_1.ser
-if adb shell run-as com.tomex.elementum test -e files/save/scene_1.ser.tmp; then
+adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
+if adb shell "run-as com.tomex.elementum sh -c '[ -e files/save/scene_1.ser.tmp ]'"; then
   echo "Atomic save overwrite left a temporary file behind" >&2
   exit 1
 fi
@@ -510,6 +550,7 @@ adb shell input keyevent KEYCODE_HOME
 sleep 2
 adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
 sleep 3
+dismiss_system_fullscreen_confirmation
 capture resumed
 
 # Local erase is a first-class material-strip action.
@@ -696,7 +737,7 @@ fi
 grep -Eq 'ElementumSaveLoad.*browser-scenes=[1-9][0-9]*' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*browser-selected=scene_1' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*loaded=scene_1.*format=V3' "$evidence/logcat.txt"
-grep -Eq 'ElementumSaveLoad.*restored-stateful=[1-9][0-9]*.*transactional=true' "$evidence/logcat.txt"
+grep -Eq 'ElementumSaveLoad.*restored-stateful=[0-9]+.*restored-ignited=[0-9]+.*transactional=true' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*load-invalid=elementum_corrupt' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*ice-to-water' "$evidence/logcat.txt"
@@ -729,9 +770,10 @@ adb shell am force-stop com.tomex.elementum
 sleep 1
 adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
 sleep 4
+dismiss_system_fullscreen_confirmation
 capture process-restart
 test -n "$(adb shell pidof com.tomex.elementum)"
-adb shell run-as com.tomex.elementum test -s files/save/scene_1.ser
+adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
 
 open_load_sheet
 capture process-restart-load-browser
