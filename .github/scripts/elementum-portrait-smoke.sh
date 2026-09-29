@@ -9,10 +9,30 @@ DESIGN_W=360
 DESIGN_H=800
 SCREEN_W=$DESIGN_W
 SCREEN_H=$DESIGN_H
+SCALE_NUM=1
+SCALE_DEN=1
+OFFSET_X=0
+OFFSET_Y=0
 
 capture() { adb exec-out screencap -p > "$evidence/elementum-$1.png"; }
-scale_x() { echo $(( ($1 * SCREEN_W + DESIGN_W / 2) / DESIGN_W )); }
-scale_y() { echo $(( ($1 * SCREEN_H + DESIGN_H / 2) / DESIGN_H )); }
+configure_input_transform() {
+  # wm size can be represented by Android as an aspect-fitted logical surface
+  # inside the physical framebuffer (notably API 26). Map the 360x800 design
+  # coordinates through that fitted rectangle so taps hit the same controls.
+  if (( SCREEN_W * DESIGN_H > SCREEN_H * DESIGN_W )); then
+    SCALE_NUM=$SCREEN_H
+    SCALE_DEN=$DESIGN_H
+    OFFSET_X=$(( (SCREEN_W * SCALE_DEN - DESIGN_W * SCALE_NUM) / (2 * SCALE_DEN) ))
+    OFFSET_Y=0
+  else
+    SCALE_NUM=$SCREEN_W
+    SCALE_DEN=$DESIGN_W
+    OFFSET_X=0
+    OFFSET_Y=$(( (SCREEN_H * SCALE_DEN - DESIGN_H * SCALE_NUM) / (2 * SCALE_DEN) ))
+  fi
+}
+scale_x() { echo $(( OFFSET_X + ($1 * SCALE_NUM + SCALE_DEN / 2) / SCALE_DEN )); }
+scale_y() { echo $(( OFFSET_Y + ($1 * SCALE_NUM + SCALE_DEN / 2) / SCALE_DEN )); }
 tap() {
   adb shell input tap "$(scale_x "$1")" "$(scale_y "$2")"
   sleep 1
@@ -220,7 +240,10 @@ assert w >= 320 and h >= 568, f'Unexpectedly small Android surface: {w}x{h}'
 print(w, h)
 PY
 )
-printf 'screen=%sx%s design=%sx%s\n' "$SCREEN_W" "$SCREEN_H" "$DESIGN_W" "$DESIGN_H" > "$evidence/screen-size.txt"
+configure_input_transform
+printf 'screen=%sx%s design=%sx%s scale=%s/%s offset=%s,%s\n' \
+  "$SCREEN_W" "$SCREEN_H" "$DESIGN_W" "$DESIGN_H" \
+  "$SCALE_NUM" "$SCALE_DEN" "$OFFSET_X" "$OFFSET_Y" > "$evidence/screen-size.txt"
 
 open_more
 capture more-sheet
