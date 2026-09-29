@@ -721,6 +721,60 @@ public class InputManager {
         }
     }
 
+    public void load(CellularMatrix matrix) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.L) && !readyToLoad) {
+            requestLoad();
+        }
+
+        if (!readyToLoad) {
+            return;
+        }
+
+        readyToLoad = false;
+        try {
+            FileHandle saveFile = Gdx.files.local("save/" + fileNameForLevel + ".ser");
+            if (!saveFile.exists()) {
+                Gdx.app.log("ElementumSaveLoad", "load-missing=" + fileNameForLevel);
+                return;
+            }
+
+            String level = saveFile.readString("UTF-8");
+            boolean versionThree = level.startsWith("V3\n");
+            boolean versionTwo = level.startsWith("V2\n");
+            String payload = (versionThree || versionTwo) ? level.substring(3) : level;
+            boolean valid = versionThree
+                    ? validateVersionThree(payload, matrix)
+                    : versionTwo ? validateVersionTwo(payload, matrix) : validateLegacyLevel(payload);
+            if (!valid) {
+                Gdx.app.error("ElementumSaveLoad", "load-invalid=" + fileNameForLevel);
+                return;
+            }
+
+            // V3 goes one step further than syntax validation: reconstruct every
+            // saved object off-matrix first. A constructor/state-restore failure
+            // therefore cannot clear the live sandbox.
+            if (versionThree) {
+                DecodedV3 decoded = decodeVersionThree(matrix, payload);
+                commitVersionThree(matrix, decoded);
+            } else {
+                // V2/legacy payloads are fully validated before this point and
+                // contain no material-specific private restore hooks.
+                resetActiveWorld(matrix);
+                if (versionTwo) {
+                    loadVersionTwo(matrix, payload);
+                } else {
+                    loadLegacyLevel(matrix, payload);
+                }
+            }
+            String format = versionThree ? "V3" : versionTwo ? "V2" : "legacy";
+            Gdx.app.log("ElementumSaveLoad", "loaded=" + fileNameForLevel + " format=" + format);
+        } catch (RuntimeException error) {
+            Gdx.app.error("ElementumSaveLoad", "load-failed=" + fileNameForLevel, error);
+        } finally {
+            finishFileAction();
+        }
+    }
+
     private void appendSavedElement(StringBuilder builder, Element element) {
         // Empty cells are implicit in V2. Omitting their enum names keeps large
         // sparse mobile scenes small and avoids unnecessary save/load work.
