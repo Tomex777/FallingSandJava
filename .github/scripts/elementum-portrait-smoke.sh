@@ -97,6 +97,18 @@ PY
   adb shell input tap $bounds
 }
 
+# Portrait coordinates for the compact mobile dock/sheets. These helpers keep
+# the runtime proof readable while the simulation itself remains untouched.
+open_more() { tap 335 765; }
+tool_draw() { open_more; tap 48 490; }
+tool_heat() { open_more; tap 114 490; }
+tool_cool() { open_more; tap 180 490; }
+tool_erase() { open_more; tap 246 490; }
+open_save_sheet() { open_more; tap 48 580; }
+open_load_sheet() { open_more; tap 114 580; }
+open_clear_sheet() { open_more; tap 180 580; }
+open_help_sheet() { open_more; tap 312 580; }
+
 adb shell wm size 360x800
 adb shell wm density 160
 adb install -r android/build/outputs/apk/debug/android-debug.apk
@@ -135,36 +147,26 @@ w,h=struct.unpack('>II',header[16:24])
 assert (w,h)==(360,800),f'Expected portrait 360x800, got {w}x{h}'
 PY
 
-tap 326 29
-capture tools-menu
+open_more
+capture more-sheet
 adb shell input keyevent KEYCODE_BACK
 sleep 1
-capture tools-back-dismissed
+capture more-back-dismissed
 test -n "$(adb shell pidof com.tomex.elementum)"
 
-# The former empty controls placeholder is now a real Help modal. It should
-# remain touch-friendly and dismiss through the same Android Back contract.
-tap 326 29
-tap 220 260
+# Help is now a compact in-game bottom sheet instead of a desktop dialog.
+open_help_sheet
 sleep 1
-capture help-dialog
+capture help-sheet
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture help-back-dismissed
 test -n "$(adb shell pidof com.tomex.elementum)"
 
-tap 326 29
-tap 100 250
-capture tools-dismissed
-tap 326 29
-tap 220 170
-capture tools-mouse-modes
-tap 100 190
-capture mouse-mode-heat
-tap 326 29
-tap 220 170
-tap 100 130
-capture mouse-mode-spawn
+tool_heat
+capture tool-heat
+tool_draw
+capture tool-draw
 
 tap 310 715
 capture material-picker-solids
@@ -174,20 +176,20 @@ capture material-picker-back-dismissed
 test -n "$(adb shell pidof com.tomex.elementum)"
 tap 310 715
 
-# Copper is the second-row left solid after alphabetical material sorting.
-# Exercise the new reversible thermal metal and a local water quench while the
-# scene is paused so phase changes are observable at fixed coordinates.
-tap 88 473
+# Copper is available directly from the compact Solids grid. Exercise the
+# reversible thermal metal while paused so phase changes remain observable at
+# fixed coordinates.
+tap 210 545
 tap 240 765
 tap 40 765
 adb shell input swipe 70 630 150 630 400
 sleep 1
 capture copper-solid
-tap 255 74
+tool_heat
 adb shell input swipe 70 630 150 630 400
 sleep 1
 capture copper-molten
-tap 318 74
+tool_cool
 adb shell input swipe 70 630 150 630 400
 sleep 1
 capture copper-refrozen
@@ -195,7 +197,7 @@ capture copper-refrozen
 # Copper is also thermally conductive, not only electrically conductive.
 # Create a local cold spot while paused, then resume briefly so adjacent copper
 # cells equalize that gradient through bounded nearest-neighbour transfer.
-tap 318 74
+tool_cool
 tap 70 630
 capture copper-thermal-gradient-before
 tap 240 765
@@ -203,7 +205,7 @@ sleep 2
 capture copper-thermal-gradient-after
 tap 240 765
 
-tap 255 74
+tool_heat
 # The preceding conduction pass can equalize the strip above a fresh Copper's
 # 500-point melt resistance. Two bounded heat strokes guarantee this quench
 # fixture is actually molten instead of depending on conduction timing.
@@ -236,15 +238,15 @@ capture copper-lightning-after
 tap 90 765
 tap 40 715
 
-# Re-open at the top and continue proving the full picker can scroll through
-# liquids, gases and energy after the new material rows were added.
+# Re-open and prove the compact category tabs expose every material family
+# without forcing desktop-style nested menus or a long scrolling sheet.
 tap 310 715
-adb shell input swipe 190 610 190 430 500
-sleep 1
+tap 130 500
 capture material-picker-liquids
-adb shell input swipe 190 610 190 430 500
-sleep 1
-capture material-picker-gases-energy
+tap 210 500
+capture material-picker-gases
+tap 290 500
+capture material-picker-energy
 tap 310 715
 tap 145 715
 adb shell input swipe 190 230 190 340 500
@@ -327,17 +329,13 @@ fi
 printf '%s\n' "device=$device rangeX=$x_min..$x_max rangeY=$y_min..$y_max injected=two-pointer-pan-pinch" > "$evidence/navigation-input.txt"
 tap 240 765
 
-tap 326 29
-tap 220 220
-capture save-dialog
-dialog Save
-adb shell input text elementum_qa
-dialog Save
-tap_ok Save
+open_save_sheet
+capture save-sheet
+tap 210 401
 sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
-adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
-adb shell run-as com.tomex.elementum cat files/save/elementum_qa.ser | head -c 3 > "$evidence/save-format.txt"
+adb shell run-as com.tomex.elementum test -s files/save/scene_1.ser
+adb shell run-as com.tomex.elementum cat files/save/scene_1.ser | head -c 3 > "$evidence/save-format.txt"
 grep -q '^V3' "$evidence/save-format.txt"
 
 # A truncated V2 file can still contain individually valid tokens. Keep the
@@ -346,11 +344,11 @@ tap 240 765
 capture invalid-load-before
 adb shell "run-as com.tomex.elementum sh -c 'printf \"V2\\nSAND\\n\" > files/save/elementum_corrupt.ser'"
 sleep 1
-tap 326 29
-tap 220 240
+open_load_sheet
 capture corrupt-load-browser
 sleep 1
-tap 120 255
+# Fixed slots stay first; the injected legacy/corrupt save is the fifth row.
+tap 210 585
 sleep 1
 capture invalid-load-after
 if ! cmp -s "$evidence/elementum-invalid-load-before.png" "$evidence/elementum-invalid-load-after.png"; then
@@ -361,16 +359,12 @@ adb shell run-as com.tomex.elementum rm files/save/elementum_corrupt.ser
 
 # Saving the same name again must use the safe overwrite path rather than
 # deleting the existing valid scene before the replacement is ready.
-tap 326 29
-tap 220 220
-capture overwrite-save-dialog
-dialog Save
-adb shell input text elementum_qa
-dialog Save
-tap_ok Save
+open_save_sheet
+capture overwrite-save-sheet
+tap 210 401
 sleep 1
-adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
-if adb shell run-as com.tomex.elementum test -e files/save/elementum_qa.ser.tmp; then
+adb shell run-as com.tomex.elementum test -s files/save/scene_1.ser
+if adb shell run-as com.tomex.elementum test -e files/save/scene_1.ser.tmp; then
   echo "Atomic save overwrite left a temporary file behind" >&2
   exit 1
 fi
@@ -379,10 +373,10 @@ capture paused
 
 # Clear is deliberately destructive on mobile. First cancel it while the
 # simulation is paused and prove the live sandbox is bit-for-bit unchanged.
-tap 315 765
+open_clear_sheet
 sleep 1
 capture clear-confirm-cancel
-tap 152 478
+tap 112 640
 sleep 1
 capture clear-cancelled
 if ! cmp -s "$evidence/elementum-paused.png" "$evidence/elementum-clear-cancelled.png"; then
@@ -392,10 +386,10 @@ fi
 
 # Then resume and prove the affirmative path really clears the active world.
 tap 240 765
-tap 315 765
+open_clear_sheet
 sleep 1
 capture clear-confirm
-tap 212 478
+tap 244 640
 sleep 1
 capture cleared
 tap 40 715
@@ -406,21 +400,18 @@ if cmp -s "$evidence/elementum-cleared.png" "$evidence/elementum-after-clear-red
   echo "Drawing immediately after Clear produced no visible world edit" >&2
   exit 1
 fi
-tap 326 29
-tap 220 240
+open_load_sheet
 capture load-browser
 sleep 1
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture load-browser-back-dismissed
 test -n "$(adb shell pidof com.tomex.elementum)"
-tap 326 29
-tap 220 240
+open_load_sheet
 capture load-browser-reopened
 sleep 1
-# Android Load is a touch-first scene browser. The newest saved scene is the
-# first large row in the centered dialog; no exact filename entry is required.
-tap 120 255
+# Android Load is a touch-first in-game slot browser.
+tap 210 401
 sleep 2
 capture loaded
 adb shell input keyevent KEYCODE_HOME
@@ -429,9 +420,8 @@ adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
 sleep 3
 capture resumed
 
-# Local erase is a first-class touch action. It sits immediately left of Tools,
-# so the long-standing Tools target at x=326 remains unchanged.
-tap 255 29
+# Local erase is a first-class material-strip action.
+tap 270 715
 capture erase-selected
 adb shell input swipe 160 300 205 330 450
 sleep 1
@@ -444,7 +434,7 @@ tap 240 765
 adb shell input swipe 125 410 205 410 400
 sleep 1
 capture cooling-water-before
-tap 318 74
+tool_cool
 adb shell input swipe 125 410 205 410 400
 sleep 1
 capture cooling-water-after
@@ -453,14 +443,14 @@ capture cooling-water-after
 # second time to boil Water -> Steam. Cool that stationary steam back into
 # Water to prove the reverse gas/liquid phase transition without movement
 # hiding the result.
-tap 255 74
+tool_heat
 adb shell input swipe 125 410 205 410 400
 sleep 1
 capture melting-ice-after
 adb shell input swipe 125 410 205 410 400
 sleep 1
 capture evaporation-steam-after
-tap 318 74
+tool_cool
 adb shell input swipe 125 410 205 410 400
 sleep 1
 capture condensation-water-after
@@ -472,7 +462,7 @@ tap 145 715
 adb shell input swipe 115 445 220 445 450
 sleep 1
 capture heat-petrol-before
-tap 255 74
+tool_heat
 adb shell input swipe 115 445 220 445 450
 sleep 2
 capture heat-petrol-after
@@ -577,7 +567,7 @@ grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
-grep -q 'ElementumInput.*back-dismiss=creator-overlay' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*more-sheet=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
 clear_cancel_line=$(grep 'ElementumInput: clear-cancelled before=' "$evidence/logcat.txt" | tail -1)
 python3 - "$clear_cancel_line" <<'PY'
@@ -605,15 +595,15 @@ assert m.group(4) == 'true', f'Clear confirm changed world dimensions: {line}'
 assert m.group(5) == 'false' and m.group(6) == 'false', f'Clear confirm changed running state: {line}'
 PY
 grep -q 'ElementumInput: clear-settled remaining=0 .*paused=false' "$evidence/logcat.txt"
-grep -q 'ElementumSaveLoad.*saved=elementum_qa' "$evidence/logcat.txt"
-save_count=$(grep -c 'ElementumSaveLoad.*saved=elementum_qa.*atomic=true' "$evidence/logcat.txt" || true)
+grep -q 'ElementumSaveLoad.*saved=scene_1' "$evidence/logcat.txt"
+save_count=$(grep -c 'ElementumSaveLoad.*saved=scene_1.*atomic=true' "$evidence/logcat.txt" || true)
 if [ "$save_count" -lt 2 ]; then
   echo "Expected initial save plus atomic overwrite, got atomic save count=$save_count" >&2
   exit 1
 fi
-grep -q 'ElementumSaveLoad.*browser-scenes=1' "$evidence/logcat.txt"
-grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat.txt"
-grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V3' "$evidence/logcat.txt"
+grep -Eq 'ElementumSaveLoad.*browser-scenes=[1-9][0-9]*' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*browser-selected=scene_1' "$evidence/logcat.txt"
+grep -q 'ElementumSaveLoad.*loaded=scene_1.*format=V3' "$evidence/logcat.txt"
 grep -Eq 'ElementumSaveLoad.*restored-stateful=[1-9][0-9]*.*transactional=true' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*load-invalid=elementum_corrupt' "$evidence/logcat.txt"
 grep -q 'ElementumReaction.*water-to-ice' "$evidence/logcat.txt"
@@ -648,17 +638,16 @@ adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
 sleep 4
 capture process-restart
 test -n "$(adb shell pidof com.tomex.elementum)"
-adb shell run-as com.tomex.elementum test -s files/save/elementum_qa.ser
+adb shell run-as com.tomex.elementum test -s files/save/scene_1.ser
 
-tap 326 29
-tap 220 240
+open_load_sheet
 capture process-restart-load-browser
 sleep 1
-tap 120 255
+tap 210 401
 sleep 2
 capture process-restart-loaded
 adb logcat -d > "$evidence/logcat-after-process-restart.txt"
-grep -q 'ElementumSaveLoad.*browser-selected=elementum_qa' "$evidence/logcat-after-process-restart.txt"
-grep -q 'ElementumSaveLoad.*loaded=elementum_qa.*format=V3' "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumSaveLoad.*browser-selected=scene_1' "$evidence/logcat-after-process-restart.txt"
+grep -q 'ElementumSaveLoad.*loaded=scene_1.*format=V3' "$evidence/logcat-after-process-restart.txt"
 grep -q 'ElementumSaveLoad.*transactional=true' "$evidence/logcat-after-process-restart.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"
