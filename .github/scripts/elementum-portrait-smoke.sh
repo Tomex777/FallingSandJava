@@ -165,8 +165,25 @@ for y in range(top, bottom):
 PY
 }
 multitouch_pan() {
-  adb root >/dev/null
+  # sendevent needs a rooted adbd on the emulator. adb root restarts adbd and
+  # can transiently return "closed" even though the emulator remains healthy.
+  # Treat that transport restart as harness setup, then require a working shell
+  # before touching the app or raw input device.
+  adb root >/dev/null 2>&1 || true
   adb wait-for-device
+  local adb_ready=false
+  for _ in {1..20}; do
+    if adb shell true >/dev/null 2>&1; then
+      adb_ready=true
+      break
+    fi
+    sleep 1
+  done
+  if [ "$adb_ready" != true ]; then
+    echo "ADB shell did not recover after enabling emulator root" >&2
+    return 1
+  fi
+  dismiss_system_fullscreen_confirmation
   adb shell getevent -lp > "$evidence/input-devices.txt"
   read -r device x_min x_max y_min y_max < <(python3 - "$evidence/input-devices.txt" <<'PY'
 import re,sys
