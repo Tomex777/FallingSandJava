@@ -125,6 +125,10 @@ jobs:
 
   release-install:
     needs: build-release
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 36]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -144,10 +148,10 @@ jobs:
           fi
           sudo chmod 666 /dev/kvm
 
-      - name: Install and launch CI-signed release on API 36
+      - name: Install and launch CI-signed release on API ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
           profile: pixel_2
           disable-animations: true
@@ -157,7 +161,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: elementum-release-install-smoke
+          name: elementum-release-install-api-${{ matrix.api-level }}
           path: android/build/release-install-smoke
           if-no-files-found: warn
 
