@@ -1,8 +1,8 @@
-run_id=36734147777
-run_number=17
-source_sha=666ab1396e88bf534d72c1d58eb8ed1cdadec520
+run_id=36734308046
+run_number=19
+source_sha=d019de810ce9e3b48dd82615a16ce8dcf4ecc364
 source_ref=elementum
-build_release=cancelled
-release_install=cancelled
-runtime_matrix=cancelled
+build_release=success
+release_install=success
+runtime_matrix=success
 workflow=Elementum Final QA
