@@ -46,6 +46,11 @@ fi
 printf 'screenshot_bytes=%s\n' "$screenshot_bytes" > "$evidence/screenshot-summary.txt"
 
 adb logcat -d > "$evidence/logcat.txt"
+if ! grep -Eq 'ElementumUI.*logical=360x[0-9]+' "$evidence/logcat.txt"; then
+  echo "Elementum release did not report the expected 360-unit mobile UI width" >&2
+  grep 'ElementumUI' "$evidence/logcat.txt" >&2 || true
+  exit 1
+fi
 if grep -E 'FATAL EXCEPTION|Process: com\.tomex\.elementum.*has died|OutOfMemoryError|Fatal signal' "$evidence/logcat.txt"; then
   echo "Fatal Elementum release failure found in logcat" >&2
   exit 1
