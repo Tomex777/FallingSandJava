@@ -152,22 +152,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none
-          script: |
-            set -eu
-            EVIDENCE=android/build/release-install-smoke
-            mkdir -p "$EVIDENCE"
-            adb install -r android/build/final-artifacts/elementum-universal-release-ci-signed.apk
-            adb shell settings put secure immersive_mode_confirmations confirmed || true
-            adb shell am force-stop com.tomex.elementum
-            adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher > "$EVIDENCE/activity-start.txt"
-            cat "$EVIDENCE/activity-start.txt"
-            sleep 6
-            test -n "$(adb shell pidof com.tomex.elementum)"
-            adb shell dumpsys activity top > "$EVIDENCE/activity-top.txt"
-            grep -q 'com.tomex.elementum/com.gdx.cellular.AndroidLauncher' "$EVIDENCE/activity-top.txt"
-            adb exec-out screencap -p > "$EVIDENCE/elementum-release-startup.png"
-            test "$(stat -c%s "$EVIDENCE/elementum-release-startup.png")" -gt 5000
-            adb logcat -d > "$EVIDENCE/logcat.txt"
+          script: bash .github/scripts/elementum-release-install-smoke.sh
 
       - uses: actions/upload-artifact@v4
         if: always()
