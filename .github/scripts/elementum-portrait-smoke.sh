@@ -230,15 +230,15 @@ PY
 # Portrait coordinates for the compact mobile dock/sheets. These helpers keep
 # the runtime proof readable while the simulation itself remains untouched.
 open_more() { tap 335 765; }
-tool_draw() { open_more; tap 48 490; }
-tool_heat() { open_more; tap 114 490; }
-tool_cool() { open_more; tap 180 490; }
-tool_erase() { open_more; tap 246 490; }
-tool_source() { open_more; tap 312 490; }
-open_save_sheet() { open_more; tap 48 580; }
-open_load_sheet() { open_more; tap 114 580; }
-open_clear_sheet() { open_more; tap 180 580; }
-open_help_sheet() { open_more; tap 312 580; }
+tool_draw() { open_more; tap 48 538; }
+tool_heat() { open_more; tap 114 538; }
+tool_cool() { open_more; tap 180 538; }
+tool_erase() { open_more; tap 246 538; }
+tool_source() { open_more; tap 312 538; }
+open_save_sheet() { open_more; tap 48 625; }
+open_load_sheet() { open_more; tap 114 625; }
+open_clear_sheet() { open_more; tap 180 625; }
+open_help_sheet() { open_more; tap 312 625; }
 
 adb shell wm size 360x800
 adb shell wm density 160
