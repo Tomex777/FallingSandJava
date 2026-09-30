@@ -14,7 +14,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
@@ -38,6 +38,8 @@ import java.util.Map;
  */
 public class MobileControls {
 
+    private static final float UI_MIN_WIDTH = 360f;
+    private static final float UI_MIN_HEIGHT = 640f;
     private static final float DOCK_HEIGHT = 52f;
     private static final float QUICK_STRIP_HEIGHT = 36f;
     private static final Color PANEL = Color.valueOf("12161C");
@@ -90,7 +92,12 @@ public class MobileControls {
         this.inputManager = inputManager;
         this.matrix = matrix;
         this.skin = Skins.getSkin("uiskin");
-        this.stage = new Stage(new ScreenViewport());
+        // Keep touch controls phone-sized on high-density displays. A ScreenViewport
+        // treated the fixed 44-90 unit controls as physical pixels, shrinking the
+        // whole dock to roughly one third of a 1080px phone. ExtendViewport keeps
+        // a 360-unit logical width and extends only the height on tall devices.
+        // The 360x800 runtime QA surface therefore retains its exact coordinates.
+        this.stage = new Stage(new ExtendViewport(UI_MIN_WIDTH, UI_MIN_HEIGHT));
 
         overlayBlocker = new Table();
         overlayBlocker.setFillParent(true);
@@ -1149,6 +1156,9 @@ public class MobileControls {
 
     public void resize(int width, int height) {
         stage.getViewport().update(width, height, true);
+        Gdx.app.log("ElementumUI", "viewport-screen=" + width + "x" + height
+                + " logical=" + Math.round(stage.getViewport().getWorldWidth())
+                + "x" + Math.round(stage.getViewport().getWorldHeight()));
         layoutSheets();
         showMaterialCategory(currentCategory);
     }
