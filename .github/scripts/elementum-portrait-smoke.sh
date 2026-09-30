@@ -328,7 +328,7 @@ tap 310 715
 # Copper is available directly from the compact Solids grid. Exercise the
 # reversible thermal metal while paused so phase changes remain observable at
 # fixed coordinates.
-tap 210 545
+tap 210 579
 tap 240 765
 tap 40 765
 swipe 70 630 150 630 400
@@ -374,7 +374,7 @@ capture molten-copper-water-after
 # adjacent lightning trace while paused, then resume to prove bounded transfer.
 tap 240 765
 tap 310 715
-tap 210 545
+tap 210 579
 swipe 70 590 150 590 400
 sleep 1
 tap 210 715
@@ -390,11 +390,11 @@ tap 40 715
 # Re-open and prove the compact category tabs expose every material family
 # without forcing desktop-style nested menus or a long scrolling sheet.
 tap 310 715
-tap 130 500
+tap 130 539
 capture material-picker-liquids
-tap 210 500
+tap 210 539
 capture material-picker-gases
-tap 290 500
+tap 290 539
 capture material-picker-energy
 tap 310 715
 tap 145 715
@@ -480,7 +480,7 @@ tap 240 765
 
 open_save_sheet
 capture save-sheet
-tap 210 401
+tap 210 488
 sleep 1
 adb shell run-as com.tomex.elementum ls -l files/save > "$evidence/saves.txt"
 adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
@@ -497,7 +497,7 @@ open_load_sheet
 capture corrupt-load-browser
 sleep 1
 # Fixed slots stay first; the injected legacy/corrupt save is the fifth row.
-tap 210 585
+tap 210 672
 sleep 1
 capture invalid-load-after
 if ! same_canvas_pixels "$evidence/elementum-invalid-load-before.png" "$evidence/elementum-invalid-load-after.png"; then
@@ -510,7 +510,7 @@ adb shell run-as com.tomex.elementum rm files/save/elementum_corrupt.ser
 # deleting the existing valid scene before the replacement is ready.
 open_save_sheet
 capture overwrite-save-sheet
-tap 210 401
+tap 210 488
 sleep 1
 adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
 if adb shell "run-as com.tomex.elementum sh -c '[ -e files/save/scene_1.ser.tmp ]'"; then
@@ -525,7 +525,7 @@ capture paused
 open_clear_sheet
 sleep 1
 capture clear-confirm-cancel
-tap 112 640
+tap 112 650
 sleep 1
 capture clear-cancelled
 if ! same_canvas_pixels "$evidence/elementum-paused.png" "$evidence/elementum-clear-cancelled.png"; then
@@ -538,7 +538,7 @@ tap 240 765
 open_clear_sheet
 sleep 1
 capture clear-confirm
-tap 244 640
+tap 244 650
 sleep 1
 capture cleared
 tap 40 715
@@ -561,7 +561,7 @@ open_load_sheet
 capture load-browser-reopened
 sleep 1
 # Android Load is a touch-first in-game slot browser.
-tap 210 401
+tap 210 488
 sleep 2
 capture loaded
 adb shell input keyevent KEYCODE_HOME
@@ -806,7 +806,7 @@ adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
 open_load_sheet
 capture process-restart-load-browser
 sleep 1
-tap 210 401
+tap 210 488
 sleep 2
 capture process-restart-loaded
 adb logcat -d > "$evidence/logcat-after-process-restart.txt"
