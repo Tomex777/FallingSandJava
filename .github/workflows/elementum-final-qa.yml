@@ -61,27 +61,59 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build universal debug and release bundle
+      - name: Build universal debug, release APK and bundle
         run: |
+          set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon :android:assembleDebug :android:bundleRelease
+          ./gradlew --no-daemon :android:assembleDebug :android:assembleRelease :android:bundleRelease
           mkdir -p android/build/final-artifacts
           cp android/build/outputs/apk/debug/android-debug.apk android/build/final-artifacts/elementum-universal-debug.apk
+          universal_release_apk="$(find android/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)"
+          test -n "$universal_release_apk"
+          cp "$universal_release_apk" android/build/final-artifacts/elementum-universal-release-unsigned.apk
           cp android/build/outputs/bundle/release/android-release.aab android/build/final-artifacts/elementum-release.aab
 
-      - name: Build ARM64 installable and release APKs
+      - name: Build ARM64 debug and release APKs
         run: |
+          set -euo pipefail
           ./gradlew --no-daemon :android:assembleDebug :android:assembleRelease -PelementumArm64Only=true
           cp android/build/outputs/apk/debug/android-debug.apk android/build/final-artifacts/elementum-arm64-debug.apk
           release_apk="$(find android/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)"
           test -n "$release_apk"
           cp "$release_apk" android/build/final-artifacts/elementum-arm64-release-unsigned.apk
 
-      - name: Verify ARM64 package contents
+      - name: CI-sign release APKs for install validation
         run: |
-          unzip -l android/build/final-artifacts/elementum-arm64-debug.apk > android/build/final-artifacts/arm64-apk-contents.txt
+          set -euo pipefail
+          KEYSTORE=/tmp/elementum-ci-release.p12
+          keytool -genkeypair -noprompt \
+            -keystore "$KEYSTORE" -storetype PKCS12 \
+            -storepass android -keypass android -alias elementum-ci \
+            -keyalg RSA -keysize 2048 -validity 2 \
+            -dname "CN=Elementum CI,O=Elementum,C=US"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-key-alias elementum-ci \
+            --ks-pass pass:android --key-pass pass:android \
+            --out android/build/final-artifacts/elementum-universal-release-ci-signed.apk \
+            android/build/final-artifacts/elementum-universal-release-unsigned.apk
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-key-alias elementum-ci \
+            --ks-pass pass:android --key-pass pass:android \
+            --out android/build/final-artifacts/elementum-arm64-release-ci-signed.apk \
+            android/build/final-artifacts/elementum-arm64-release-unsigned.apk
+          "$APKSIGNER" verify --verbose android/build/final-artifacts/elementum-universal-release-ci-signed.apk
+          "$APKSIGNER" verify --verbose android/build/final-artifacts/elementum-arm64-release-ci-signed.apk
+
+      - name: Verify release package contents
+        run: |
+          set -euo pipefail
+          unzip -l android/build/final-artifacts/elementum-arm64-release-ci-signed.apk > android/build/final-artifacts/arm64-apk-contents.txt
           grep -q 'lib/arm64-v8a/' android/build/final-artifacts/arm64-apk-contents.txt
           ! grep -Eq 'lib/(x86|x86_64|armeabi-v7a)/' android/build/final-artifacts/arm64-apk-contents.txt
+          unzip -l android/build/final-artifacts/elementum-universal-release-ci-signed.apk > android/build/final-artifacts/universal-release-apk-contents.txt
+          grep -q 'lib/x86_64/' android/build/final-artifacts/universal-release-apk-contents.txt
+          grep -q 'lib/arm64-v8a/' android/build/final-artifacts/universal-release-apk-contents.txt
           sha256sum android/build/final-artifacts/* > android/build/final-artifacts/SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
@@ -89,6 +121,58 @@ jobs:
         with:
           name: elementum-release-artifacts
           path: android/build/final-artifacts
+          if-no-files-found: warn
+
+  release-install:
+    needs: build-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: elementum-release-artifacts
+          path: android/build/final-artifacts
+
+      - name: Enable KVM acceleration
+        run: |
+          set -euo pipefail
+          if [ ! -e /dev/kvm ]; then
+            echo "::error::GitHub runner has no /dev/kvm; cannot install-test the release APK."
+            exit 1
+          fi
+          sudo chmod 666 /dev/kvm
+
+      - name: Install and launch CI-signed release on API 36
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none
+          script: |
+            set -euo pipefail
+            EVIDENCE=android/build/release-install-smoke
+            mkdir -p "$EVIDENCE"
+            adb install -r android/build/final-artifacts/elementum-universal-release-ci-signed.apk
+            adb shell settings put secure immersive_mode_confirmations confirmed || true
+            adb shell am force-stop com.tomex.elementum
+            adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher | tee "$EVIDENCE/activity-start.txt"
+            sleep 6
+            test -n "$(adb shell pidof com.tomex.elementum)"
+            adb shell dumpsys activity top > "$EVIDENCE/activity-top.txt"
+            grep -q 'com.tomex.elementum/com.gdx.cellular.AndroidLauncher' "$EVIDENCE/activity-top.txt"
+            adb exec-out screencap -p > "$EVIDENCE/elementum-release-startup.png"
+            test "$(stat -c%s "$EVIDENCE/elementum-release-startup.png")" -gt 5000
+            adb logcat -d > "$EVIDENCE/logcat.txt"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: elementum-release-install-smoke
+          path: android/build/release-install-smoke
           if-no-files-found: warn
 
   runtime:
@@ -146,6 +230,7 @@ jobs:
     if: always()
     needs:
       - build-release
+      - release-install
       - runtime
     runs-on: ubuntu-latest
     steps:
@@ -154,6 +239,7 @@ jobs:
       - name: Publish machine-readable QA pointer
         env:
           BUILD_RESULT: ${{ needs.build-release.result }}
+          RELEASE_INSTALL_RESULT: ${{ needs.release-install.result }}
           RUNTIME_RESULT: ${{ needs.runtime.result }}
         run: |
           set -euo pipefail
@@ -164,6 +250,7 @@ jobs:
           source_sha=${GITHUB_SHA}
           source_ref=${GITHUB_REF_NAME}
           build_release=${BUILD_RESULT}
+          release_install=${RELEASE_INSTALL_RESULT}
           runtime_matrix=${RUNTIME_RESULT}
           workflow=${GITHUB_WORKFLOW}
           EOF
