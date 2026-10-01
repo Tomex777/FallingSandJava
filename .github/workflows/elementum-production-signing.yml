@@ -1,0 +1,81 @@
+name: Elementum Production Signing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  production-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELEMENTUM_RELEASE_KEYSTORE_B64: ${{ secrets.ELEMENTUM_RELEASE_KEYSTORE_B64 }}
+      ELEMENTUM_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ELEMENTUM_RELEASE_KEYSTORE_PASSWORD }}
+      ELEMENTUM_RELEASE_KEY_ALIAS: ${{ secrets.ELEMENTUM_RELEASE_KEY_ALIAS }}
+      ELEMENTUM_RELEASE_KEY_PASSWORD: ${{ secrets.ELEMENTUM_RELEASE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Require permanent Elementum signing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ELEMENTUM_RELEASE_KEYSTORE_B64"
+          test -n "$ELEMENTUM_RELEASE_KEYSTORE_PASSWORD"
+          test -n "$ELEMENTUM_RELEASE_KEY_ALIAS"
+          test -n "$ELEMENTUM_RELEASE_KEY_PASSWORD"
+
+      - name: Build universal production outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :android:assembleRelease :android:bundleRelease
+          mkdir -p android/build/production-release
+          cp "$(find android/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)" android/build/production-release/elementum-universal-release-unsigned.apk
+          cp android/build/outputs/bundle/release/android-release.aab android/build/production-release/elementum-release-unsigned.aab
+
+      - name: Build ARM64 production APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :android:assembleRelease -PelementumArm64Only=true
+          cp "$(find android/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)" android/build/production-release/elementum-arm64-release-unsigned.apk
+
+      - name: Sign with permanent Elementum owner key
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=android/build/production-release
+          KEYSTORE="$RUNNER_TEMP/elementum-release.jks"
+          printf '%s' "$ELEMENTUM_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-key-alias "$ELEMENTUM_RELEASE_KEY_ALIAS" --ks-pass env:ELEMENTUM_RELEASE_KEYSTORE_PASSWORD --key-pass env:ELEMENTUM_RELEASE_KEY_PASSWORD --out "$OUT/elementum-universal-release.apk" "$OUT/elementum-universal-release-unsigned.apk"
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-key-alias "$ELEMENTUM_RELEASE_KEY_ALIAS" --ks-pass env:ELEMENTUM_RELEASE_KEYSTORE_PASSWORD --key-pass env:ELEMENTUM_RELEASE_KEY_PASSWORD --out "$OUT/elementum-arm64-release.apk" "$OUT/elementum-arm64-release-unsigned.apk"
+          "$APKSIGNER" verify --verbose --print-certs "$OUT/elementum-universal-release.apk" > "$OUT/SIGNING-CERTIFICATE.txt"
+          "$APKSIGNER" verify --verbose --print-certs "$OUT/elementum-arm64-release.apk"
+          jarsigner -keystore "$KEYSTORE" -storepass "$ELEMENTUM_RELEASE_KEYSTORE_PASSWORD" -keypass "$ELEMENTUM_RELEASE_KEY_PASSWORD" -sigalg SHA256withRSA -digestalg SHA-256 -signedjar "$OUT/elementum-release.aab" "$OUT/elementum-release-unsigned.aab" "$ELEMENTUM_RELEASE_KEY_ALIAS"
+          jarsigner -verify "$OUT/elementum-release.aab"
+          sha256sum "$OUT"/*release.apk "$OUT/elementum-release.aab" > "$OUT/SHA256SUMS.txt"
+          rm -f "$KEYSTORE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: elementum-production-release
+          path: |
+            android/build/production-release/elementum-universal-release.apk
+            android/build/production-release/elementum-arm64-release.apk
+            android/build/production-release/elementum-release.aab
+            android/build/production-release/SIGNING-CERTIFICATE.txt
+            android/build/production-release/SHA256SUMS.txt
+          if-no-files-found: error
