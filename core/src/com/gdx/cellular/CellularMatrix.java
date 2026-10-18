@@ -23,6 +23,8 @@ import com.gdx.cellular.spouts.ElementSpout;
 import com.gdx.cellular.spouts.ParticleSpout;
 import com.gdx.cellular.spouts.Spout;
 import com.gdx.cellular.util.Chunk;
+import com.gdx.cellular.util.ColumnPartitions;
+import com.gdx.cellular.util.GridTraversal;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -449,20 +451,12 @@ public class CellularMatrix {
     }
 
     public List<List<Integer>> generateShuffledIndexesForThreads(int threadCount) {
-        int colSize = innerArraySize / threadCount;// + (innerArraySize % threadCount);
-        List<List<Integer>> indexList = new ArrayList<>(threadCount);
-        List<Integer> list = new ArrayList<>();
-        for (int i = 1; i <= innerArraySize; i++) {
-            if (i % colSize == 0) {
-                Collections.shuffle(list);
-                indexList.add(list);
-                list = new ArrayList<>(colSize);
-            }
-            list.add(i - 1);
-        }
-        if (!indexList.contains(list)) {
-            indexList.get(indexList.size() - 1).addAll(list);
-        }
+        // The previous modulo partitioning created more groups than
+        // threadCount whenever width was not divisible by group size.
+        // Workers only ran the first threadCount groups, permanently leaving
+        // some world columns unstepped (e.g. 65 cells / 12 groups).
+        List<List<Integer>> indexList = ColumnPartitions.balanced(innerArraySize, threadCount);
+        indexList.forEach(Collections::shuffle);
         shuffledXIndexesForThreads = indexList;
         return indexList;
     }
@@ -496,48 +490,18 @@ public class CellularMatrix {
     }
 
     public void iterateAndApplyMethodBetweenTwoPoints(Vector3 pos1, Vector3 pos2, ElementType elementType, int brushSize, InputManager.BRUSHTYPE brushtype, Vector3 velocity, Consumer<FunctionInput> function) {
-
-        int matrixX1 = toMatrix((int) pos1.x);
-        int matrixY1 = toMatrix((int) pos1.y);
-        int matrixX2 = toMatrix((int) pos2.x);
-        int matrixY2 = toMatrix((int) pos2.y);
-
-        // If the two points are the same no need to iterate. Just run the provided function
-        if (pos1.epsilonEquals(pos2)) {
-            FunctionInput input = createFunctionInput(matrixX1, matrixY1, elementType, brushSize, velocity, brushtype);
-            function.accept(input);
-            return;
-        }
-
-        int xDiff = matrixX1 - matrixX2;
-        int yDiff = matrixY1 - matrixY2;
-        boolean xDiffIsLarger = Math.abs(xDiff) > Math.abs(yDiff);
-
-        int xModifier = xDiff < 0 ? 1 : -1;
-        int yModifier = yDiff < 0 ? 1 : -1;
-
-        int upperBound = Math.max(Math.abs(xDiff), Math.abs(yDiff));
-        int min = Math.min(Math.abs(xDiff), Math.abs(yDiff));
-        float slope = (min == 0 || upperBound == 0) ? 0 : ((float) (min + 1) / (upperBound + 1));
-
-        int smallerCount;
-        for (int i = 1; i <= upperBound; i++) {
-            smallerCount = (int) Math.floor(i * slope);
-            int yIncrease, xIncrease;
-            if (xDiffIsLarger) {
-                xIncrease = i;
-                yIncrease = smallerCount;
-            } else {
-                yIncrease = i;
-                xIncrease = smallerCount;
+        int x0 = toMatrix((int) pos1.x);
+        int y0 = toMatrix((int) pos1.y);
+        int x1 = toMatrix((int) pos2.x);
+        int y1 = toMatrix((int) pos2.y);
+        // Every high-speed drag spans ALL intervening cells. Include both
+        // endpoints and handle horizontal, vertical, diagonal and reverse
+        // strokes with identical sampling rules for paint, heat and cooling.
+        GridTraversal.traceInclusive(x0, y0, x1, y1, (x, y) -> {
+            if (isWithinBounds(x, y)) {
+                function.accept(createFunctionInput(x, y, elementType, brushSize, velocity, brushtype));
             }
-            int currentY = matrixY1 + (yIncrease * yModifier);
-            int currentX = matrixX1 + (xIncrease * xModifier);
-            if (isWithinBounds(currentX, currentY)) {
-                FunctionInput input = createFunctionInput(currentX, currentY, elementType, brushSize, velocity, brushtype);
-                function.accept(input);
-            }
-        }
+        });
     }
 
     public void spawnElementByMatrixWithBrush(FunctionInput input) {//int matrixX, int matrixY, ElementType elementType, int localBrushSize) {
