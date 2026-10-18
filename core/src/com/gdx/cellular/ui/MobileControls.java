@@ -573,8 +573,8 @@ public class MobileControls {
         helpSheet.row();
         addHelpLine("Draw", "One finger tap or stroke");
         addHelpLine("Navigate", "Two fingers to pan or pinch");
-        addHelpLine("Materials", "Tap the material chip to open the tray");
-        addHelpLine("Tool", "Tap Draw to cycle through Draw, Heat and Cool");
+        addHelpLine("Materials", "Tap All to choose a material");
+        addHelpLine("Tool", "Tap the tool button to cycle Draw, Heat and Cool");
         addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
         addHelpLine("Scenes", "Open More, then Save or Load");
