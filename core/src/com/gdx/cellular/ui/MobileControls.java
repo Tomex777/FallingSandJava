@@ -321,7 +321,6 @@ public class MobileControls {
     }
 
     private void buildMaterialPanel() {
-        addSheetHandle(materialPanel, 4);
         Label title = sectionLabel("Materials");
         materialPanel.add(title).colspan(3).left().padBottom(5f);
         TextButton close = createSheetCloseButton(() -> {
@@ -414,7 +413,6 @@ public class MobileControls {
     }
 
     private void buildMoreSheet() {
-        addSheetHandle(moreSheet, 5);
         Label title = sectionLabel("Tools");
         moreSheet.add(title).colspan(4).left().padBottom(6f);
         TextButton close = createSheetCloseButton(() -> {
@@ -561,7 +559,6 @@ public class MobileControls {
     }
 
     private void buildHelpSheet() {
-        addSheetHandle(helpSheet, 2);
         Label title = sectionLabel("Elementum");
         helpSheet.add(title).left().padBottom(8f);
         TextButton close = createSheetCloseButton(() -> {
@@ -607,7 +604,6 @@ public class MobileControls {
         // column. Previously the header consumed 2+1 columns while the list
         // forced the first pair to 300px; the Close button was clipped beyond
         // the right edge on 360px handsets.
-        addSheetHandle(sceneSheet, 1);
         Table header = new Table();
         Label title = sectionLabel(saveMode ? "Save scene" : "Load scene");
         header.add(title).growX().left();
@@ -735,7 +731,6 @@ public class MobileControls {
         inputManager.setIsPaused(true);
 
         clearSheet.clearChildren();
-        addSheetHandle(clearSheet, 2);
         Label title = sectionLabel("Clear sandbox?");
         clearSheet.add(title).colspan(2).left().padBottom(5f);
         clearSheet.row();
@@ -982,13 +977,6 @@ public class MobileControls {
         boolean paused = inputManager.getIsPaused();
         pauseButton.setText(paused ? "Play" : "Pause");
         pauseButton.setChecked(paused);
-    }
-
-    private void addSheetHandle(Table sheet, int columns) {
-        Table handle = new Table();
-        handle.setBackground(skin.newDrawable("white", Color.valueOf("46515D")));
-        sheet.add(handle).colspan(columns).width(34f).height(3f).center().padBottom(7f);
-        sheet.row();
     }
 
     private TextButton createSheetCloseButton(Runnable action) {
