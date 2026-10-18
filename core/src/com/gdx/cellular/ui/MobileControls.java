@@ -574,7 +574,7 @@ public class MobileControls {
         addHelpLine("Draw", "One finger tap or stroke");
         addHelpLine("Navigate", "Two fingers to pan or pinch");
         addHelpLine("Materials", "Tap the material chip to open the tray");
-        addHelpLine("Tool", "Tap Draw/Heat/Cool/Erase to cycle quickly");
+        addHelpLine("Tool", "Tap Draw to cycle through Draw, Heat and Cool");
         addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
         addHelpLine("Scenes", "Open More, then Save or Load");
@@ -596,6 +596,12 @@ public class MobileControls {
     private void showHelpSheet() {
         closeNonDestructiveSheets();
         helpSheet.setVisible(true);
+        helpSheet.invalidateHierarchy();
+        helpSheet.validate();
+        Gdx.app.log("ElementumUI", "help-content-fits="
+                + (helpSheet.getPrefHeight() <= helpSheet.getHeight() + 0.5f)
+                + " preferred=" + Math.round(helpSheet.getPrefHeight())
+                + " available=" + Math.round(helpSheet.getHeight()));
         Gdx.app.log("ElementumInput", "help=open");
     }
 
@@ -1164,7 +1170,7 @@ public class MobileControls {
         materialPanel.setBounds(x, y, panelWidth, Math.min(240f, Math.max(180f, height * 0.31f)));
         moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
         sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
-        helpSheet.setBounds(x, y, panelWidth, Math.min(255f, available));
+        helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
         clearSheet.setBounds(x, y, panelWidth, Math.min(155f, available));
     }
 
