@@ -839,3 +839,37 @@ fi
 adb logcat -d > "$evidence/logcat-after-source.txt"
 grep -q 'ElementumInput.*source-added material=WATER particle=false' "$evidence/logcat-after-source.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"
+
+# ABR: a dozen saved worlds must be browsable inside the sheet, rather than
+# drawing beyond the phone viewport. Use known-good V3 files for this test.
+adb shell "run-as com.tomex.elementum sh -c 'i=1; while [ \$i -le 12 ]; do cp files/save/scene_1.ser files/save/demo_\$i.ser; i=\$((i+1)); done'"
+open_load_sheet
+capture many-scenes-top
+swipe 205 655 205 505 500
+sleep 1
+capture many-scenes-scrolled
+adb logcat -d > "$evidence/logcat-scenes.txt"
+grep -Eq 'ElementumSaveLoad.*browser-scenes=(1[3-9]|[2-9][0-9])' "$evidence/logcat-scenes.txt"
+adb shell input keyevent KEYCODE_BACK
+adb shell "run-as com.tomex.elementum sh -c 'rm -f files/save/demo_*.ser'"
+
+# Deletion is a destructive operation: the first tap must only show Confirm.
+# A second tap is required before a saved world actually disappears.
+open_load_sheet
+capture delete-before
+tap 287 488
+capture delete-confirm
+adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
+tap 287 488
+sleep 1
+capture delete-after
+if adb shell "run-as com.tomex.elementum sh -c '[ -e files/save/scene_1.ser ]'"; then
+  echo "Two-tap scene deletion did not remove the selected scene" >&2
+  exit 1
+fi
+adb logcat -d > "$evidence/logcat-delete.txt"
+grep -q 'ElementumSaveLoad.*deleted=scene_1 success=true' "$evidence/logcat-delete.txt"
+adb shell input keyevent KEYCODE_BACK
+assert_foreground scene-deletion
+test -n "$(adb shell pidof com.tomex.elementum)"
+
