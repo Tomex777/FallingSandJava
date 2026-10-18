@@ -603,15 +603,21 @@ public class MobileControls {
         sceneSheet.clearChildren();
         sceneList.clearChildren();
 
-        addSheetHandle(sceneSheet, 3);
+        // The scene list has three columns, but the sheet itself must have ONE
+        // column. Previously the header consumed 2+1 columns while the list
+        // forced the first pair to 300px; the Close button was clipped beyond
+        // the right edge on 360px handsets.
+        addSheetHandle(sceneSheet, 1);
+        Table header = new Table();
         Label title = sectionLabel(saveMode ? "Save scene" : "Load scene");
-        sceneSheet.add(title).colspan(2).left().padBottom(6f);
+        header.add(title).growX().left();
         TextButton close = createSheetCloseButton(() -> {
             sceneSheet.setVisible(false);
             inputManager.cancelFileDialog();
             Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
         });
-        sceneSheet.add(close).width(54f).height(32f).right().padBottom(6f);
+        header.add(close).width(54f).height(32f).right();
+        sceneSheet.add(header).growX().padBottom(6f);
         sceneSheet.row();
 
         FileHandle[] saves = inputManager.getSavedLevels();
@@ -627,7 +633,7 @@ public class MobileControls {
             }
         }
 
-        sceneSheet.add(scenePicker).colspan(3).grow().padTop(4f);
+        sceneSheet.add(scenePicker).grow().padTop(4f);
         scenePicker.invalidateHierarchy();
         scenePicker.setScrollY(0f);
         sceneSheet.setVisible(true);
@@ -687,9 +693,9 @@ public class MobileControls {
                 public void clicked(InputEvent event, float x, float y) {
                     // Deleting a saved world is irreversible. Require a second
                     // deliberate tap without showing a default Android dialog.
-                    if (!"Confirm".contentEquals(delete.getText())) {
-                        delete.setText("Confirm");
-                        delete.getLabel().setFontScale(0.39f);
+                    if (!"Sure?".contentEquals(delete.getText())) {
+                        delete.setText("Sure?");
+                        delete.getLabel().setFontScale(0.60f);
                         return;
                     }
                     inputManager.deleteSavedLevel(name);
