@@ -871,7 +871,9 @@ public class MobileControls {
             inputManager.setMouseMode(MouseMode.COOL);
             Gdx.app.log("ElementumInput", "mode=COOL");
         } else if (mode == MouseMode.COOL) {
-            setEraseMode();
+            // Erase has its own quick material chip. Do not duplicate that
+            // action in the primary tool cycle: Draw -> Heat -> Cool -> Draw.
+            setDrawMode();
             return;
         } else {
             setDrawMode();
