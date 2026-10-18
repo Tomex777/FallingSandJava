@@ -260,7 +260,7 @@ public class MobileControls {
                 updateBrushTypeButton();
             }
         });
-        dock.add(minus).width(44f).height(48f);
+        dock.add(minus).width(50f).height(48f);
 
         TextButton plus = createFlatButton("+", CONTROL, CONTROL_PRESSED);
         plus.getLabel().setFontScale(0.9f);
@@ -282,7 +282,7 @@ public class MobileControls {
                 updateBrushTypeButton();
             }
         });
-        dock.add(brushTypeButton).width(90f).height(48f);
+        dock.add(brushTypeButton).width(84f).height(48f);
 
         pauseButton = createFlatButton("Pause", CONTROL, ACCENT);
         pauseButton.getLabel().setFontScale(0.70f);
