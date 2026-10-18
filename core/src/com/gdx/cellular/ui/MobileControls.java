@@ -1038,7 +1038,12 @@ public class MobileControls {
         style.checked = skin.newDrawable("white", checked);
         style.font = skin.getFont("default-font");
         style.fontColor = fontColor;
-        style.checkedFontColor = Color.WHITE;
+        // Selected materials/tools use saturated cyan, sand and heat colors.
+        // White-on-cyan was hard to read: choose ink on brighter selections.
+        float selectedLuma = checked.r * 0.2126f
+                + checked.g * 0.7152f + checked.b * 0.0722f;
+        style.checkedFontColor = selectedLuma > 0.55f
+                ? Color.valueOf("101820") : Color.WHITE;
         style.downFontColor = Color.WHITE;
         return style;
     }
