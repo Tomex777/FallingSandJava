@@ -198,9 +198,13 @@ jobs:
           test -w /dev/kvm
           ls -l /dev/kvm
 
-      - name: Build debug APK
+      - name: Unit-test physics grid coverage and high-speed strokes
         run: |
           chmod +x gradlew
+          ./gradlew --no-daemon :core:test
+
+      - name: Build debug APK
+        run: |
           ./gradlew --no-daemon :android:assembleDebug
 
       - name: Exercise Elementum on API ${{ matrix.api-level }}
