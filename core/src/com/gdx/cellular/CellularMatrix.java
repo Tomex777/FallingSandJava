@@ -23,6 +23,7 @@ import com.gdx.cellular.spouts.ElementSpout;
 import com.gdx.cellular.spouts.ParticleSpout;
 import com.gdx.cellular.spouts.Spout;
 import com.gdx.cellular.util.Chunk;
+import com.gdx.cellular.util.PixelRunGeometry;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -137,14 +138,16 @@ public class CellularMatrix {
                 int toIndex = x;
                 for (int following = x; following < row.size; following++) {
                     Element followingElement = row.get(following);
-                    if (!followingElement.color.equals(currentColor)) {
+                    if (followingElement.owningBody != null
+                            || !followingElement.color.equals(currentColor)) {
                         break;
                     }
                     toIndex = following;
                 }
 
                 sr.setColor(element.color);
-                sr.rect(element.toPixel(x), element.toPixel(y), rectDrawWidth(toIndex), pixelSizeModifier);
+                sr.rect(element.toPixel(x), element.toPixel(y),
+                        PixelRunGeometry.widthInPixels(x, toIndex, pixelSizeModifier), pixelSizeModifier);
                 x = toIndex;
 
             }
@@ -214,10 +217,6 @@ public class CellularMatrix {
         sr.end();
     }
 
-    private float rectDrawWidth(int index) {
-        return (index * pixelSizeModifier) + (pixelSizeModifier);
-    }
-
     public void stepProvidedRows(int minRow, int maxRow) {
         for (int y = minRow; y <= maxRow; y++) {
             Array<Element> row = getRow(y);
@@ -261,14 +260,16 @@ public class CellularMatrix {
                 int toIndex = x;
                 for (int following = x; following < row.size; following++) {
                     Element followingElement = row.get(following);
-                    if (!followingElement.color.equals(currentColor)) {
+                    if (followingElement.owningBody != null
+                            || !followingElement.color.equals(currentColor)) {
                         break;
                     }
                     toIndex = following;
                 }
 
                 sr.setColor(element.color);
-                sr.rect(element.toPixel(x), element.toPixel(y), rectDrawWidth(toIndex), pixelSizeModifier);
+                sr.rect(element.toPixel(x), element.toPixel(y),
+                        PixelRunGeometry.widthInPixels(x, toIndex, pixelSizeModifier), pixelSizeModifier);
                 x = toIndex;
 
             }
