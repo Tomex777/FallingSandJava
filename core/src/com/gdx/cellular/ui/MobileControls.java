@@ -3,6 +3,7 @@ package com.gdx.cellular.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -41,7 +42,7 @@ public class MobileControls {
     private static final float UI_MIN_WIDTH = 360f;
     private static final float UI_MIN_HEIGHT = 640f;
     private static final float DOCK_HEIGHT = 52f;
-    private static final float QUICK_STRIP_HEIGHT = 36f;
+    private static final float QUICK_STRIP_HEIGHT = 42f;
     private static final Color PANEL = Color.valueOf("12161C");
     private static final Color PANEL_ALT = Color.valueOf("1A2028");
     private static final Color CONTROL = Color.valueOf("252C35");
@@ -215,7 +216,7 @@ public class MobileControls {
                 setEraseMode();
             }
         });
-        quickStrip.add(erase).width(60f).height(34f);
+        quickStrip.add(erase).width(60f).height(40f);
 
         TextButton all = createFlatButton("All", CONTROL, ACCENT);
         all.getLabel().setFontScale(0.75f);
@@ -229,7 +230,7 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickStrip.add(all).width(60f).height(34f);
+        quickStrip.add(all).width(60f).height(40f);
     }
 
     private void addQuickMaterial(String label, ElementType type, float width) {
@@ -243,7 +244,7 @@ public class MobileControls {
                 selectMaterial(type);
             }
         });
-        quickStrip.add(button).width(width).height(34f);
+        quickStrip.add(button).width(width).height(40f);
     }
 
     private void buildDock() {
@@ -327,7 +328,7 @@ public class MobileControls {
             materialPanel.setVisible(false);
             Gdx.app.log("ElementumInput", "material-picker=closed");
         });
-        materialPanel.add(close).width(54f).height(32f).right().padBottom(5f);
+        materialPanel.add(close).width(54f).height(44f).right().padBottom(5f);
         materialPanel.row();
 
         addCategoryButton("Solids", Color.valueOf("9C7B35"));
@@ -419,7 +420,7 @@ public class MobileControls {
             moreSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "more-sheet=closed");
         });
-        moreSheet.add(close).width(54f).height(32f).right().padBottom(6f);
+        moreSheet.add(close).width(54f).height(44f).right().padBottom(6f);
         moreSheet.row();
 
         addModeButton("Draw", MouseMode.SPAWN);
@@ -565,7 +566,7 @@ public class MobileControls {
             helpSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "help=closed");
         });
-        helpSheet.add(close).width(54f).height(32f).right().padBottom(8f);
+        helpSheet.add(close).width(54f).height(44f).right().padBottom(8f);
         helpSheet.row();
         addHelpLine("Draw", "One finger tap or stroke");
         addHelpLine("Navigate", "Two fingers to pan or pinch");
@@ -612,7 +613,7 @@ public class MobileControls {
             inputManager.cancelFileDialog();
             Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
         });
-        header.add(close).width(54f).height(32f).right();
+        header.add(close).width(54f).height(44f).right();
         sceneSheet.add(header).growX().padBottom(6f);
         sceneSheet.row();
 
@@ -633,6 +634,19 @@ public class MobileControls {
         scenePicker.invalidateHierarchy();
         scenePicker.setScrollY(0f);
         sceneSheet.setVisible(true);
+        // Assert actual actor geometry, not merely a successful app launch:
+        // a former header-width bug placed Close outside a 360px viewport.
+        sceneSheet.invalidateHierarchy();
+        sceneSheet.validate();
+        header.validate();
+        Vector2 closePosition = close.localToStageCoordinates(new Vector2(0f, 0f));
+        float viewWidth = stage.getViewport().getWorldWidth();
+        boolean closeInBounds = closePosition.x >= 0f
+                && closePosition.x + close.getWidth() <= viewWidth;
+        Gdx.app.log("ElementumUI", "scene-close-in-bounds=" + closeInBounds
+                + " left=" + Math.round(closePosition.x)
+                + " right=" + Math.round(closePosition.x + close.getWidth())
+                + " viewport=" + Math.round(viewWidth));
         Gdx.app.log("ElementumSaveLoad", "browser-open mode=" + (saveMode ? "save" : "load"));
         Gdx.app.log("ElementumSaveLoad", "browser-scenes=" + saves.length);
     }
