@@ -233,7 +233,8 @@ open_more() { tap 335 765; }
 tool_draw() { open_more; tap 48 538; }
 tool_heat() { open_more; tap 114 538; }
 tool_cool() { open_more; tap 180 538; }
-tool_erase() { open_more; tap 246 538; }
+tool_dust() { open_more; tap 246 538; }
+tool_erase() { tap 270 730; }
 tool_source() { open_more; tap 312 538; }
 open_save_sheet() { open_more; tap 48 625; }
 open_load_sheet() { open_more; tap 114 625; }
@@ -313,6 +314,10 @@ test -n "$(adb shell pidof com.tomex.elementum)"
 
 tool_heat
 capture tool-heat
+tool_dust
+capture tool-dust
+tool_erase
+capture tool-erase
 tool_draw
 capture tool-draw
 
@@ -756,6 +761,8 @@ assert m.group(4) == 'true', f'Clear confirm changed world dimensions: {line}'
 assert m.group(5) == 'false' and m.group(6) == 'false', f'Clear confirm changed running state: {line}'
 PY
 grep -q 'ElementumInput: clear-settled remaining=0 .*paused=false' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*mode=PARTICALIZE' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material=EMPTYCELL' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=scene_1' "$evidence/logcat.txt"
 save_count=$(grep -c 'ElementumSaveLoad.*saved=scene_1.*atomic=true' "$evidence/logcat.txt" || true)
 if [ "$save_count" -lt 2 ]; then
