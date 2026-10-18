@@ -873,3 +873,32 @@ adb shell input keyevent KEYCODE_BACK
 assert_foreground scene-deletion
 test -n "$(adb shell pidof com.tomex.elementum)"
 
+# ABR geometry guards: visual QA previously found Scene's Close button
+# clipped beyond the handset. Validate real Scene2D coordinates in addition
+# to looking at screenshots. This must pass on both Android API levels.
+if grep -q 'ElementumUI.*scene-close-in-bounds=false' "$evidence/logcat-delete.txt"; then
+  echo "Scene browser close action is clipped outside its stage" >&2
+  exit 1
+fi
+grep -q 'ElementumUI.*scene-close-in-bounds=true' "$evidence/logcat-delete.txt"
+
+# 320 x 568 compact handset sweep. Keeping the activity alive through resize
+# exercises responsive viewport handling, rather than testing only 360 x 800.
+adb shell wm size 320x568
+sleep 2
+capture compact-start
+tap 298 536
+capture compact-tools
+tap 102 412
+capture compact-scenes
+adb logcat -d > "$evidence/logcat-compact.txt"
+if grep -q 'ElementumUI.*scene-close-in-bounds=false' "$evidence/logcat-compact.txt"; then
+  echo "Compact handset has an off-screen scene Close button" >&2
+  exit 1
+fi
+adb shell input keyevent KEYCODE_BACK
+adb shell wm size 360x800
+assert_foreground compact-layout
+test -n "$(adb shell pidof com.tomex.elementum)"
+
+
