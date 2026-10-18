@@ -892,6 +892,12 @@ capture compact-tools
 tap 102 412
 capture compact-scenes
 adb logcat -d > "$evidence/logcat-compact.txt"
+baseline_browsers=$(grep -c 'ElementumSaveLoad.*browser-open mode=load' "$evidence/logcat-delete.txt" || true)
+compact_browsers=$(grep -c 'ElementumSaveLoad.*browser-open mode=load' "$evidence/logcat-compact.txt" || true)
+if [ "$compact_browsers" -le "$baseline_browsers" ]; then
+  echo "Compact handset failed to open the actual scene browser" >&2
+  exit 1
+fi
 if grep -q 'ElementumUI.*scene-close-in-bounds=false' "$evidence/logcat-compact.txt"; then
   echo "Compact handset has an off-screen scene Close button" >&2
   exit 1
