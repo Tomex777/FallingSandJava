@@ -66,6 +66,8 @@ public class MobileControls {
     private final ScrollPane materialPicker;
     private final Table moreSheet;
     private final Table sceneSheet;
+    private final Table sceneList;
+    private final ScrollPane scenePicker;
     private final Table helpSheet;
     private final Table clearSheet;
 
@@ -77,7 +79,6 @@ public class MobileControls {
     private TextButton toolButton;
     private TextButton brushTypeButton;
     private TextButton pauseButton;
-    private TextButton eraseModeButton;
 
     private String currentCategory = "Solids";
     private ElementType lastMaterial = ElementType.SAND;
@@ -140,6 +141,15 @@ public class MobileControls {
         sceneSheet.top().left();
         sceneSheet.pad(9f);
         sceneSheet.setBackground(skin.newDrawable("white", PANEL));
+        // A fixed-height sheet must never spill saved scenes off the screen.
+        // The title stays fixed while the list scrolls independently.
+        sceneList = new Table();
+        sceneList.top().left();
+        scenePicker = new ScrollPane(sceneList, new ScrollPane.ScrollPaneStyle());
+        scenePicker.setScrollingDisabled(true, false);
+        scenePicker.setOverscroll(false, false);
+        scenePicker.setFadeScrollBars(false);
+        scenePicker.setFlickScroll(true);
         sceneSheet.setVisible(false);
         stage.addActor(sceneSheet);
 
@@ -418,16 +428,9 @@ public class MobileControls {
         addModeButton("Heat", MouseMode.HEAT);
         addModeButton("Cool", MouseMode.COOL);
 
-        eraseModeButton = createFlatButton("Erase", CONTROL, ACCENT);
-        eraseModeButton.getLabel().setFontScale(0.60f);
-        eraseModeButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                setEraseMode();
-                moreSheet.setVisible(false);
-            }
-        });
-        moreSheet.add(eraseModeButton).width(62f).height(40f).pad(2f);
+        // Erase already has a dedicated quick-strip control. Do not repeat it
+        // in the tools sheet: expose the existing Dust mode instead.
+        addAdvancedModeButton("Dust", MouseMode.PARTICALIZE);
         addAdvancedModeButton("Source", MouseMode.SOURCE);
         moreSheet.row();
 
@@ -598,6 +601,7 @@ public class MobileControls {
     private void showSceneSheet(boolean saveMode) {
         closeNonDestructiveSheets();
         sceneSheet.clearChildren();
+        sceneList.clearChildren();
 
         addSheetHandle(sceneSheet, 3);
         Label title = sectionLabel(saveMode ? "Save scene" : "Load scene");
@@ -623,6 +627,9 @@ public class MobileControls {
             }
         }
 
+        sceneSheet.add(scenePicker).colspan(3).grow().padTop(4f);
+        scenePicker.invalidateHierarchy();
+        scenePicker.setScrollY(0f);
         sceneSheet.setVisible(true);
         Gdx.app.log("ElementumSaveLoad", "browser-open mode=" + (saveMode ? "save" : "load"));
         Gdx.app.log("ElementumSaveLoad", "browser-scenes=" + saves.length);
@@ -646,7 +653,7 @@ public class MobileControls {
         info.row();
         info.add(detail).left();
 
-        sceneSheet.add(info).width(150f).height(42f).left().pad(2f);
+        sceneList.add(info).width(150f).height(42f).left().pad(2f);
 
         String actionLabel;
         if (saveMode) {
@@ -670,7 +677,7 @@ public class MobileControls {
                 }
             });
         }
-        sceneSheet.add(action).width(82f).height(40f).pad(2f);
+        sceneList.add(action).width(82f).height(40f).pad(2f);
 
         if (existing != null) {
             TextButton delete = createFlatButton("Delete", DANGER, Color.valueOf("B94B50"));
@@ -678,15 +685,22 @@ public class MobileControls {
             delete.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
+                    // Deleting a saved world is irreversible. Require a second
+                    // deliberate tap without showing a default Android dialog.
+                    if (!"Confirm".contentEquals(delete.getText())) {
+                        delete.setText("Confirm");
+                        delete.getLabel().setFontScale(0.39f);
+                        return;
+                    }
                     inputManager.deleteSavedLevel(name);
                     Gdx.app.postRunnable(() -> showSceneSheet(saveMode));
                 }
             });
-            sceneSheet.add(delete).width(52f).height(40f).pad(2f);
+            sceneList.add(delete).width(52f).height(40f).pad(2f);
         } else {
-            sceneSheet.add().width(52f);
+            sceneList.add().width(52f);
         }
-        sceneSheet.row();
+        sceneList.row();
     }
 
     private FileHandle findSave(FileHandle[] saves, String name) {
@@ -899,10 +913,6 @@ public class MobileControls {
                 checked = false;
             }
             entry.getValue().setChecked(checked);
-        }
-        if (eraseModeButton != null) {
-            eraseModeButton.setChecked(mode == MouseMode.SPAWN
-                    && inputManager.currentlySelectedElement == ElementType.EMPTYCELL);
         }
         if (toolButton != null) {
             toolButton.setChecked(mode == MouseMode.HEAT || mode == MouseMode.COOL
