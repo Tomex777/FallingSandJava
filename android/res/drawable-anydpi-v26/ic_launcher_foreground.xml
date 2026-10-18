@@ -25,11 +25,11 @@
     <!-- Subtle cut-ins suggest moving grains without literal pixel clutter. -->
     <path
         android:fillColor="#F6DDA0"
-        android:pathData="M70,29 A2,2 0,1 1,69.99 29 Z"/>
+        android:pathData="M72,33 a2,2 0,1 1,-4 0 a2,2 0,1 1,4 0 Z"/>
     <path
         android:fillColor="#A5E2E9"
-        android:pathData="M63,50 A2,2 0,1 1,62.99 50 Z"/>
+        android:pathData="M65,54 a2,2 0,1 1,-4 0 a2,2 0,1 1,4 0 Z"/>
     <path
         android:fillColor="#F9B092"
-        android:pathData="M70,71 A2,2 0,1 1,69.99 71 Z"/>
+        android:pathData="M72,75 a2,2 0,1 1,-4 0 a2,2 0,1 1,4 0 Z"/>
 </vector>
