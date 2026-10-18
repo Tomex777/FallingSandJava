@@ -306,6 +306,12 @@ test -n "$(adb shell pidof com.tomex.elementum)"
 open_help_sheet
 sleep 1
 capture help-sheet
+adb logcat -d > "$evidence/logcat-help.txt"
+grep -q 'ElementumUI.*help-content-fits=true' "$evidence/logcat-help.txt"
+if grep -q 'ElementumUI.*help-content-fits=false' "$evidence/logcat-help.txt"; then
+  echo "Help sheet instructions overflow its available screen height" >&2
+  exit 1
+fi
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture help-back-dismissed
