@@ -4,17 +4,21 @@ on:
   push:
     branches:
       - elementum
+  pull_request:
+    branches:
+      - elementum
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: elementum-final-qa
+  group: elementum-final-qa-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   announce:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -217,7 +221,7 @@ jobs:
           if-no-files-found: warn
 
   report:
-    if: always()
+    if: always() && github.event_name != 'pull_request'
     needs:
       - build-release
       - release-install
