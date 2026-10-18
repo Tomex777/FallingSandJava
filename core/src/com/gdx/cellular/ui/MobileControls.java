@@ -83,6 +83,9 @@ public class MobileControls {
 
     private String currentCategory = "Solids";
     private ElementType lastMaterial = ElementType.SAND;
+    private String pendingSceneDeletion;
+    private TextButton pendingDeleteButton;
+    private long pendingDeleteTimeMs;
 
     private boolean clearSettlementPending;
     private int clearNonEmptyBefore;
@@ -600,6 +603,8 @@ public class MobileControls {
         closeNonDestructiveSheets();
         sceneSheet.clearChildren();
         sceneList.clearChildren();
+        pendingSceneDeletion = null;
+        pendingDeleteButton = null;
 
         // The scene list has three columns, but the sheet itself must have ONE
         // column. Previously the header consumed 2+1 columns while the list
@@ -703,11 +708,23 @@ public class MobileControls {
                 public void clicked(InputEvent event, float x, float y) {
                     // Deleting a saved world is irreversible. Require a second
                     // deliberate tap without showing a default Android dialog.
-                    if (!"Sure?".contentEquals(delete.getText())) {
+                    long now = System.currentTimeMillis();
+                    boolean confirmed = name.equals(pendingSceneDeletion)
+                            && now - pendingDeleteTimeMs <= 5000L;
+                    if (!confirmed) {
+                        // Only one item can be armed at a time, for five seconds.
+                        if (pendingDeleteButton != null) {
+                            pendingDeleteButton.setText("Delete");
+                        }
+                        pendingSceneDeletion = name;
+                        pendingDeleteButton = delete;
+                        pendingDeleteTimeMs = now;
                         delete.setText("Sure?");
                         delete.getLabel().setFontScale(0.75f);
                         return;
                     }
+                    pendingSceneDeletion = null;
+                    pendingDeleteButton = null;
                     inputManager.deleteSavedLevel(name);
                     Gdx.app.postRunnable(() -> showSceneSheet(saveMode));
                 }
