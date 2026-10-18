@@ -233,7 +233,8 @@ open_more() { tap 335 765; }
 tool_draw() { open_more; tap 48 538; }
 tool_heat() { open_more; tap 114 538; }
 tool_cool() { open_more; tap 180 538; }
-tool_erase() { open_more; tap 246 538; }
+tool_dust() { open_more; tap 246 538; }
+tool_erase() { tap 270 730; }
 tool_source() { open_more; tap 312 538; }
 open_save_sheet() { open_more; tap 48 625; }
 open_load_sheet() { open_more; tap 114 625; }
@@ -305,6 +306,12 @@ test -n "$(adb shell pidof com.tomex.elementum)"
 open_help_sheet
 sleep 1
 capture help-sheet
+adb logcat -d > "$evidence/logcat-help.txt"
+grep -q 'ElementumUI.*help-content-fits=true' "$evidence/logcat-help.txt"
+if grep -q 'ElementumUI.*help-content-fits=false' "$evidence/logcat-help.txt"; then
+  echo "Help sheet instructions overflow its available screen height" >&2
+  exit 1
+fi
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture help-back-dismissed
@@ -313,6 +320,10 @@ test -n "$(adb shell pidof com.tomex.elementum)"
 
 tool_heat
 capture tool-heat
+tool_dust
+capture tool-dust
+tool_erase
+capture tool-erase
 tool_draw
 capture tool-draw
 
@@ -756,6 +767,8 @@ assert m.group(4) == 'true', f'Clear confirm changed world dimensions: {line}'
 assert m.group(5) == 'false' and m.group(6) == 'false', f'Clear confirm changed running state: {line}'
 PY
 grep -q 'ElementumInput: clear-settled remaining=0 .*paused=false' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*mode=PARTICALIZE' "$evidence/logcat.txt"
+grep -q 'ElementumInput.*material=EMPTYCELL' "$evidence/logcat.txt"
 grep -q 'ElementumSaveLoad.*saved=scene_1' "$evidence/logcat.txt"
 save_count=$(grep -c 'ElementumSaveLoad.*saved=scene_1.*atomic=true' "$evidence/logcat.txt" || true)
 if [ "$save_count" -lt 2 ]; then
@@ -832,3 +845,72 @@ fi
 adb logcat -d > "$evidence/logcat-after-source.txt"
 grep -q 'ElementumInput.*source-added material=WATER particle=false' "$evidence/logcat-after-source.txt"
 test -n "$(adb shell pidof com.tomex.elementum)"
+
+# ABR: a dozen saved worlds must be browsable inside the sheet, rather than
+# drawing beyond the phone viewport. Use known-good V3 files for this test.
+adb shell "run-as com.tomex.elementum sh -c 'i=1; while [ \$i -le 12 ]; do cp files/save/scene_1.ser files/save/demo_\$i.ser; i=\$((i+1)); done'"
+open_load_sheet
+capture many-scenes-top
+swipe 205 655 205 505 500
+sleep 1
+capture many-scenes-scrolled
+adb logcat -d > "$evidence/logcat-scenes.txt"
+grep -Eq 'ElementumSaveLoad.*browser-scenes=(1[3-9]|[2-9][0-9])' "$evidence/logcat-scenes.txt"
+adb shell input keyevent KEYCODE_BACK
+adb shell "run-as com.tomex.elementum sh -c 'rm -f files/save/demo_*.ser'"
+
+# Deletion is a destructive operation: the first tap must only show Confirm.
+# A second tap is required before a saved world actually disappears.
+open_load_sheet
+capture delete-before
+tap 287 488
+capture delete-confirm
+adb shell "run-as com.tomex.elementum sh -c '[ -s files/save/scene_1.ser ]'"
+tap 287 488
+sleep 1
+capture delete-after
+if adb shell "run-as com.tomex.elementum sh -c '[ -e files/save/scene_1.ser ]'"; then
+  echo "Two-tap scene deletion did not remove the selected scene" >&2
+  exit 1
+fi
+adb logcat -d > "$evidence/logcat-delete.txt"
+grep -q 'ElementumSaveLoad.*deleted=scene_1 success=true' "$evidence/logcat-delete.txt"
+adb shell input keyevent KEYCODE_BACK
+assert_foreground scene-deletion
+test -n "$(adb shell pidof com.tomex.elementum)"
+
+# ABR geometry guards: visual QA previously found Scene's Close button
+# clipped beyond the handset. Validate real Scene2D coordinates in addition
+# to looking at screenshots. This must pass on both Android API levels.
+if grep -q 'ElementumUI.*scene-close-in-bounds=false' "$evidence/logcat-delete.txt"; then
+  echo "Scene browser close action is clipped outside its stage" >&2
+  exit 1
+fi
+grep -q 'ElementumUI.*scene-close-in-bounds=true' "$evidence/logcat-delete.txt"
+
+# 320 x 568 compact handset sweep. Keeping the activity alive through resize
+# exercises responsive viewport handling, rather than testing only 360 x 800.
+adb shell wm size 320x568
+sleep 2
+capture compact-start
+tap 298 536
+capture compact-tools
+tap 102 412
+capture compact-scenes
+adb logcat -d > "$evidence/logcat-compact.txt"
+baseline_browsers=$(grep -c 'ElementumSaveLoad.*browser-open mode=load' "$evidence/logcat-delete.txt" || true)
+compact_browsers=$(grep -c 'ElementumSaveLoad.*browser-open mode=load' "$evidence/logcat-compact.txt" || true)
+if [ "$compact_browsers" -le "$baseline_browsers" ]; then
+  echo "Compact handset failed to open the actual scene browser" >&2
+  exit 1
+fi
+if grep -q 'ElementumUI.*scene-close-in-bounds=false' "$evidence/logcat-compact.txt"; then
+  echo "Compact handset has an off-screen scene Close button" >&2
+  exit 1
+fi
+adb shell input keyevent KEYCODE_BACK
+adb shell wm size 360x800
+assert_foreground compact-layout
+test -n "$(adb shell pidof com.tomex.elementum)"
+
+

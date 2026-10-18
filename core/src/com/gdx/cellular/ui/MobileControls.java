@@ -3,6 +3,10 @@ package com.gdx.cellular.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -14,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.ElementType;
@@ -41,7 +46,7 @@ public class MobileControls {
     private static final float UI_MIN_WIDTH = 360f;
     private static final float UI_MIN_HEIGHT = 640f;
     private static final float DOCK_HEIGHT = 52f;
-    private static final float QUICK_STRIP_HEIGHT = 36f;
+    private static final float QUICK_STRIP_HEIGHT = 42f;
     private static final Color PANEL = Color.valueOf("12161C");
     private static final Color PANEL_ALT = Color.valueOf("1A2028");
     private static final Color CONTROL = Color.valueOf("252C35");
@@ -55,6 +60,8 @@ public class MobileControls {
     private final InputManager inputManager;
     private final CellularMatrix matrix;
     private final Skin skin;
+    private final Texture opaquePanelTexture;
+    private final TextureRegionDrawable opaquePanelBackground;
 
     private final Table quickBar;
     private final Table dock;
@@ -66,6 +73,8 @@ public class MobileControls {
     private final ScrollPane materialPicker;
     private final Table moreSheet;
     private final Table sceneSheet;
+    private final Table sceneList;
+    private final ScrollPane scenePicker;
     private final Table helpSheet;
     private final Table clearSheet;
 
@@ -77,10 +86,12 @@ public class MobileControls {
     private TextButton toolButton;
     private TextButton brushTypeButton;
     private TextButton pauseButton;
-    private TextButton eraseModeButton;
 
     private String currentCategory = "Solids";
     private ElementType lastMaterial = ElementType.SAND;
+    private String pendingSceneDeletion;
+    private TextButton pendingDeleteButton;
+    private long pendingDeleteTimeMs;
 
     private boolean clearSettlementPending;
     private int clearNonEmptyBefore;
@@ -92,6 +103,16 @@ public class MobileControls {
         this.inputManager = inputManager;
         this.matrix = matrix;
         this.skin = Skins.getSkin("uiskin");
+        // The atlas "white" region is translucent around its edges; tinted
+        // modal panels let busy sand show through instructional text. Use a
+        // real opaque 1px texture for each shared sheet background instead.
+        Pixmap panelPixel = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        panelPixel.setColor(PANEL);
+        panelPixel.fill();
+        opaquePanelTexture = new Texture(panelPixel);
+        panelPixel.dispose();
+        opaquePanelBackground = new TextureRegionDrawable(
+                new TextureRegion(opaquePanelTexture));
         // Keep touch controls phone-sized on high-density displays. A ScreenViewport
         // treated the fixed 44-90 unit controls as physical pixels, shrinking the
         // whole dock to roughly one third of a 1080px phone. ExtendViewport keeps
@@ -123,7 +144,7 @@ public class MobileControls {
         materialPanel = new Table();
         materialPanel.top().left();
         materialPanel.pad(7f);
-        materialPanel.setBackground(skin.newDrawable("white", PANEL));
+        materialPanel.setBackground(opaquePanelBackground);
         buildMaterialPanel();
         materialPanel.setVisible(false);
         stage.addActor(materialPanel);
@@ -131,7 +152,7 @@ public class MobileControls {
         moreSheet = new Table();
         moreSheet.top().left();
         moreSheet.pad(9f);
-        moreSheet.setBackground(skin.newDrawable("white", PANEL));
+        moreSheet.setBackground(opaquePanelBackground);
         buildMoreSheet();
         moreSheet.setVisible(false);
         stage.addActor(moreSheet);
@@ -139,14 +160,23 @@ public class MobileControls {
         sceneSheet = new Table();
         sceneSheet.top().left();
         sceneSheet.pad(9f);
-        sceneSheet.setBackground(skin.newDrawable("white", PANEL));
+        sceneSheet.setBackground(opaquePanelBackground);
+        // A fixed-height sheet must never spill saved scenes off the screen.
+        // The title stays fixed while the list scrolls independently.
+        sceneList = new Table();
+        sceneList.top().left();
+        scenePicker = new ScrollPane(sceneList, new ScrollPane.ScrollPaneStyle());
+        scenePicker.setScrollingDisabled(true, false);
+        scenePicker.setOverscroll(false, false);
+        scenePicker.setFadeScrollBars(false);
+        scenePicker.setFlickScroll(true);
         sceneSheet.setVisible(false);
         stage.addActor(sceneSheet);
 
         helpSheet = new Table();
         helpSheet.top().left();
         helpSheet.pad(10f);
-        helpSheet.setBackground(skin.newDrawable("white", PANEL));
+        helpSheet.setBackground(opaquePanelBackground);
         buildHelpSheet();
         helpSheet.setVisible(false);
         stage.addActor(helpSheet);
@@ -154,7 +184,7 @@ public class MobileControls {
         clearSheet = new Table();
         clearSheet.top().left();
         clearSheet.pad(10f);
-        clearSheet.setBackground(skin.newDrawable("white", PANEL));
+        clearSheet.setBackground(opaquePanelBackground);
         clearSheet.setVisible(false);
         stage.addActor(clearSheet);
 
@@ -197,7 +227,7 @@ public class MobileControls {
         addQuickMaterial("Bolt", ElementType.LIGHTNING, 60f);
 
         TextButton erase = createFlatButton("Erase", DANGER.cpy().lerp(Color.BLACK, 0.24f), DANGER);
-        erase.getLabel().setFontScale(0.54f);
+        erase.getLabel().setFontScale(0.70f);
         quickButtons.put(ElementType.EMPTYCELL, erase);
         erase.addListener(new ClickListener() {
             @Override
@@ -205,10 +235,10 @@ public class MobileControls {
                 setEraseMode();
             }
         });
-        quickStrip.add(erase).width(60f).height(34f);
+        quickStrip.add(erase).width(60f).height(40f);
 
         TextButton all = createFlatButton("All", CONTROL, ACCENT);
-        all.getLabel().setFontScale(0.60f);
+        all.getLabel().setFontScale(0.75f);
         all.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -219,13 +249,13 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickStrip.add(all).width(60f).height(34f);
+        quickStrip.add(all).width(60f).height(40f);
     }
 
     private void addQuickMaterial(String label, ElementType type, float width) {
         Color color = materialColor(type);
         TextButton button = createFlatButton(label, color.cpy().lerp(Color.BLACK, 0.32f), color);
-        button.getLabel().setFontScale(0.53f);
+        button.getLabel().setFontScale(0.70f);
         quickButtons.put(type, button);
         button.addListener(new ClickListener() {
             @Override
@@ -233,7 +263,7 @@ public class MobileControls {
                 selectMaterial(type);
             }
         });
-        quickStrip.add(button).width(width).height(34f);
+        quickStrip.add(button).width(width).height(40f);
     }
 
     private void buildDock() {
@@ -246,7 +276,7 @@ public class MobileControls {
                 updateBrushTypeButton();
             }
         });
-        dock.add(minus).width(44f).height(48f);
+        dock.add(minus).width(50f).height(48f);
 
         TextButton plus = createFlatButton("+", CONTROL, CONTROL_PRESSED);
         plus.getLabel().setFontScale(0.9f);
@@ -260,7 +290,7 @@ public class MobileControls {
         dock.add(plus).width(56f).height(48f);
 
         brushTypeButton = createFlatButton(brushTypeLabel(), CONTROL, CONTROL_PRESSED);
-        brushTypeButton.getLabel().setFontScale(0.48f);
+        brushTypeButton.getLabel().setFontScale(0.70f);
         brushTypeButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -268,10 +298,10 @@ public class MobileControls {
                 updateBrushTypeButton();
             }
         });
-        dock.add(brushTypeButton).width(90f).height(48f);
+        dock.add(brushTypeButton).width(84f).height(48f);
 
         pauseButton = createFlatButton("Pause", CONTROL, ACCENT);
-        pauseButton.getLabel().setFontScale(0.48f);
+        pauseButton.getLabel().setFontScale(0.70f);
         pauseButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -283,7 +313,7 @@ public class MobileControls {
         dock.add(pauseButton).width(70f).height(48f);
 
         toolButton = createFlatButton("Draw", CONTROL, ACCENT);
-        toolButton.getLabel().setFontScale(0.58f);
+        toolButton.getLabel().setFontScale(0.70f);
         toolButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -294,7 +324,7 @@ public class MobileControls {
         dock.add(toolButton).width(50f).height(48f);
 
         TextButton more = createFlatButton("More", CONTROL, CONTROL_PRESSED);
-        more.getLabel().setFontScale(0.48f);
+        more.getLabel().setFontScale(0.70f);
         more.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -311,14 +341,13 @@ public class MobileControls {
     }
 
     private void buildMaterialPanel() {
-        addSheetHandle(materialPanel, 4);
         Label title = sectionLabel("Materials");
         materialPanel.add(title).colspan(3).left().padBottom(5f);
         TextButton close = createSheetCloseButton(() -> {
             materialPanel.setVisible(false);
             Gdx.app.log("ElementumInput", "material-picker=closed");
         });
-        materialPanel.add(close).width(54f).height(32f).right().padBottom(5f);
+        materialPanel.add(close).width(54f).height(44f).right().padBottom(5f);
         materialPanel.row();
 
         addCategoryButton("Solids", Color.valueOf("9C7B35"));
@@ -332,7 +361,7 @@ public class MobileControls {
 
     private void addCategoryButton(String name, Color tint) {
         TextButton button = createFlatButton(name, tint.cpy().lerp(Color.BLACK, 0.38f), tint);
-        button.getLabel().setFontScale(0.61f);
+        button.getLabel().setFontScale(0.75f);
         categoryButtons.put(name, button);
         button.addListener(new ClickListener() {
             @Override
@@ -377,7 +406,7 @@ public class MobileControls {
             if (button == null) {
                 Color color = materialColor(type);
                 button = createFlatButton(displayName(type), color.cpy().lerp(Color.BLACK, 0.32f), color);
-                button.getLabel().setFontScale(0.56f);
+                button.getLabel().setFontScale(0.70f);
                 button.getLabel().setWrap(true);
                 pickerButtons.put(type, button);
                 final ElementType selectedType = type;
@@ -404,30 +433,22 @@ public class MobileControls {
     }
 
     private void buildMoreSheet() {
-        addSheetHandle(moreSheet, 5);
         Label title = sectionLabel("Tools");
         moreSheet.add(title).colspan(4).left().padBottom(6f);
         TextButton close = createSheetCloseButton(() -> {
             moreSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "more-sheet=closed");
         });
-        moreSheet.add(close).width(54f).height(32f).right().padBottom(6f);
+        moreSheet.add(close).width(54f).height(44f).right().padBottom(6f);
         moreSheet.row();
 
         addModeButton("Draw", MouseMode.SPAWN);
         addModeButton("Heat", MouseMode.HEAT);
         addModeButton("Cool", MouseMode.COOL);
 
-        eraseModeButton = createFlatButton("Erase", CONTROL, ACCENT);
-        eraseModeButton.getLabel().setFontScale(0.60f);
-        eraseModeButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                setEraseMode();
-                moreSheet.setVisible(false);
-            }
-        });
-        moreSheet.add(eraseModeButton).width(62f).height(40f).pad(2f);
+        // Erase already has a dedicated quick-strip control. Do not repeat it
+        // in the tools sheet: expose the existing Dust mode instead.
+        addAdvancedModeButton("Dust", MouseMode.PARTICALIZE);
         addAdvancedModeButton("Source", MouseMode.SOURCE);
         moreSheet.row();
 
@@ -466,7 +487,7 @@ public class MobileControls {
         moreSheet.add(clear).width(62f).height(42f).pad(2f);
 
         TextButton weather = createFlatButton("Weather", CONTROL, CONTROL_PRESSED);
-        weather.getLabel().setFontScale(0.55f);
+        weather.getLabel().setFontScale(0.70f);
         weather.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -488,7 +509,7 @@ public class MobileControls {
         moreSheet.row();
 
         TextButton weatherMaterial = createFlatButton("Weather material", CONTROL, CONTROL_PRESSED);
-        weatherMaterial.getLabel().setFontScale(0.44f);
+        weatherMaterial.getLabel().setFontScale(0.70f);
         weatherMaterial.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -500,7 +521,7 @@ public class MobileControls {
         moreSheet.add(weatherMaterial).width(126f).height(38f).colspan(2).pad(2f);
 
         TextButton body = createFlatButton("Body: " + shortBodyType(inputManager.bodyType), CONTROL, CONTROL_PRESSED);
-        body.getLabel().setFontScale(0.50f);
+        body.getLabel().setFontScale(0.70f);
         body.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -523,7 +544,7 @@ public class MobileControls {
 
     private void addModeButton(String label, MouseMode mode) {
         TextButton button = createFlatButton(label, CONTROL, ACCENT);
-        button.getLabel().setFontScale(0.60f);
+        button.getLabel().setFontScale(0.75f);
         modeButtons.put(mode, button);
         button.addListener(new ClickListener() {
             @Override
@@ -558,19 +579,18 @@ public class MobileControls {
     }
 
     private void buildHelpSheet() {
-        addSheetHandle(helpSheet, 2);
         Label title = sectionLabel("Elementum");
         helpSheet.add(title).left().padBottom(8f);
         TextButton close = createSheetCloseButton(() -> {
             helpSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "help=closed");
         });
-        helpSheet.add(close).width(54f).height(32f).right().padBottom(8f);
+        helpSheet.add(close).width(54f).height(44f).right().padBottom(8f);
         helpSheet.row();
         addHelpLine("Draw", "One finger tap or stroke");
         addHelpLine("Navigate", "Two fingers to pan or pinch");
-        addHelpLine("Materials", "Tap the material chip to open the tray");
-        addHelpLine("Tool", "Tap Draw/Heat/Cool/Erase to cycle quickly");
+        addHelpLine("Materials", "Tap All to choose a material");
+        addHelpLine("Tool", "Tap the tool button to cycle Draw, Heat and Cool");
         addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
         addHelpLine("Scenes", "Open More, then Save or Load");
@@ -579,9 +599,9 @@ public class MobileControls {
 
     private void addHelpLine(String title, String detail) {
         Label titleLabel = new Label(title, skin);
-        titleLabel.setFontScale(0.60f);
+        titleLabel.setFontScale(0.75f);
         Label detailLabel = new Label(detail, skin);
-        detailLabel.setFontScale(0.55f);
+        detailLabel.setFontScale(0.70f);
         detailLabel.setColor(MUTED);
         detailLabel.setWrap(true);
         helpSheet.add(titleLabel).width(72f).left().padBottom(6f);
@@ -592,22 +612,36 @@ public class MobileControls {
     private void showHelpSheet() {
         closeNonDestructiveSheets();
         helpSheet.setVisible(true);
+        helpSheet.invalidateHierarchy();
+        helpSheet.validate();
+        Gdx.app.log("ElementumUI", "help-content-fits="
+                + (helpSheet.getPrefHeight() <= helpSheet.getHeight() + 0.5f)
+                + " preferred=" + Math.round(helpSheet.getPrefHeight())
+                + " available=" + Math.round(helpSheet.getHeight()));
         Gdx.app.log("ElementumInput", "help=open");
     }
 
     private void showSceneSheet(boolean saveMode) {
         closeNonDestructiveSheets();
         sceneSheet.clearChildren();
+        sceneList.clearChildren();
+        pendingSceneDeletion = null;
+        pendingDeleteButton = null;
 
-        addSheetHandle(sceneSheet, 3);
+        // The scene list has three columns, but the sheet itself must have ONE
+        // column. Previously the header consumed 2+1 columns while the list
+        // forced the first pair to 300px; the Close button was clipped beyond
+        // the right edge on 360px handsets.
+        Table header = new Table();
         Label title = sectionLabel(saveMode ? "Save scene" : "Load scene");
-        sceneSheet.add(title).colspan(2).left().padBottom(6f);
+        header.add(title).growX().left();
         TextButton close = createSheetCloseButton(() -> {
             sceneSheet.setVisible(false);
             inputManager.cancelFileDialog();
             Gdx.app.log("ElementumSaveLoad", "browser-cancelled");
         });
-        sceneSheet.add(close).width(54f).height(32f).right().padBottom(6f);
+        header.add(close).width(54f).height(44f).right();
+        sceneSheet.add(header).growX().padBottom(6f);
         sceneSheet.row();
 
         FileHandle[] saves = inputManager.getSavedLevels();
@@ -623,7 +657,23 @@ public class MobileControls {
             }
         }
 
+        sceneSheet.add(scenePicker).grow().padTop(4f);
+        scenePicker.invalidateHierarchy();
+        scenePicker.setScrollY(0f);
         sceneSheet.setVisible(true);
+        // Assert actual actor geometry, not merely a successful app launch:
+        // a former header-width bug placed Close outside a 360px viewport.
+        sceneSheet.invalidateHierarchy();
+        sceneSheet.validate();
+        header.validate();
+        Vector2 closePosition = close.localToStageCoordinates(new Vector2(0f, 0f));
+        float viewWidth = stage.getViewport().getWorldWidth();
+        boolean closeInBounds = closePosition.x >= 0f
+                && closePosition.x + close.getWidth() <= viewWidth;
+        Gdx.app.log("ElementumUI", "scene-close-in-bounds=" + closeInBounds
+                + " left=" + Math.round(closePosition.x)
+                + " right=" + Math.round(closePosition.x + close.getWidth())
+                + " viewport=" + Math.round(viewWidth));
         Gdx.app.log("ElementumSaveLoad", "browser-open mode=" + (saveMode ? "save" : "load"));
         Gdx.app.log("ElementumSaveLoad", "browser-scenes=" + saves.length);
     }
@@ -638,15 +688,15 @@ public class MobileControls {
         Table info = new Table();
         info.left();
         Label sceneName = new Label(display, skin);
-        sceneName.setFontScale(0.62f);
+        sceneName.setFontScale(0.75f);
         Label detail = new Label(existing == null ? "Empty" : formatModified(existing), skin);
-        detail.setFontScale(0.48f);
+        detail.setFontScale(0.70f);
         detail.setColor(MUTED);
         info.add(sceneName).left();
         info.row();
         info.add(detail).left();
 
-        sceneSheet.add(info).width(150f).height(42f).left().pad(2f);
+        sceneList.add(info).width(150f).height(42f).left().pad(2f);
 
         String actionLabel;
         if (saveMode) {
@@ -670,23 +720,42 @@ public class MobileControls {
                 }
             });
         }
-        sceneSheet.add(action).width(82f).height(40f).pad(2f);
+        sceneList.add(action).width(82f).height(40f).pad(2f);
 
         if (existing != null) {
             TextButton delete = createFlatButton("Delete", DANGER, Color.valueOf("B94B50"));
-            delete.getLabel().setFontScale(0.43f);
+            delete.getLabel().setFontScale(0.70f);
             delete.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
+                    // Deleting a saved world is irreversible. Require a second
+                    // deliberate tap without showing a default Android dialog.
+                    long now = System.currentTimeMillis();
+                    boolean confirmed = name.equals(pendingSceneDeletion)
+                            && now - pendingDeleteTimeMs <= 5000L;
+                    if (!confirmed) {
+                        // Only one item can be armed at a time, for five seconds.
+                        if (pendingDeleteButton != null) {
+                            pendingDeleteButton.setText("Delete");
+                        }
+                        pendingSceneDeletion = name;
+                        pendingDeleteButton = delete;
+                        pendingDeleteTimeMs = now;
+                        delete.setText("Sure?");
+                        delete.getLabel().setFontScale(0.75f);
+                        return;
+                    }
+                    pendingSceneDeletion = null;
+                    pendingDeleteButton = null;
                     inputManager.deleteSavedLevel(name);
                     Gdx.app.postRunnable(() -> showSceneSheet(saveMode));
                 }
             });
-            sceneSheet.add(delete).width(52f).height(40f).pad(2f);
+            sceneList.add(delete).width(52f).height(40f).pad(2f);
         } else {
-            sceneSheet.add().width(52f);
+            sceneList.add().width(52f);
         }
-        sceneSheet.row();
+        sceneList.row();
     }
 
     private FileHandle findSave(FileHandle[] saves, String name) {
@@ -715,13 +784,12 @@ public class MobileControls {
         inputManager.setIsPaused(true);
 
         clearSheet.clearChildren();
-        addSheetHandle(clearSheet, 2);
         Label title = sectionLabel("Clear sandbox?");
         clearSheet.add(title).colspan(2).left().padBottom(5f);
         clearSheet.row();
 
         Label message = new Label("Remove the current sandbox? Saved scenes stay untouched.", skin);
-        message.setFontScale(0.56f);
+        message.setFontScale(0.70f);
         message.setColor(MUTED);
         message.setWrap(true);
         clearSheet.add(message).colspan(2).width(290f).left().padBottom(8f);
@@ -842,7 +910,9 @@ public class MobileControls {
             inputManager.setMouseMode(MouseMode.COOL);
             Gdx.app.log("ElementumInput", "mode=COOL");
         } else if (mode == MouseMode.COOL) {
-            setEraseMode();
+            // Erase has its own quick material chip. Do not duplicate that
+            // action in the primary tool cycle: Draw -> Heat -> Cool -> Draw.
+            setDrawMode();
             return;
         } else {
             setDrawMode();
@@ -899,10 +969,6 @@ public class MobileControls {
                 checked = false;
             }
             entry.getValue().setChecked(checked);
-        }
-        if (eraseModeButton != null) {
-            eraseModeButton.setChecked(mode == MouseMode.SPAWN
-                    && inputManager.currentlySelectedElement == ElementType.EMPTYCELL);
         }
         if (toolButton != null) {
             toolButton.setChecked(mode == MouseMode.HEAT || mode == MouseMode.COOL
@@ -968,16 +1034,9 @@ public class MobileControls {
         pauseButton.setChecked(paused);
     }
 
-    private void addSheetHandle(Table sheet, int columns) {
-        Table handle = new Table();
-        handle.setBackground(skin.newDrawable("white", Color.valueOf("46515D")));
-        sheet.add(handle).colspan(columns).width(34f).height(3f).center().padBottom(7f);
-        sheet.row();
-    }
-
     private TextButton createSheetCloseButton(Runnable action) {
         TextButton close = createFlatButton("Close", PANEL_ALT, CONTROL_PRESSED);
-        close.getLabel().setFontScale(0.46f);
+        close.getLabel().setFontScale(0.70f);
         close.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -989,7 +1048,7 @@ public class MobileControls {
 
     private TextButton createFlatButton(String label, Color base, Color checked) {
         TextButton button = new TextButton(label, flatStyle(base, checked, Color.WHITE));
-        button.getLabel().setFontScale(0.60f);
+        button.getLabel().setFontScale(0.75f);
         return button;
     }
 
@@ -1001,7 +1060,12 @@ public class MobileControls {
         style.checked = skin.newDrawable("white", checked);
         style.font = skin.getFont("default-font");
         style.fontColor = fontColor;
-        style.checkedFontColor = Color.WHITE;
+        // Selected materials/tools use saturated cyan, sand and heat colors.
+        // White-on-cyan was hard to read: choose ink on brighter selections.
+        float selectedLuma = checked.r * 0.2126f
+                + checked.g * 0.7152f + checked.b * 0.0722f;
+        style.checkedFontColor = selectedLuma > 0.55f
+                ? Color.valueOf("101820") : Color.WHITE;
         style.downFontColor = Color.WHITE;
         return style;
     }
@@ -1122,7 +1186,7 @@ public class MobileControls {
         materialPanel.setBounds(x, y, panelWidth, Math.min(240f, Math.max(180f, height * 0.31f)));
         moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
         sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
-        helpSheet.setBounds(x, y, panelWidth, Math.min(255f, available));
+        helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
         clearSheet.setBounds(x, y, panelWidth, Math.min(155f, available));
     }
 
@@ -1165,5 +1229,6 @@ public class MobileControls {
 
     public void dispose() {
         stage.dispose();
+        opaquePanelTexture.dispose();
     }
 }
