@@ -207,7 +207,7 @@ public class MobileControls {
         addQuickMaterial("Bolt", ElementType.LIGHTNING, 60f);
 
         TextButton erase = createFlatButton("Erase", DANGER.cpy().lerp(Color.BLACK, 0.24f), DANGER);
-        erase.getLabel().setFontScale(0.54f);
+        erase.getLabel().setFontScale(0.70f);
         quickButtons.put(ElementType.EMPTYCELL, erase);
         erase.addListener(new ClickListener() {
             @Override
@@ -218,7 +218,7 @@ public class MobileControls {
         quickStrip.add(erase).width(60f).height(34f);
 
         TextButton all = createFlatButton("All", CONTROL, ACCENT);
-        all.getLabel().setFontScale(0.60f);
+        all.getLabel().setFontScale(0.75f);
         all.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -235,7 +235,7 @@ public class MobileControls {
     private void addQuickMaterial(String label, ElementType type, float width) {
         Color color = materialColor(type);
         TextButton button = createFlatButton(label, color.cpy().lerp(Color.BLACK, 0.32f), color);
-        button.getLabel().setFontScale(0.53f);
+        button.getLabel().setFontScale(0.70f);
         quickButtons.put(type, button);
         button.addListener(new ClickListener() {
             @Override
@@ -270,7 +270,7 @@ public class MobileControls {
         dock.add(plus).width(56f).height(48f);
 
         brushTypeButton = createFlatButton(brushTypeLabel(), CONTROL, CONTROL_PRESSED);
-        brushTypeButton.getLabel().setFontScale(0.48f);
+        brushTypeButton.getLabel().setFontScale(0.70f);
         brushTypeButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -281,7 +281,7 @@ public class MobileControls {
         dock.add(brushTypeButton).width(90f).height(48f);
 
         pauseButton = createFlatButton("Pause", CONTROL, ACCENT);
-        pauseButton.getLabel().setFontScale(0.48f);
+        pauseButton.getLabel().setFontScale(0.70f);
         pauseButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -293,7 +293,7 @@ public class MobileControls {
         dock.add(pauseButton).width(70f).height(48f);
 
         toolButton = createFlatButton("Draw", CONTROL, ACCENT);
-        toolButton.getLabel().setFontScale(0.58f);
+        toolButton.getLabel().setFontScale(0.70f);
         toolButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -304,7 +304,7 @@ public class MobileControls {
         dock.add(toolButton).width(50f).height(48f);
 
         TextButton more = createFlatButton("More", CONTROL, CONTROL_PRESSED);
-        more.getLabel().setFontScale(0.48f);
+        more.getLabel().setFontScale(0.70f);
         more.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -342,7 +342,7 @@ public class MobileControls {
 
     private void addCategoryButton(String name, Color tint) {
         TextButton button = createFlatButton(name, tint.cpy().lerp(Color.BLACK, 0.38f), tint);
-        button.getLabel().setFontScale(0.61f);
+        button.getLabel().setFontScale(0.75f);
         categoryButtons.put(name, button);
         button.addListener(new ClickListener() {
             @Override
@@ -387,7 +387,7 @@ public class MobileControls {
             if (button == null) {
                 Color color = materialColor(type);
                 button = createFlatButton(displayName(type), color.cpy().lerp(Color.BLACK, 0.32f), color);
-                button.getLabel().setFontScale(0.56f);
+                button.getLabel().setFontScale(0.70f);
                 button.getLabel().setWrap(true);
                 pickerButtons.put(type, button);
                 final ElementType selectedType = type;
@@ -469,7 +469,7 @@ public class MobileControls {
         moreSheet.add(clear).width(62f).height(42f).pad(2f);
 
         TextButton weather = createFlatButton("Weather", CONTROL, CONTROL_PRESSED);
-        weather.getLabel().setFontScale(0.55f);
+        weather.getLabel().setFontScale(0.70f);
         weather.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -491,7 +491,7 @@ public class MobileControls {
         moreSheet.row();
 
         TextButton weatherMaterial = createFlatButton("Weather material", CONTROL, CONTROL_PRESSED);
-        weatherMaterial.getLabel().setFontScale(0.44f);
+        weatherMaterial.getLabel().setFontScale(0.70f);
         weatherMaterial.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -503,7 +503,7 @@ public class MobileControls {
         moreSheet.add(weatherMaterial).width(126f).height(38f).colspan(2).pad(2f);
 
         TextButton body = createFlatButton("Body: " + shortBodyType(inputManager.bodyType), CONTROL, CONTROL_PRESSED);
-        body.getLabel().setFontScale(0.50f);
+        body.getLabel().setFontScale(0.70f);
         body.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -526,7 +526,7 @@ public class MobileControls {
 
     private void addModeButton(String label, MouseMode mode) {
         TextButton button = createFlatButton(label, CONTROL, ACCENT);
-        button.getLabel().setFontScale(0.60f);
+        button.getLabel().setFontScale(0.75f);
         modeButtons.put(mode, button);
         button.addListener(new ClickListener() {
             @Override
@@ -582,9 +582,9 @@ public class MobileControls {
 
     private void addHelpLine(String title, String detail) {
         Label titleLabel = new Label(title, skin);
-        titleLabel.setFontScale(0.60f);
+        titleLabel.setFontScale(0.75f);
         Label detailLabel = new Label(detail, skin);
-        detailLabel.setFontScale(0.55f);
+        detailLabel.setFontScale(0.70f);
         detailLabel.setColor(MUTED);
         detailLabel.setWrap(true);
         helpSheet.add(titleLabel).width(72f).left().padBottom(6f);
@@ -651,9 +651,9 @@ public class MobileControls {
         Table info = new Table();
         info.left();
         Label sceneName = new Label(display, skin);
-        sceneName.setFontScale(0.62f);
+        sceneName.setFontScale(0.75f);
         Label detail = new Label(existing == null ? "Empty" : formatModified(existing), skin);
-        detail.setFontScale(0.48f);
+        detail.setFontScale(0.70f);
         detail.setColor(MUTED);
         info.add(sceneName).left();
         info.row();
@@ -687,7 +687,7 @@ public class MobileControls {
 
         if (existing != null) {
             TextButton delete = createFlatButton("Delete", DANGER, Color.valueOf("B94B50"));
-            delete.getLabel().setFontScale(0.43f);
+            delete.getLabel().setFontScale(0.70f);
             delete.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
@@ -695,7 +695,7 @@ public class MobileControls {
                     // deliberate tap without showing a default Android dialog.
                     if (!"Sure?".contentEquals(delete.getText())) {
                         delete.setText("Sure?");
-                        delete.getLabel().setFontScale(0.60f);
+                        delete.getLabel().setFontScale(0.75f);
                         return;
                     }
                     inputManager.deleteSavedLevel(name);
@@ -741,7 +741,7 @@ public class MobileControls {
         clearSheet.row();
 
         Label message = new Label("Remove the current sandbox? Saved scenes stay untouched.", skin);
-        message.setFontScale(0.56f);
+        message.setFontScale(0.70f);
         message.setColor(MUTED);
         message.setWrap(true);
         clearSheet.add(message).colspan(2).width(290f).left().padBottom(8f);
@@ -993,7 +993,7 @@ public class MobileControls {
 
     private TextButton createSheetCloseButton(Runnable action) {
         TextButton close = createFlatButton("Close", PANEL_ALT, CONTROL_PRESSED);
-        close.getLabel().setFontScale(0.46f);
+        close.getLabel().setFontScale(0.70f);
         close.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -1005,7 +1005,7 @@ public class MobileControls {
 
     private TextButton createFlatButton(String label, Color base, Color checked) {
         TextButton button = new TextButton(label, flatStyle(base, checked, Color.WHITE));
-        button.getLabel().setFontScale(0.60f);
+        button.getLabel().setFontScale(0.75f);
         return button;
     }
 
