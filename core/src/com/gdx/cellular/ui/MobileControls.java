@@ -3,6 +3,9 @@ package com.gdx.cellular.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -15,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.ElementType;
@@ -56,6 +60,8 @@ public class MobileControls {
     private final InputManager inputManager;
     private final CellularMatrix matrix;
     private final Skin skin;
+    private final Texture opaquePanelTexture;
+    private final TextureRegionDrawable opaquePanelBackground;
 
     private final Table quickBar;
     private final Table dock;
@@ -97,6 +103,16 @@ public class MobileControls {
         this.inputManager = inputManager;
         this.matrix = matrix;
         this.skin = Skins.getSkin("uiskin");
+        // The atlas "white" region is translucent around its edges; tinted
+        // modal panels let busy sand show through instructional text. Use a
+        // real opaque 1px texture for each shared sheet background instead.
+        Pixmap panelPixel = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        panelPixel.setColor(PANEL);
+        panelPixel.fill();
+        opaquePanelTexture = new Texture(panelPixel);
+        panelPixel.dispose();
+        opaquePanelBackground = new TextureRegionDrawable(
+                new TextureRegion(opaquePanelTexture));
         // Keep touch controls phone-sized on high-density displays. A ScreenViewport
         // treated the fixed 44-90 unit controls as physical pixels, shrinking the
         // whole dock to roughly one third of a 1080px phone. ExtendViewport keeps
@@ -128,7 +144,7 @@ public class MobileControls {
         materialPanel = new Table();
         materialPanel.top().left();
         materialPanel.pad(7f);
-        materialPanel.setBackground(skin.newDrawable("white", PANEL));
+        materialPanel.setBackground(opaquePanelBackground);
         buildMaterialPanel();
         materialPanel.setVisible(false);
         stage.addActor(materialPanel);
@@ -136,7 +152,7 @@ public class MobileControls {
         moreSheet = new Table();
         moreSheet.top().left();
         moreSheet.pad(9f);
-        moreSheet.setBackground(skin.newDrawable("white", PANEL));
+        moreSheet.setBackground(opaquePanelBackground);
         buildMoreSheet();
         moreSheet.setVisible(false);
         stage.addActor(moreSheet);
@@ -144,7 +160,7 @@ public class MobileControls {
         sceneSheet = new Table();
         sceneSheet.top().left();
         sceneSheet.pad(9f);
-        sceneSheet.setBackground(skin.newDrawable("white", PANEL));
+        sceneSheet.setBackground(opaquePanelBackground);
         // A fixed-height sheet must never spill saved scenes off the screen.
         // The title stays fixed while the list scrolls independently.
         sceneList = new Table();
@@ -160,7 +176,7 @@ public class MobileControls {
         helpSheet = new Table();
         helpSheet.top().left();
         helpSheet.pad(10f);
-        helpSheet.setBackground(skin.newDrawable("white", PANEL));
+        helpSheet.setBackground(opaquePanelBackground);
         buildHelpSheet();
         helpSheet.setVisible(false);
         stage.addActor(helpSheet);
@@ -168,7 +184,7 @@ public class MobileControls {
         clearSheet = new Table();
         clearSheet.top().left();
         clearSheet.pad(10f);
-        clearSheet.setBackground(skin.newDrawable("white", PANEL));
+        clearSheet.setBackground(opaquePanelBackground);
         clearSheet.setVisible(false);
         stage.addActor(clearSheet);
 
@@ -1213,5 +1229,6 @@ public class MobileControls {
 
     public void dispose() {
         stage.dispose();
+        opaquePanelTexture.dispose();
     }
 }
