@@ -13,4 +13,15 @@ sourceSets {
     main {
         java.setSrcDirs(["src"])
     }
+    test {
+        java.setSrcDirs(["test"])
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
+
+test {
+    useJUnit()
 }
