@@ -25,6 +25,7 @@ import com.gdx.cellular.spouts.Spout;
 import com.gdx.cellular.util.Chunk;
 import com.gdx.cellular.util.ColumnPartitions;
 import com.gdx.cellular.util.GridTraversal;
+import com.gdx.cellular.util.GridCoordinates;
 import com.gdx.cellular.util.PixelRunGeometry;
 
 import java.util.*;
@@ -320,14 +321,18 @@ public class CellularMatrix {
 
 
     public int toMatrix(float pixelVal) {
-        return toMatrix((int) pixelVal);
+        return GridCoordinates.fromPixel(pixelVal, pixelSizeModifier);
     }
 
     public int toMatrix(int pixelVal) {
-        return pixelVal / pixelSizeModifier;
+        return GridCoordinates.fromPixel(pixelVal, pixelSizeModifier);
     }
 
     public boolean clearAll() {
+        // Clearing must discard queued effects as well as current cells.
+        // Otherwise an explosion queued on the prior frame can detonate on
+        // the freshly emptied sandbox as soon as simulation resumes.
+        explosionArray.clear();
         matrix = generateMatrix();
         spoutArray.clear();
         physicsElementActors.forEach(pea -> world.destroyBody(pea.getPhysicsBody()));
