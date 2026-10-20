@@ -29,6 +29,7 @@ import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.ui.CreatorMenu;
 import com.gdx.cellular.ui.CursorActor;
 import com.gdx.cellular.ui.ModeActor;
+import com.gdx.cellular.util.GridCoordinates;
 import com.gdx.cellular.util.TextInputHandler;
 import com.gdx.cellular.util.WeatherSystem;
 import com.gdx.cellular.particles.Particle;
@@ -194,6 +195,7 @@ public class InputManager {
         Vector3 touchPos = new Vector3();
         touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
         camera.unproject(touchPos);
+        if (!isTouchInsideWorld(touchPos, matrix)) return;
 
         boolean particleSource = mouseMode == MouseMode.PARTICLE;
         boolean elementSource = mouseMode == MouseMode.SPAWN || mouseMode == MouseMode.SOURCE;
@@ -379,6 +381,12 @@ public class InputManager {
             Vector3 touchPos = new Vector3();
             touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
             camera.unproject(touchPos);
+            // A brush can overlap the grid even when its center is outside.
+            // Ignore that input entirely; do not connect the next stroke to it.
+            if (!isTouchInsideWorld(touchPos, matrix)) {
+                touchedLastFrame = false;
+                return;
+            }
             switch (mouseMode) {
                 case SOURCE:
                     // A source is placed once on touch-up. Dragging in Source
@@ -391,7 +399,7 @@ public class InputManager {
                             if (touchedLastFrame) {
                                 matrix.spawnElementBetweenTwoPoints(lastTouchPos, touchPos, currentlySelectedElement, brushSize, brushType);
                             } else {
-                                matrix.spawnElementByPixelWithBrush((int) touchPos.x, (int) touchPos.y, currentlySelectedElement, brushSize, brushType);
+                                matrix.spawnElementByPixelWithBrush(touchPos.x, touchPos.y, currentlySelectedElement, brushSize, brushType);
                             }
                             break;
                         case RECTANGLE:
@@ -431,14 +439,14 @@ public class InputManager {
                     if (touchedLastFrame) {
                         matrix.spawnParticleBetweenTwoPoints(lastTouchPos, touchPos, currentlySelectedElement, brushSize, brushType);
                     } else {
-                        matrix.spawnParticleByPixelWithBrush((int) touchPos.x, (int) touchPos.y, currentlySelectedElement, brushSize, brushType);
+                        matrix.spawnParticleByPixelWithBrush(touchPos.x, touchPos.y, currentlySelectedElement, brushSize, brushType);
                     }
                     break;
                 case PARTICALIZE:
                     if (touchedLastFrame) {
                         matrix.particalizeBetweenTwoPoints(lastTouchPos, touchPos, brushSize, brushType);
                     } else {
-                        matrix.particalizeByPixelWithBrush((int) touchPos.x, (int) touchPos.y, brushSize, brushType);
+                        matrix.particalizeByPixelWithBrush(touchPos.x, touchPos.y, brushSize, brushType);
                     }
                     break;
                 case PHYSICSOBJ:
@@ -472,10 +480,16 @@ public class InputManager {
 //            touchedLastFrame = false;
     }
 
+    private boolean isTouchInsideWorld(Vector3 touchPos, CellularMatrix matrix) {
+        return GridCoordinates.insideWorld(touchPos.x, touchPos.y,
+                matrix.innerArraySize, matrix.outerArraySize, matrix.pixelSizeModifier);
+    }
+
     public void touchUpLMB(CellularMatrix matrix) {
         Vector3 touchPos = new Vector3();
         touchPos.set(Gdx.input.getX(), Gdx.input.getY(), 0);
         camera.unproject(touchPos);
+        if (!isTouchInsideWorld(touchPos, matrix)) return;
         switch (mouseMode) {
             case RECTANGLE:
                 spawnPhysicsRect(matrix, touchPos);

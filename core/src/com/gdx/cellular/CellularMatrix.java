@@ -396,6 +396,10 @@ public class CellularMatrix {
     }
 
     public void spawnElementByPixelWithBrush(int pixelX, int pixelY, ElementType elementType, int localBrushSize, InputManager.BRUSHTYPE brushtype) {
+        spawnElementByPixelWithBrush((float) pixelX, (float) pixelY, elementType, localBrushSize, brushtype);
+    }
+
+    public void spawnElementByPixelWithBrush(float pixelX, float pixelY, ElementType elementType, int localBrushSize, InputManager.BRUSHTYPE brushtype) {
         int matrixX = toMatrix(pixelX);
         int matrixY = toMatrix(pixelY);
         spawnElementByMatrixWithBrush(createFunctionInput(matrixX, matrixY, elementType, localBrushSize, null, brushtype));
@@ -496,10 +500,10 @@ public class CellularMatrix {
     }
 
     public void iterateAndApplyMethodBetweenTwoPoints(Vector3 pos1, Vector3 pos2, ElementType elementType, int brushSize, InputManager.BRUSHTYPE brushtype, Vector3 velocity, Consumer<FunctionInput> function) {
-        int x0 = toMatrix((int) pos1.x);
-        int y0 = toMatrix((int) pos1.y);
-        int x1 = toMatrix((int) pos2.x);
-        int y1 = toMatrix((int) pos2.y);
+        int x0 = toMatrix(pos1.x);
+        int y0 = toMatrix(pos1.y);
+        int x1 = toMatrix(pos2.x);
+        int y1 = toMatrix(pos2.y);
         // Every high-speed drag spans ALL intervening cells. Include both
         // endpoints and handle horizontal, vertical, diagonal and reverse
         // strokes with identical sampling rules for paint, heat and cooling.
@@ -581,6 +585,10 @@ public class CellularMatrix {
     }
 
     public void spawnParticleByPixelWithBrush(int pixelX, int pixelY, ElementType elementType, int brushSize, InputManager.BRUSHTYPE brushtype) {
+        spawnParticleByPixelWithBrush((float) pixelX, (float) pixelY, elementType, brushSize, brushtype);
+    }
+
+    public void spawnParticleByPixelWithBrush(float pixelX, float pixelY, ElementType elementType, int brushSize, InputManager.BRUSHTYPE brushtype) {
         spawnParticleByMatrixWithBrush(createFunctionInput(toMatrix(pixelX), toMatrix(pixelY), elementType, brushSize, null, brushtype));
     }
 
@@ -635,6 +643,10 @@ public class CellularMatrix {
     }
 
     public void particalizeByPixelWithBrush(int x, int y, int brushSize, InputManager.BRUSHTYPE brushtype) {
+        particalizeByPixelWithBrush((float) x, (float) y, brushSize, brushtype);
+    }
+
+    public void particalizeByPixelWithBrush(float x, float y, int brushSize, InputManager.BRUSHTYPE brushtype) {
         int matrixX = toMatrix(x);
         int matrixY = toMatrix(y);
         particalizeByMatrixWithBrush(createFunctionInput(matrixX, matrixY, null, brushSize, new Vector3(0, -124, 0), brushtype));
