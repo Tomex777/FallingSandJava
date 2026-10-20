@@ -24,7 +24,9 @@ public final class MobileNavigation extends InputAdapter {
 
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        if (pointer > 1) return false;
+        // Keep additional pointers out of the drawing processor while a
+        // multi-touch navigation gesture is in progress.
+        if (pointer > 1) return gesture;
         down[pointer] = true;
         x[pointer] = screenX;
         y[pointer] = screenY;
@@ -37,10 +39,14 @@ public final class MobileNavigation extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
-        if (pointer > 1 || !down[pointer]) return false;
+        if (pointer > 1) return gesture;
+        if (!down[pointer]) return false;
         x[pointer] = screenX;
         y[pointer] = screenY;
-        if (!gesture || !down[0] || !down[1]) return false;
+        if (!gesture) return false;
+        // The remaining finger must not resume painting when one finger
+        // of a pinch lifts; navigation owns the gesture until both lift.
+        if (!down[0] || !down[1]) return true;
 
         float centerX = (x[0] + x[1]) * 0.5f;
         float centerY = (y[0] + y[1]) * 0.5f;
@@ -78,7 +84,7 @@ public final class MobileNavigation extends InputAdapter {
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        if (pointer > 1) return false;
+        if (pointer > 1) return gesture;
         boolean consumed = gesture;
         down[pointer] = false;
         if (!down[0] && !down[1]) gesture = false;
