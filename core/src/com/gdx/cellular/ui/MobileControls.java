@@ -452,10 +452,10 @@ public class MobileControls {
         addAdvancedModeButton("Source", MouseMode.SOURCE);
         moreSheet.row();
 
-        addAdvancedModeButton("Particle", MouseMode.PARTICLE);
+        addAdvancedModeButton("Spray", MouseMode.PARTICLE);
         addAdvancedModeButton("Boid", MouseMode.BOID);
         addAdvancedModeButton("Blast", MouseMode.EXPLOSION);
-        addAdvancedModeButton("Physics", MouseMode.PHYSICSOBJ);
+        addAdvancedModeButton("Body", MouseMode.PHYSICSOBJ);
         addAdvancedModeButton("Rect", MouseMode.RECTANGLE);
         moreSheet.row();
 
@@ -563,7 +563,8 @@ public class MobileControls {
 
     private void addAdvancedModeButton(String label, MouseMode mode) {
         TextButton button = createFlatButton(label, CONTROL, ACCENT);
-        button.getLabel().setFontScale(label.length() > 6 ? 0.48f : 0.55f);
+        // Compact, readable labels avoid tiny fractional bitmap glyphs.
+        button.getLabel().setFontScale(0.65f);
         modeButtons.put(mode, button);
         button.addListener(new ClickListener() {
             @Override
