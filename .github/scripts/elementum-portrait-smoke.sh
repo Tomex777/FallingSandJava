@@ -223,8 +223,14 @@ PY
   add_event 0 0 0
   add_event 3 47 0; add_event 3 53 "$x0m"; add_event 3 54 "$ym"
   add_event 3 47 1; add_event 3 53 "$x1m"; add_event 3 54 "$ym"; add_event 0 0 0
-  add_event 3 47 0; add_event 3 57 -1
-  add_event 3 47 1; add_event 3 57 -1; add_event 1 330 0; add_event 0 0 0
+  # Lift the second finger first, then drag the remaining finger
+  # into the upper empty canvas. It must stay owned by navigation rather than
+  # leak into the paint processor before the final finger lifts.
+  add_event 3 47 1; add_event 3 57 -1; add_event 0 0 0
+  events+="sleep 0.15; "
+  add_event 3 47 0; add_event 3 53 "$(raw_x 115)"; add_event 3 54 "$(raw_y 150)"; add_event 0 0 0
+  events+="sleep 0.15; "
+  add_event 3 47 0; add_event 3 57 -1; add_event 1 330 0; add_event 0 0 0
   adb shell "$events"
 }
 # Portrait coordinates for the compact mobile dock/sheets. These helpers keep
