@@ -31,6 +31,22 @@ public class GridCoordinatesTest {
         }
     }
 
+    @Test public void brushCentersMustBeInsideSimulationBeforeBrushExpansion() {
+        // The grid is 53 x 95 cells; the 2 trailing pixels of a 320px
+        // surface are not paintable. A radius-2 brush centered outside must
+        // never splash onto the first or last valid column.
+        assertTrue(GridCoordinates.insideWorld(0f, 0f, 53, 95, 6));
+        assertTrue(GridCoordinates.insideWorld(317.99f, 569.99f, 53, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(-0.01f, 50f, 53, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(50f, -0.01f, 53, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(318f, 50f, 53, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(50f, 570f, 53, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(Float.NaN, 50f, 53, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(50f, Float.POSITIVE_INFINITY, 53, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(0f, 0f, 0, 95, 6));
+        assertFalse(GridCoordinates.insideWorld(0f, 0f, 53, 95, 0));
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void zeroSizedCellIsInvalid() {
         GridCoordinates.fromPixel(10, 0);
