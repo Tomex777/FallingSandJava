@@ -67,9 +67,12 @@ public final class SynthesizedWav {
                         + 0.12 * droplet1 + 0.08 * droplet2;
             } else if (type == 1) {
                 // Dry short grain movement rather than a loud hiss.
-                double flutter = 0.50 + 0.35 * Math.sin(2 * Math.PI * 38 * t);
-                value = (noise - priorNoise) * 0.31 * flutter
-                        + 0.15 * lowPass;
+                // Filter the scratchy high-frequency content out of grains
+                // while retaining occasional tiny impacts from falling sand.
+                double flutter = 0.58 + 0.23 * Math.sin(2 * Math.PI * 22 * t);
+                double tinyImpact = Math.max(0.0, noise - 0.83) * 0.35;
+                value = 0.85 * lowPass * flutter
+                        + 0.20 * highPass * flutter + tinyImpact;
             } else if (type == 2) {
                 // Sparse crackling and warm filtered air; no constant tone.
                 double crackle = Math.max(0.0, noise - 0.75) * 2.7;
