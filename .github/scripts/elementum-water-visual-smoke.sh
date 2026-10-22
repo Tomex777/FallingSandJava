@@ -87,6 +87,12 @@ sleep 0.35
 capture moving-early-360x800
 sleep 0.45
 capture moving-later-360x800
+# A successful shader compilation or water-cell log does not guarantee a
+# visible result. Exclude all material-chip colors and require actual
+# blue water pixels in the sandbox on both paused and moving screenshots.
+python3 .github/scripts/elementum-assert-water-pixels.py \
+  "$evidence/elementum-water-paused-360x800.png" \
+  "$evidence/elementum-water-moving-early-360x800.png"
 verify_running
 
 # Draw a second paused reference so compact-screen screenshots contain water
