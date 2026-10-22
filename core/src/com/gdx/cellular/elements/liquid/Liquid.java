@@ -69,8 +69,12 @@ public abstract class Liquid extends Element {
         float slope = (min == 0 || upperBound == 0) ? 0 : ((float) (min + 1) / (upperBound + 1));
 
         int smallerCount;
-        Vector3 formerLocation = new Vector3(getMatrixX(), getMatrixY(), 0);
-        Vector3 lastValidLocation = new Vector3(getMatrixX(), getMatrixY(), 0);
+        // These two coordinates are needed only for the wake/sleep check.
+        // Retain a single movement-path scratch vector, not two allocations
+        // for every liquid cell on every physics tick.
+        final int formerX = getMatrixX();
+        final int formerY = getMatrixY();
+        Vector3 lastValidLocation = new Vector3(formerX, formerY, 0);
         for (int i = 1; i <= upperBound; i++) {
             smallerCount = (int) Math.floor(i * slope);
 
@@ -118,14 +122,15 @@ public abstract class Liquid extends Element {
         spawnSparkIfIgnited(matrix);
         checkLifeSpan(matrix);
         takeEffectsDamage(matrix);
-        stoppedMovingCount = didNotMove(formerLocation) ? stoppedMovingCount + 1 : 0;
+        stoppedMovingCount = (formerX == getMatrixX() && formerY == getMatrixY())
+                ? stoppedMovingCount + 1 : 0;
         if (stoppedMovingCount > stoppedMovingThreshold) {
             stoppedMovingCount = stoppedMovingThreshold;
         }
         if (matrix.useChunks)  {
             if (isIgnited || !hasNotMovedBeyondThreshold()) {
                 matrix.reportToChunkActive(this);
-                matrix.reportToChunkActive((int) formerLocation.x, (int) formerLocation.y);
+                matrix.reportToChunkActive(formerX, formerY);
             }
         }
 //        yDidNotChangeCount = yDidNotChange(formerLocation) ? yDidNotChangeCount + 1 : 0;
