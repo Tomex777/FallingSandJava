@@ -23,14 +23,17 @@ public final class MaterialSoundscape {
 
     private final Sound[] clips = new Sound[NAMES.length];
     private final AudioEventGate rateGate = new AudioEventGate();
+    private final LiquidStrokeCadence liquidCadence = new LiquidStrokeCadence();
     private final LifecycleListener lifecycleListener = new LifecycleListener() {
         @Override public void pause() {
             suspended = true;
+            liquidCadence.reset();
             stopAll();
         }
 
         @Override public void resume() {
             rateGate.reset();
+            liquidCadence.reset();
             suspended = false;
         }
 
@@ -76,6 +79,7 @@ public final class MaterialSoundscape {
         enabled = value;
         if (!enabled) stopAll();
         rateGate.reset();
+        liquidCadence.reset();
         if (preferences != null) {
             try {
                 preferences.putBoolean(ENABLED_KEY, enabled).flush();
@@ -92,15 +96,23 @@ public final class MaterialSoundscape {
                 || type == null || type == ElementType.EMPTYCELL) return;
         int kind = classify(type);
         long now = System.nanoTime();
+        // A water first-contact event is a little more defined; continuous
+        // brush movement uses the same flowing texture more quietly.
+        boolean flowing = liquidCadence.continuing(kind == 0, now);
         if (!rateGate.accept(kind, now)) return;
         // Very subtle pitch changes avoid a robotic repeating sample without
         // allocating an RNG or rebuilding PCM on the render thread.
         float pitch = 0.95f + ((now >>> 22) & 15L) * 0.006f;
+        float volume = LEVELS[kind];
+        if (flowing) {
+            volume *= 0.78f;
+            pitch *= 0.92f;
+        }
         try {
             // The asynchronous Android backend returns a *queued task token*,
             // not a SoundPool confirmation of audible output. Never log it
             // as "played" or count this as a real listening test.
-            clips[kind].play(LEVELS[kind], pitch, 0.0f);
+            clips[kind].play(volume, pitch, 0.0f);
             Gdx.app.log("ElementumAudio", "paint-kind=" + kind + " queued=true");
         } catch (RuntimeException audioUnavailable) {
             available = false;
