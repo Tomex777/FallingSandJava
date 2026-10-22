@@ -387,6 +387,13 @@ capture material-picker-restored
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture material-picker-back-dismissed
+# Full categorized picker swipes occur over the canvas viewport. After closing
+# it, compare unchanged sandbox pixels with the no-material pre-picker frame;
+# otherwise an invisible touch leak may have painted under the modal.
+if ! same_canvas_pixels "$evidence/elementum-tool-draw.png" "$evidence/elementum-material-picker-back-dismissed.png"; then
+  echo "ABR FAILURE: the two-row categorized picker painted the sandbox during interaction" >&2
+  exit 1
+fi
 assert_foreground material-picker-back-dismiss
 test -n "$(adb shell pidof com.tomex.elementum)"
 tap 310 715
