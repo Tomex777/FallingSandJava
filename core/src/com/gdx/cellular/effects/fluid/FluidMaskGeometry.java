@@ -31,6 +31,14 @@ public final class FluidMaskGeometry {
         return pixmapY(minMatrixY, height) / tileSize;
     }
 
+    /** Exact tile ID for one changed cell, independent of other dirty cells. */
+    public static int tileIndex(int matrixX, int matrixY, int width,
+                                int height, int tileSize) {
+        int columns = (width + tileSize - 1) / tileSize;
+        return (pixmapY(matrixY, height) / tileSize) * columns
+                + matrixX / tileSize;
+    }
+
     /** Guard against extra GL calls when dirty cells are spread across tiles. */
     public static boolean useFullUpload(int tileCount, int tileSize, int width,
                                         int height, int maxPatchUploads) {
