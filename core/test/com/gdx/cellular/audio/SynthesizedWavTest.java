@@ -27,6 +27,9 @@ public class SynthesizedWavTest {
     @Test public void deterministicAndRejectsCorruptCache() throws Exception {
         byte[] first = SynthesizedWav.generate(0, 0.3f);
         assertArrayEquals(first, SynthesizedWav.generate(0, 0.3f));
+        byte[] silent = first.clone();
+        for (int i = 44; i < silent.length; i++) silent[i] = 0;
+        assertFalse("Never keep a silent/corrupt cache", SynthesizedWav.isValidPcm(silent, 0.3f));
         first[0] = 'X';
         assertFalse(SynthesizedWav.isValidPcm(first, 0.3f));
         assertFalse(SynthesizedWav.isValidPcm(new byte[44], 0.3f));
