@@ -72,6 +72,15 @@ public final class FluidSurfaceRenderer implements Disposable {
     private long scanNanosLastFrame;
     private long uploadNanosLastFrame;
     private int textureUploadsLastFrame;
+    private int uploadedPixelsLastFrame;
+    private long scanWindowNanos;
+    private long uploadWindowNanos;
+    private long maxScanWindowNanos;
+    private long maxUploadWindowNanos;
+    private long changedWindowCells;
+    private long uploadedWindowPixels;
+    private int textureWindowUpdates;
+    private int metricWindowFrames;
     private int changedCellsLastFrame;
     private boolean lowDetail;
     private int slowFrames;
@@ -193,6 +202,7 @@ public final class FluidSurfaceRenderer implements Disposable {
             scanNanosLastFrame = System.nanoTime() - scanStart;
             changedCellsLastFrame = changed;
             textureUploadsLastFrame = 0;
+            uploadedPixelsLastFrame = 0;
             uploadNanosLastFrame = 0L;
             // Clearing the last cell MUST reach the texture to avoid stale
             // islands resurfacing when a later pool overlaps the old area.
@@ -202,7 +212,10 @@ public final class FluidSurfaceRenderer implements Disposable {
                         dirtyMinX, dirtyMinY, dirtyMaxX, dirtyMaxY);
                 uploadNanosLastFrame = System.nanoTime() - uploadStart;
             }
-            if (occupied == 0) return;
+            if (occupied == 0) {
+                logWaterMetrics(0, 0);
+                return;
+            }
 
             minX = Math.max(0, minX - 2);
             minY = Math.max(0, minY - 2);
@@ -238,22 +251,7 @@ public final class FluidSurfaceRenderer implements Disposable {
                     (float) (maxX + 1) / width, FluidMaskGeometry.topV(maxY, height));
             batch.end();
 
-            long now = System.nanoTime();
-            if (now - lastMetricsNanos >= 5_000_000_000L) {
-                long total = (long) width * height;
-                Gdx.app.log("ElementumFluid", "water-cells=" + occupied
-                        + " changed-cells=" + changedCellsLastFrame
-                        + " mask-uploads=" + textureUploadsLastFrame
-                        + " mask-scan-us=" + (scanNanosLastFrame / 1000L)
-                        + " mask-upload-us=" + (uploadNanosLastFrame / 1000L)
-                        + " shaded-grid-cells=" + (cellsWide * cellsHigh)
-                        + " grid-cells=" + total
-                        + " shader-region-percent="
-                        + (100L * cellsWide * cellsHigh / Math.max(1L, total))
-                        + " detail=" + (lowDetail ? "low" : "full")
-                        + " fps=" + Gdx.graphics.getFramesPerSecond());
-                lastMetricsNanos = now;
-            }
+            logWaterMetrics(occupied, cellsWide * cellsHigh);
         } catch (Throwable failure) {
             available = false;
             Gdx.app.error("ElementumFluid", "Smooth liquid pass disabled after error", failure);
@@ -276,8 +274,10 @@ public final class FluidSurfaceRenderer implements Disposable {
         if (FluidMaskGeometry.useFullUpload(tileCount, PATCH_SIZE,
                 width, height, MAX_PATCH_UPLOADS)) {
             maskTexture.draw(maskPixmap, 0, 0);
+            uploadedPixelsLastFrame = width * height;
             return 1;
         }
+        int pixels = 0;
         for (int row = firstRow; row <= lastRow; row++) {
             int tileY = row * PATCH_SIZE;
             int patchHeight = Math.min(PATCH_SIZE, height - tileY);
@@ -290,8 +290,10 @@ public final class FluidSurfaceRenderer implements Disposable {
                 tile.drawPixmap(maskPixmap, 0, 0,
                         tileX, tileY, patchWidth, patchHeight);
                 maskTexture.draw(tile, tileX, tileY);
+                pixels += patchWidth * patchHeight;
             }
         }
+        uploadedPixelsLastFrame = pixels;
         return tileCount;
     }
 
@@ -305,6 +307,55 @@ public final class FluidSurfaceRenderer implements Disposable {
             uploadPatches[index] = result;
         }
         return result;
+    }
+
+    /**
+     * Fixed five-second windows are more useful than a random last-frame
+     * sample: track actual mask scanning cost, uploads and avoided bandwidth.
+     * Renderer time is CPU-side wall time, not an unverified GPU timer.
+     */
+    private void logWaterMetrics(int occupied, int shadedCells) {
+        metricWindowFrames++;
+        scanWindowNanos += scanNanosLastFrame;
+        uploadWindowNanos += uploadNanosLastFrame;
+        maxScanWindowNanos = Math.max(maxScanWindowNanos, scanNanosLastFrame);
+        maxUploadWindowNanos = Math.max(maxUploadWindowNanos, uploadNanosLastFrame);
+        changedWindowCells += changedCellsLastFrame;
+        textureWindowUpdates += textureUploadsLastFrame;
+        uploadedWindowPixels += uploadedPixelsLastFrame;
+
+        long now = System.nanoTime();
+        if (lastMetricsNanos == 0L) {
+            lastMetricsNanos = now;
+            return;
+        }
+        if (now - lastMetricsNanos < 5_000_000_000L) return;
+
+        long total = (long) width * height;
+        Gdx.app.log("ElementumFluid", "frames=" + metricWindowFrames
+                + " water-cells=" + occupied
+                + " changed-cells-total=" + changedWindowCells
+                + " mask-uploads-total=" + textureWindowUpdates
+                + " uploaded-kib=" + (uploadedWindowPixels * 4L / 1024L)
+                + " avg-mask-scan-us=" + (scanWindowNanos / Math.max(1, metricWindowFrames) / 1000L)
+                + " max-mask-scan-us=" + (maxScanWindowNanos / 1000L)
+                + " avg-mask-upload-us=" + (uploadWindowNanos / Math.max(1, metricWindowFrames) / 1000L)
+                + " max-mask-upload-us=" + (maxUploadWindowNanos / 1000L)
+                + " shaded-grid-cells=" + shadedCells
+                + " grid-cells=" + total
+                + " shader-region-percent=" + (100L * shadedCells / Math.max(1L, total))
+                + " detail=" + (lowDetail ? "low" : "full")
+                + " fps=" + Gdx.graphics.getFramesPerSecond());
+
+        metricWindowFrames = 0;
+        scanWindowNanos = 0L;
+        uploadWindowNanos = 0L;
+        maxScanWindowNanos = 0L;
+        maxUploadWindowNanos = 0L;
+        changedWindowCells = 0L;
+        uploadedWindowPixels = 0L;
+        textureWindowUpdates = 0;
+        lastMetricsNanos = now;
     }
 
     @Override
