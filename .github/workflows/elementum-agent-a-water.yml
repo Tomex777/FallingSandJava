@@ -1,0 +1,54 @@
+name: Elementum Agent A - GPU Water Compile
+
+on:
+  push:
+    branches:
+      - 'agents/elementum-a1-gpu-water-*'
+  pull_request:
+    branches:
+      - feature/elementum-abr-visual-audio-20261022
+    paths:
+      - 'core/src/com/gdx/cellular/effects/**'
+      - 'core/test/com/gdx/cellular/effects/**'
+      - '.github/workflows/elementum-agent-a-water.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elementum-agent-a-water-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Verify Agent A geometry regression + Android compilation
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace :core:test :android:assembleDebug
+      - name: Keep truthful current-head test/build evidence
+        if: always()
+        run: |
+          mkdir -p android/build/agent-a-water-evidence
+          printf 'sha=%s\nref=%s\nrun=%s\n' "${GITHUB_SHA}" "${GITHUB_REF}" "${GITHUB_RUN_ID}" > android/build/agent-a-water-evidence/provenance.txt
+          if [ -f android/build/outputs/apk/debug/android-debug.apk ]; then
+            sha256sum android/build/outputs/apk/debug/android-debug.apk > android/build/agent-a-water-evidence/apk-sha256.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: elementum-agent-a-gpu-water-compile
+          path: |
+            android/build/agent-a-water-evidence/
+            core/build/test-results/test/
+            core/build/reports/tests/test/
+          if-no-files-found: warn
