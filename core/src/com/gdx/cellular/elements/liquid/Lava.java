@@ -43,17 +43,13 @@ public class Lava extends Liquid {
 
     @Override
     public void checkIfDead(CellularMatrix matrix) {
+        if (isDead()) return;
         if (this.temperature <= 0) {
+            // Solidifying lava must never petrify surrounding WATER, OIL,
+            // PETROL, BLOOD, etc. The previous 3x3 flood changed unrelated
+            // liquids into stone and destroyed their mass/state in one frame.
             dieAndReplace(matrix, ElementType.STONE);
-            for (int x = -1; x <= 1; x++) {
-                for (int y = -1; y <= 1; y++) {
-                    if (x == 0 && y == 0) continue;
-                    Element element = matrix.get(this.getMatrixX() + x, this.getMatrixY() + y);
-                    if (element instanceof Liquid) {
-                        element.dieAndReplace(matrix, ElementType.STONE);
-                    }
-                }
-            }
+            return;
         }
         if (this.health <= 0) {
             die(matrix);
@@ -74,7 +70,8 @@ public class Lava extends Liquid {
 
     @Override
     public boolean receiveCooling(CellularMatrix matrix, int cooling) {
-        this.temperature -= cooling;
+        if (cooling <= 0 || isDead()) return false;
+        this.temperature = Math.max(0, this.temperature - cooling);
         checkIfDead(matrix);
         return true;
     }
