@@ -54,7 +54,9 @@ public final class FluidSurfaceRenderer implements Disposable {
             + "  if(coverage < 0.012) discard;\n"
             + "  float top = max(0.0,c-up);\n"
             + "  float wave = u_detail > 0.5 ? sin(uv.x*103.0 + u_time*2.1 + uv.y*21.0)*0.032 : 0.0;\n"
-            + "  float shine = (top * 0.22) + (r-l)*0.055 + wave;\n"
+            // Animate highlights only on exposed top edges: a motionless
+            // deep pool should not shimmer across its whole interior.
+            + "  float shine = (top * 0.22) + (r-l)*0.055 + wave*top;\n"
             + "  vec3 base = vec3(0.08,0.39,0.70);\n"
             + "  vec3 lit = clamp(base + vec3(shine*0.75, shine, shine*1.12),0.0,1.0);\n"
             + "  gl_FragColor = vec4(lit*v_color.rgb, coverage*0.91*v_color.a);\n"
