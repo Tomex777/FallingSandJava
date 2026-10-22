@@ -7,13 +7,34 @@ package_name="com.tomex.elementum"
 activity="${package_name}/com.gdx.cellular.AndroidLauncher"
 
 mkdir -p "$evidence"
-trap 'adb logcat -d > "$evidence/logcat.txt" 2>/dev/null || true' EXIT
+# On early install/launch failure, retain the actual screen and package state,
+# not just the shell's "exit 1". Release artifacts are validated independently
+# of the (potentially failing) UI interaction suite.
+release_exit() {
+  local code=$?
+  trap - EXIT
+  adb logcat -d > "$evidence/logcat.txt" 2>/dev/null || true
+  adb shell dumpsys package "$package_name" > "$evidence/package-state.txt" 2>/dev/null || true
+  adb shell dumpsys gfxinfo "$package_name" > "$evidence/gfxinfo.txt" 2>/dev/null || true
+  if [ "$code" -ne 0 ]; then
+    adb exec-out screencap -p > "$evidence/elementum-release-failure.png" 2>/dev/null || true
+    echo "Release install smoke FAILED (exit $code); saved package-state, screen and logcat" >&2
+  fi
+  exit "$code"
+}
+trap release_exit EXIT
+printf 'source_sha=%s\napi_level=%s\napk=%s\n' "${GITHUB_SHA:-local-unknown}" \
+  "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" "$apk" > "$evidence/provenance.txt"
 
 if ! adb logcat -c; then
   echo "Release smoke could not clear logcat; continuing with launch validation" >&2
   adb wait-for-device
 fi
 
+# Use the same logical portrait input space as the runtime smoke.
+# Android 8 may still report a larger physical screencap buffer.
+adb shell wm size 360x800
+adb shell wm density 160
 adb install -r "$apk"
 adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb shell am force-stop "$package_name"
@@ -45,7 +66,32 @@ if [ "$screenshot_bytes" -le 5000 ]; then
 fi
 printf 'screenshot_bytes=%s\n' "$screenshot_bytes" > "$evidence/screenshot-summary.txt"
 
+# ABR means an installed release must ACTUALLY respond to input. A launch
+# screenshot with no brush test is insufficient evidence of a usable APK.
+adb shell input tap 239 765  # Pause real simulation, allow stationary paint.
+adb shell input tap 90 724   # Select Water in lower of two shelf rows.
+adb shell input swipe 112 250 236 310 420
+# Fluid instrumentation emits every five seconds, not once per brush tap.
+# Keep the paused water stationary long enough to obtain a genuine nonzero
+# water-cells sample before resuming simulation.
+sleep 6
+adb exec-out screencap -p > "$evidence/elementum-release-water-paused.png"
+python3 .github/scripts/elementum-assert-water-pixels.py \
+  "$evidence/elementum-release-water-paused.png"
+adb shell input tap 239 765
+sleep 0.45
+adb exec-out screencap -p > "$evidence/elementum-release-water-moving.png"
+test -n "$(adb shell pidof "$package_name" | tr -d '\r')"
+
 adb logcat -d > "$evidence/logcat.txt"
+if ! grep -q 'ElementumInput.*material=WATER' "$evidence/logcat.txt"; then
+  echo "CI-signed release did not register the actual Water material tap" >&2
+  exit 1
+fi
+if ! grep -Eq 'ElementumFluid.*water-cells=[1-9][0-9]*' "$evidence/logcat.txt"; then
+  echo "CI-signed release did not render any water cells" >&2
+  exit 1
+fi
 if ! grep -Eq 'ElementumUI.*logical=360x[0-9]+' "$evidence/logcat.txt"; then
   echo "Elementum release did not report the expected 360-unit mobile UI width" >&2
   grep 'ElementumUI' "$evidence/logcat.txt" >&2 || true

@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 evidence=android/build/runtime-smoke
 mkdir -p "$evidence"
 trap 'adb logcat -d > "$evidence/logcat.txt" || true' EXIT
+
+# Keep a screenshot and actionable shell failure context when an assertion
+# aborts before the rest of the 900-line interaction suite. This is *extra*
+# evidence, not a suppression of the failure.
+capture_failed_command() {
+  local status="$1" line="$2" command="$3"
+  trap - ERR
+  printf 'exit=%s\nline=%s\ncommand=%s\n' "$status" "$line" "$command" > "$evidence/first-failure.txt"
+  echo "Elementum smoke failed at line $line: $command (status=$status)" >&2
+  adb exec-out screencap -p > "$evidence/elementum-first-failure.png" 2>/dev/null || true
+  adb shell dumpsys gfxinfo com.tomex.elementum > "$evidence/first-failure-gfxinfo.txt" 2>/dev/null || true
+}
+trap 'capture_failed_command "$?" "$LINENO" "$BASH_COMMAND"' ERR
 
 DESIGN_W=360
 DESIGN_H=800
@@ -309,6 +322,17 @@ capture material-shelf-scrolled
 swipe 58 675 312 675 420
 sleep 1
 capture material-shelf-restored
+# A visible swipe is not sufficient: verify the canvas itself remains bit-for-bit
+# untouched while a finger horizontally navigates either shelf row. This
+# assertion is valid before the fixture adds any live materials.
+if ! same_canvas_pixels "$evidence/elementum-startup.png" "$evidence/elementum-material-shelf-scrolled.png"; then
+  echo "ABR FAILURE: material shelf horizontal swipe painted or disturbed the canvas" >&2
+  exit 1
+fi
+if ! same_canvas_pixels "$evidence/elementum-startup.png" "$evidence/elementum-material-shelf-restored.png"; then
+  echo "ABR FAILURE: restoring the shelf modified the canvas" >&2
+  exit 1
+fi
 
 open_more
 capture more-sheet
@@ -323,9 +347,17 @@ open_help_sheet
 sleep 1
 capture help-sheet
 adb logcat -d > "$evidence/logcat-help.txt"
-grep -q 'ElementumUI.*help-content-fits=true' "$evidence/logcat-help.txt"
+# Check negative geometry first; the previous bare grep for "true"
+# exited without an explanation even when the app explicitly logged overflow.
 if grep -q 'ElementumUI.*help-content-fits=false' "$evidence/logcat-help.txt"; then
-  echo "Help sheet instructions overflow its available screen height" >&2
+  grep 'ElementumUI.*help-content-fits=' "$evidence/logcat-help.txt" | tail -4 > "$evidence/help-fit-failure.txt"
+  echo "ABR FAILURE: Help instructions overflow the available height (see help-fit-failure.txt and real help-sheet screenshot)" >&2
+  cat "$evidence/help-fit-failure.txt" >&2
+  exit 1
+fi
+if ! grep -q 'ElementumUI.*help-content-fits=true' "$evidence/logcat-help.txt"; then
+  echo "ABR FAILURE: Help UI did not emit successful fit telemetry" >&2
+  grep 'ElementumUI' "$evidence/logcat-help.txt" | tail -15 >&2 || true
   exit 1
 fi
 adb shell input keyevent KEYCODE_BACK
@@ -355,6 +387,13 @@ capture material-picker-restored
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture material-picker-back-dismissed
+# Full categorized picker swipes occur over the canvas viewport. After closing
+# it, compare unchanged sandbox pixels with the no-material pre-picker frame;
+# otherwise an invisible touch leak may have painted under the modal.
+if ! same_canvas_pixels "$evidence/elementum-tool-draw.png" "$evidence/elementum-material-picker-back-dismissed.png"; then
+  echo "ABR FAILURE: the two-row categorized picker painted the sandbox during interaction" >&2
+  exit 1
+fi
 assert_foreground material-picker-back-dismiss
 test -n "$(adb shell pidof com.tomex.elementum)"
 tap 310 715
@@ -941,6 +980,30 @@ if [ "$compact_browsers" -le "$baseline_browsers" ]; then
 fi
 if grep -q 'ElementumUI.*scene-close-in-bounds=false' "$evidence/logcat-compact.txt"; then
   echo "Compact handset has an off-screen scene Close button" >&2
+  exit 1
+fi
+adb shell input keyevent KEYCODE_BACK
+
+# Help's former 12-unit text overflow must also be fixed at the minimum
+# 320x568 portrait viewport. Open the REAL compact modal, exercise vertical
+# touch scrolling (whether needed or not), capture both states, and verify
+# fresh fit telemetry rather than relying on an earlier 360x800 log.
+compact_help_before=$(adb logcat -d | grep -c 'ElementumUI.*help-content-fits=true' || true)
+tap 298 536  # More button at physical 320x568.
+tap 277 412  # Help item, last column on third row.
+capture compact-help
+adb shell input swipe 175 440 175 315 380
+sleep 1
+capture compact-help-after-scroll
+adb logcat -d > "$evidence/logcat-compact-help.txt"
+compact_help_after=$(grep -c 'ElementumUI.*help-content-fits=true' "$evidence/logcat-compact-help.txt" || true)
+if [ "$compact_help_after" -le "$compact_help_before" ]; then
+  echo "ABR FAILURE: compact Help sheet cannot fit/scroll instructions" >&2
+  grep 'ElementumUI.*help-content-fits=' "$evidence/logcat-compact-help.txt" | tail -4 >&2 || true
+  exit 1
+fi
+if grep -q 'ElementumUI.*help-close-in-bounds=false' "$evidence/logcat-compact-help.txt"; then
+  echo "ABR FAILURE: compact Help Close button is out of bounds" >&2
   exit 1
 fi
 adb shell input keyevent KEYCODE_BACK
