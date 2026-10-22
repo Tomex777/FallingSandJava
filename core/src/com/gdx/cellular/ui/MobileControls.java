@@ -856,7 +856,9 @@ public class MobileControls {
             actionLabel = existing == null ? "--" : "Load";
         }
         TextButton action = createFlatButton(actionLabel, CONTROL, saveMode ? ACCENT : Color.valueOf("4C86C6"));
-        action.getLabel().setFontScale(actionLabel.length() > 6 ? 0.50f : 0.58f);
+        // At source font size 20 a 0.50 scale renders below 10px on compact
+        // Android screens. 0.65 keeps Overwrite readable within its 82px cell.
+        action.getLabel().setFontScale(actionLabel.length() > 6 ? 0.65f : 0.68f);
         if (!saveMode && existing == null) {
             action.setTouchable(Touchable.disabled);
             action.setColor(Color.valueOf("666666"));
