@@ -88,6 +88,8 @@ public class MobileControls {
     private final Table sceneList;
     private final ScrollPane scenePicker;
     private final Table helpSheet;
+    private final Table helpContent;
+    private final ScrollPane helpScroller;
     private final Table clearSheet;
 
     private final Map<ElementType, TextButton> pickerButtons = new EnumMap<>(ElementType.class);
@@ -233,6 +235,15 @@ public class MobileControls {
         helpSheet.top().left();
         helpSheet.pad(10f);
         helpSheet.setBackground(opaquePanelBackground);
+        // Header/Close remain fixed as instructions scroll on small screens.
+        helpContent = new Table();
+        helpContent.top().left();
+        helpScroller = new ScrollPane(helpContent, new ScrollPane.ScrollPaneStyle());
+        helpScroller.setScrollingDisabled(true, false);
+        helpScroller.setOverscroll(false, false);
+        helpScroller.setFlickScroll(true);
+        helpScroller.setFadeScrollBars(false);
+        helpScroller.setCancelTouchFocus(true);
         buildHelpSheet();
         helpSheet.setVisible(false);
         stage.addActor(helpSheet);
@@ -687,22 +698,28 @@ public class MobileControls {
     }
 
     private void buildHelpSheet() {
-        Label title = sectionLabel("Elementum");
-        helpSheet.add(title).left().padBottom(8f);
+        // A single-column sheet avoids the Help Close button inheriting the
+        // instruction rows' wider two-column layout on compact devices.
+        Table header = new Table();
+        header.add(sectionLabel("Elementum")).growX().left();
         TextButton close = createSheetCloseButton(() -> {
             helpSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "help=closed");
         });
-        helpSheet.add(close).width(54f).height(44f).right().padBottom(8f);
+        header.add(close).width(54f).height(44f).right();
+        helpSheet.add(header).growX().padBottom(6f);
         helpSheet.row();
-        addHelpLine("Draw", "One finger tap or stroke");
-        addHelpLine("Navigate", "Two fingers to pan or pinch");
-        addHelpLine("Materials", "Two rows. Swipe horizontally.");
-        addHelpLine("Tool", "Tap the tool button to cycle Draw, Heat and Cool");
-        addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
-        addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
-        addHelpLine("Scenes", "Open More, then Save or Load");
-        addHelpLine("Pause", "Drawing and tools still work while paused");
+        helpSheet.add(helpScroller).grow();
+
+        addHelpLine("Draw", "Tap or drag one finger");
+        addHelpLine("Navigate", "Pinch or pan with two fingers");
+        addHelpLine("Materials", "Swipe the two-row material shelf");
+        addHelpLine("Tool", "Cycle Draw, Heat and Cool");
+        addHelpLine("Source", "More > Source, then tap the sandbox");
+        addHelpLine("Brush", "-/+ changes size; tap shape to switch");
+        addHelpLine("Scenes", "More > Save or Load");
+        addHelpLine("Pause", "You can still draw while paused");
+        helpContent.pack();
     }
 
     private void addHelpLine(String title, String detail) {
@@ -712,9 +729,9 @@ public class MobileControls {
         detailLabel.setFontScale(0.70f);
         detailLabel.setColor(MUTED);
         detailLabel.setWrap(true);
-        helpSheet.add(titleLabel).width(72f).left().padBottom(6f);
-        helpSheet.add(detailLabel).width(220f).left().padBottom(6f);
-        helpSheet.row();
+        helpContent.add(titleLabel).width(72f).left().padBottom(7f);
+        helpContent.add(detailLabel).width(220f).left().padBottom(7f);
+        helpContent.row();
     }
 
     private void showHelpSheet() {
@@ -722,10 +739,17 @@ public class MobileControls {
         helpSheet.setVisible(true);
         helpSheet.invalidateHierarchy();
         helpSheet.validate();
-        Gdx.app.log("ElementumUI", "help-content-fits="
-                + (helpSheet.getPrefHeight() <= helpSheet.getHeight() + 0.5f)
-                + " preferred=" + Math.round(helpSheet.getPrefHeight())
-                + " available=" + Math.round(helpSheet.getHeight()));
+        helpScroller.setScrollY(0f);
+        helpScroller.layout();
+        // "Fits" means no inaccessible/clipped rows: tall content can scroll.
+        boolean helpAccessible = helpScroller.getHeight() >= 32f
+                && helpScroller.getWidth() >= 240f
+                && (helpContent.getPrefHeight() <= helpScroller.getHeight() + 0.5f
+                    || !helpScroller.isScrollingDisabledY());
+        Gdx.app.log("ElementumUI", "help-content-fits=" + helpAccessible
+                + " preferred=" + Math.round(helpContent.getPrefHeight())
+                + " viewport=" + Math.round(helpScroller.getHeight())
+                + " scrollable=" + (helpContent.getPrefHeight() > helpScroller.getHeight() + 0.5f));
         Gdx.app.log("ElementumInput", "help=open");
     }
 
@@ -1352,11 +1376,10 @@ public class MobileControls {
         float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
         panelWidth = Math.max(300f, panelWidth);
         float x = (width - panelWidth) / 2f;
-        // The expandable shelf sits above the original dock. The compact
-        // secondary sheets keep their familiar placement; while open, the
-        // shelf is hidden so no material chips are covered or accidentally hit.
-        float y = DOCK_HEIGHT + 42f + 4f;
-        float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
+        // All sheets begin above BOTH stacked material rows. This prevents
+        // the Help/More/Save panels covering the upper row on small phones.
+        float y = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
+        float materialY = y;
         float available = Math.max(120f, height - y - 14f);
 
         // Reserve the complete 2 x 44px tile surface even on compact phones.
