@@ -93,6 +93,30 @@ public class WaterPhaseTransitionsTest {
     }
 
     @Test
+    public void phaseChangedNeighborStopsMovementInsteadOfResurrectingLava() {
+        CellularMatrix matrix = new CellularMatrix(7, 7, 1, null);
+        matrix.useChunks = false;
+        Water water = (Water) matrix.spawnElementByMatrix(3, 4, ElementType.WATER);
+        Lava lava = (Lava) matrix.spawnElementByMatrix(3, 3, ElementType.LAVA);
+        lava.temperature = 1;
+        // Avoid periodic special reaction frame so we exercise the ordinary
+        // Water->Lava cooling path, which previously returned false after the
+        // Lava had been replaced in the matrix.
+        int oldFrame = com.gdx.cellular.CellularAutomaton.frameCount;
+        com.gdx.cellular.CellularAutomaton.frameCount = 0;
+        try {
+            assertTrue("A dead/replaced Lava is no longer a valid collision target",
+                    water.interactWith(lava, matrix));
+            assertTrue(lava.isDead());
+            assertTrue(matrix.get(3, 3) instanceof Stone);
+            assertSame(water, matrix.get(3, 4));
+            assertEquals(2, matrix.countNonEmptyCells());
+        } finally {
+            com.gdx.cellular.CellularAutomaton.frameCount = oldFrame;
+        }
+    }
+
+    @Test
     public void savedPartialThermalStatesSurviveRoundTrip() {
         Water water = new Water(1, 1);
         water.restoreSaveState("23,61");
