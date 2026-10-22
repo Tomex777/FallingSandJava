@@ -55,6 +55,7 @@ public class MobileControls {
     private static final float QUICK_STRIP_HEIGHT = 90f;
     private static final Color PANEL = Color.valueOf("14191F");
     private static final Color PANEL_ALT = Color.valueOf("212831");
+    private static final Color CARD_ACTIVE = Color.valueOf("33414A");
     private static final Color CONTROL = Color.valueOf("202832");
     private static final Color CONTROL_PRESSED = Color.valueOf("33424D");
     private static final Color ACCENT = Color.valueOf("64D0DC");
@@ -1180,8 +1181,11 @@ public class MobileControls {
 
         @Override
         public void draw(Batch batch, float x, float y, float w, float h) {
-            Color previous = batch.getColor().cpy();
-            batch.setColor(active ? Color.valueOf("33414A") : PANEL_ALT);
+            // Never allocate Colors from a per-frame draw callback: even on a
+            // 60Hz phone, that becomes thousands of short-lived objects.
+            Color previous = batch.getColor();
+            float red = previous.r, green = previous.g, blue = previous.b, alpha = previous.a;
+            batch.setColor(active ? CARD_ACTIVE : PANEL_ALT);
             batch.draw(flatWhiteTexture, x + 1f, y + 1f, Math.max(1f, w - 2f), Math.max(1f, h - 2f));
             // Every card has its own material tint as a slim, high-contrast
             // swatch. A selected card gets an additional clear accent outline.
@@ -1191,7 +1195,7 @@ public class MobileControls {
                 batch.setColor(ACCENT);
                 batch.draw(flatWhiteTexture, x, y, w, 1.5f);
             }
-            batch.setColor(previous);
+            batch.setColor(red, green, blue, alpha);
         }
     }
 
