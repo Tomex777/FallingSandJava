@@ -96,8 +96,21 @@ public abstract class Liquid extends Element {
                 lastValidLocation.y = modifiedMatrixY;
 
             } else {
-                matrix.setElementAtIndex(getMatrixX(), getMatrixY(), ElementType.EMPTYCELL.createElementByMatrix(getMatrixX(), getMatrixY()));
-                return;
+                // An impermeable world boundary is not a drain. Previously
+                // each liquid (including Water) was silently deleted as soon
+                // as a falling particle touched row zero or a side wall.
+                // Settle at the last reachable cell and preserve the material.
+                moveToLastValid(matrix, lastValidLocation);
+                if (!matrix.isWithinYBounds(modifiedMatrixY)) {
+                    vel.y = 0f;
+                    if (modifiedMatrixY < 0) {
+                        spreadAlongFloor(matrix);
+                    }
+                }
+                if (!matrix.isWithinXBounds(modifiedMatrixX)) {
+                    vel.x *= -0.3f;
+                }
+                break;
             }
         }
         applyHeatToNeighborsIfIgnited(matrix);
@@ -122,6 +135,29 @@ public abstract class Liquid extends Element {
 //        if (yHasNotMovedBeyondThreshold()) {
 //            this.vel.x = 0;
 //        }
+    }
+
+    /**
+     * World edges behave like solid walls: water can settle and redistribute,
+     * but may not disappear or tunnel through an occupied neighbor.
+     * A single side-step prevents a floor-bound puddle from pinning itself
+     * against the first cell while keeping the per-step cost bounded.
+     */
+    private void spreadAlongFloor(CellularMatrix matrix) {
+        if (getMatrixY() != 0) return;
+        int previousX = getMatrixX();
+        int direction = Math.random() < 0.5 ? -1 : 1;
+        Element neighbor = matrix.get(previousX + direction, 0);
+        if (!(neighbor instanceof EmptyCell)) {
+            direction = -direction;
+            neighbor = matrix.get(previousX + direction, 0);
+        }
+        if (neighbor instanceof EmptyCell) {
+            swapPositions(matrix, neighbor, previousX + direction, 0);
+            vel.x = direction * 60f;
+            matrix.reportToChunkActive(previousX, 0);
+            matrix.reportToChunkActive(this);
+        }
     }
 
     private boolean yHasNotMovedBeyondThreshold() {
