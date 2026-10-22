@@ -5,6 +5,9 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef;
@@ -18,6 +21,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gdx.cellular.CellularMatrix;
@@ -47,11 +51,11 @@ public class MobileControls {
     private static final float UI_MIN_HEIGHT = 640f;
     private static final float DOCK_HEIGHT = 52f;
     private static final float QUICK_STRIP_HEIGHT = 90f;
-    private static final Color PANEL = Color.valueOf("12161C");
-    private static final Color PANEL_ALT = Color.valueOf("1A2028");
-    private static final Color CONTROL = Color.valueOf("252C35");
-    private static final Color CONTROL_PRESSED = Color.valueOf("34404D");
-    private static final Color ACCENT = Color.valueOf("55C7E8");
+    private static final Color PANEL = Color.valueOf("14191F");
+    private static final Color PANEL_ALT = Color.valueOf("212831");
+    private static final Color CONTROL = Color.valueOf("202832");
+    private static final Color CONTROL_PRESSED = Color.valueOf("33424D");
+    private static final Color ACCENT = Color.valueOf("64D0DC");
     private static final Color DANGER = Color.valueOf("8C353A");
     private static final Color MUTED = Color.valueOf("9AA6B2");
 
@@ -61,6 +65,9 @@ public class MobileControls {
     private final CellularMatrix matrix;
     private final Skin skin;
     private final Texture opaquePanelTexture;
+    private final Texture flatWhiteTexture;
+    private final BitmapFont mobileFont;
+    private final boolean ownsMobileFont;
     private final TextureRegionDrawable opaquePanelBackground;
 
     private final Table quickBar;
@@ -106,6 +113,36 @@ public class MobileControls {
         this.inputManager = inputManager;
         this.matrix = matrix;
         this.skin = Skins.getSkin("uiskin");
+        // Render mobile labels with device anti-aliased vector glyphs rather
+        // than scaling the small aliased legacy bitmap font. This is optional:
+        // missing system fonts still leave every control fully functional.
+        BitmapFont generatedFont = skin.getFont("default-font");
+        boolean generated = false;
+        if (Gdx.app.getType() == com.badlogic.gdx.Application.ApplicationType.Android) {
+            com.badlogic.gdx.files.FileHandle systemFont =
+                    Gdx.files.absolute("/system/fonts/Roboto-Regular.ttf");
+            if (systemFont.exists()) {
+                try {
+                    FreeTypeFontGenerator generator = new FreeTypeFontGenerator(systemFont);
+                    try {
+                        FreeTypeFontGenerator.FreeTypeFontParameter p =
+                                new FreeTypeFontGenerator.FreeTypeFontParameter();
+                        p.size = 40;
+                        p.minFilter = Texture.TextureFilter.Linear;
+                        p.magFilter = Texture.TextureFilter.Linear;
+                        generatedFont = generator.generateFont(p);
+                        generatedFont.getData().setScale(0.52f);
+                        generated = true;
+                    } finally {
+                        generator.dispose();
+                    }
+                } catch (Throwable unavailableFont) {
+                    Gdx.app.error("ElementumUI", "platform-font-fallback", unavailableFont);
+                }
+            }
+        }
+        mobileFont = generatedFont;
+        ownsMobileFont = generated;
         // The atlas "white" region is translucent around its edges; tinted
         // modal panels let busy sand show through instructional text. Use a
         // real opaque 1px texture for each shared sheet background instead.
@@ -116,6 +153,11 @@ public class MobileControls {
         panelPixel.dispose();
         opaquePanelBackground = new TextureRegionDrawable(
                 new TextureRegion(opaquePanelTexture));
+        Pixmap whitePixel = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        whitePixel.setColor(Color.WHITE);
+        whitePixel.fill();
+        flatWhiteTexture = new Texture(whitePixel);
+        whitePixel.dispose();
         // Keep touch controls phone-sized on high-density displays. A ScreenViewport
         // treated the fixed 44-90 unit controls as physical pixels, shrinking the
         // whole dock to roughly one third of a 1080px phone. ExtendViewport keeps
@@ -224,7 +266,7 @@ public class MobileControls {
         quickBar.setTouchable(Touchable.childrenOnly);
 
         dock = new Table();
-        dock.setBackground(skin.newDrawable("white", Color.valueOf("0E1217")));
+        dock.setBackground(solidDrawable(Color.valueOf("10151B")));
         buildDock();
         quickBar.add(dock).height(DOCK_HEIGHT);
         stage.addActor(quickBar);
@@ -266,7 +308,7 @@ public class MobileControls {
         addQuickMaterial("Petrol", ElementType.PETROL, 60f);
         addQuickMaterial("Bolt", ElementType.LIGHTNING, 60f);
 
-        TextButton erase = createFlatButton("Erase", DANGER.cpy().lerp(Color.BLACK, 0.24f), DANGER);
+        TextButton erase = createFlatButton("Erase", PANEL_ALT, DANGER);
         erase.getLabel().setFontScale(0.70f);
         quickButtons.put(ElementType.EMPTYCELL, erase);
         erase.addListener(new ClickListener() {
@@ -305,8 +347,8 @@ public class MobileControls {
 
     private void addQuickMaterial(String label, ElementType type, float width) {
         Color color = materialColor(type);
-        TextButton button = createFlatButton(label, color.cpy().lerp(Color.BLACK, 0.32f), color);
-        button.getLabel().setFontScale(0.70f);
+        TextButton button = createMaterialButton(label, color);
+        button.getLabel().setFontScale(0.74f);
         quickButtons.put(type, button);
         button.addListener(new ClickListener() {
             @Override
@@ -412,8 +454,8 @@ public class MobileControls {
     }
 
     private void addCategoryButton(String name, Color tint) {
-        TextButton button = createFlatButton(name, tint.cpy().lerp(Color.BLACK, 0.38f), tint);
-        button.getLabel().setFontScale(0.75f);
+        TextButton button = createFlatButton(name, PANEL_ALT, ACCENT);
+        button.getLabel().setFontScale(0.73f);
         categoryButtons.put(name, button);
         button.addListener(new ClickListener() {
             @Override
@@ -457,8 +499,8 @@ public class MobileControls {
             TextButton button = pickerButtons.get(type);
             if (button == null) {
                 Color color = materialColor(type);
-                button = createFlatButton(displayName(type), color.cpy().lerp(Color.BLACK, 0.32f), color);
-                button.getLabel().setFontScale(0.70f);
+                button = createMaterialButton(displayName(type), color);
+                button.getLabel().setFontScale(0.74f);
                 button.getLabel().setWrap(true);
                 pickerButtons.put(type, button);
                 final ElementType selectedType = type;
@@ -1101,13 +1143,55 @@ public class MobileControls {
         return button;
     }
 
+    private TextButton createMaterialButton(String label, Color tint) {
+        TextButtonStyle style = new TextButtonStyle();
+        style.up = new MaterialCardDrawable(tint, false);
+        style.down = new MaterialCardDrawable(tint, true);
+        style.checked = new MaterialCardDrawable(tint, true);
+        style.over = style.up;
+        style.font = mobileFont;
+        style.fontColor = Color.valueOf("EDF2F5");
+        style.checkedFontColor = Color.WHITE;
+        return new TextButton(label, style);
+    }
+
+    private class MaterialCardDrawable extends BaseDrawable {
+        private final Color color;
+        private final boolean active;
+
+        MaterialCardDrawable(Color color, boolean active) {
+            this.color = color;
+            this.active = active;
+        }
+
+        @Override
+        public void draw(Batch batch, float x, float y, float w, float h) {
+            Color previous = batch.getColor().cpy();
+            batch.setColor(active ? Color.valueOf("33414A") : PANEL_ALT);
+            batch.draw(flatWhiteTexture, x + 1f, y + 1f, Math.max(1f, w - 2f), Math.max(1f, h - 2f));
+            // Every card has its own material tint as a slim, high-contrast
+            // swatch. A selected card gets an additional clear accent outline.
+            batch.setColor(color);
+            batch.draw(flatWhiteTexture, x + 1f, y + h - 4f, Math.max(1f, w - 2f), 3f);
+            if (active) {
+                batch.setColor(ACCENT);
+                batch.draw(flatWhiteTexture, x, y, w, 1.5f);
+            }
+            batch.setColor(previous);
+        }
+    }
+
+    private TextureRegionDrawable solidDrawable(Color tint) {
+        return new TextureRegionDrawable(new TextureRegion(flatWhiteTexture)).tint(tint);
+    }
+
     private TextButtonStyle flatStyle(Color base, Color checked, Color fontColor) {
         TextButtonStyle style = new TextButtonStyle();
-        style.up = skin.newDrawable("white", base);
-        style.down = skin.newDrawable("white", base.cpy().lerp(Color.WHITE, 0.10f));
-        style.over = skin.newDrawable("white", base.cpy().lerp(Color.WHITE, 0.06f));
-        style.checked = skin.newDrawable("white", checked);
-        style.font = skin.getFont("default-font");
+        style.up = solidDrawable(base);
+        style.down = solidDrawable(base.cpy().lerp(Color.WHITE, 0.08f));
+        style.over = solidDrawable(base.cpy().lerp(Color.WHITE, 0.04f));
+        style.checked = solidDrawable(checked);
+        style.font = mobileFont;
         style.fontColor = fontColor;
         // Selected materials/tools use saturated cyan, sand and heat colors.
         // White-on-cyan was hard to read: choose ink on brighter selections.
@@ -1120,8 +1204,8 @@ public class MobileControls {
     }
 
     private Label sectionLabel(String text) {
-        Label label = new Label(text, skin);
-        label.setFontScale(0.72f);
+        Label label = new Label(text, new Label.LabelStyle(mobileFont, Color.WHITE));
+        label.setFontScale(0.79f);
         label.setColor(Color.valueOf("EEF4F8"));
         return label;
     }
@@ -1293,5 +1377,7 @@ public class MobileControls {
     public void dispose() {
         stage.dispose();
         opaquePanelTexture.dispose();
+        flatWhiteTexture.dispose();
+        if (ownsMobileFont) mobileFont.dispose();
     }
 }
