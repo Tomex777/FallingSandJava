@@ -5,7 +5,6 @@ import com.badlogic.gdx.math.Vector3;
 import com.gdx.cellular.CellularAutomaton;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.Element;
-import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.elements.EmptyCell;
 import com.gdx.cellular.elements.gas.Gas;
 import com.gdx.cellular.elements.solid.Solid;
