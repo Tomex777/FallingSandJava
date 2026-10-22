@@ -21,6 +21,7 @@ import com.gdx.cellular.ui.MatrixActor;
 import com.gdx.cellular.ui.MobileControls;
 import com.gdx.cellular.util.ElementColumnStepper;
 import com.gdx.cellular.util.GameManager;
+import com.gdx.cellular.util.SimulationPartitions;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -48,10 +49,9 @@ public class CellularAutomaton extends ApplicationAdapter {
     private int numThreads = 12;
     private boolean useMultiThreading = true;
     private static final int MAX_SIMULATION_WORKERS = 6;
-    // Two active worker stripes are separated by one idle stripe. The idle
-    // stripe must exceed twice Petrol's ordinary lateral spread (6 + 2).
-    // Otherwise nearby workers can modify overlapping grid cells concurrently.
-    private static final int MIN_SAFE_INTERLEAVED_STRIPE_WIDTH = 17;
+    // Petrol disperses by up to 6+2 cells sideways; two active stripes may
+    // both reach an idle stripe. SimulationPartitions tests this threshold.
+    private static final int MAX_ORDINARY_SPREAD_RADIUS = 8;
     private boolean warnedAboutSerialGrid;
     private ExecutorService simulationExecutor;
     private int simulationColumnCount;
@@ -208,8 +208,8 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrix.useChunks = useChunks;
 
 		long simulationStartNanos = System.nanoTime();
-		boolean overlappingWorkerStripes = matrix.innerArraySize / Math.max(1, numThreads)
-				< MIN_SAFE_INTERLEAVED_STRIPE_WIDTH;
+		boolean overlappingWorkerStripes = !SimulationPartitions.hasOrdinarySpreadClearance(
+				matrix.innerArraySize, numThreads, MAX_ORDINARY_SPREAD_RADIUS);
 		boolean runParallel = useMultiThreading && !overlappingWorkerStripes;
 		if (useMultiThreading && overlappingWorkerStripes && !warnedAboutSerialGrid) {
 			Gdx.app.log("ElementumWorker", "safe-single-thread gridColumns="
