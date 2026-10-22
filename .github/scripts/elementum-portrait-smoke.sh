@@ -158,7 +158,9 @@ if left[:3] != right[:3]:
 
 width, height, bpp = left[:3]
 top = min(height - 1, max(1, round(height * 40 / 800)))
-bottom = min(height, max(top + 1, round(height * 700 / 800)))
+# The two-row material shelf begins at y≈658 on the 360×800 QA screen.
+# Keep its transient material checks/highlights out of sandbox pixel diffs.
+bottom = min(height, max(top + 1, round(height * 650 / 800)))
 for y in range(top, bottom):
     if left[3][y][:width * bpp] != right[3][y][:width * bpp]:
         raise SystemExit(1)
