@@ -158,7 +158,9 @@ if left[:3] != right[:3]:
 
 width, height, bpp = left[:3]
 top = min(height - 1, max(1, round(height * 40 / 800)))
-bottom = min(height, max(top + 1, round(height * 700 / 800)))
+# The two-row material shelf begins at y≈658 on the 360×800 QA screen.
+# Keep its transient material checks/highlights out of sandbox pixel diffs.
+bottom = min(height, max(top + 1, round(height * 650 / 800)))
 for y in range(top, bottom):
     if left[3][y][:width * bpp] != right[3][y][:width * bpp]:
         raise SystemExit(1)
@@ -300,6 +302,14 @@ PY
   adb shell wm size || true
 } > "$evidence/screen-size.txt"
 
+# The two stacked material rows must scroll sideways without painting.
+swipe 312 675 58 675 420
+sleep 1
+capture material-shelf-scrolled
+swipe 58 675 312 675 420
+sleep 1
+capture material-shelf-restored
+
 open_more
 capture more-sheet
 adb shell input keyevent KEYCODE_BACK
@@ -335,6 +345,13 @@ capture tool-draw
 
 tap 310 715
 capture material-picker-solids
+# The full picker also uses a real two-row horizontally swipeable layout.
+swipe 304 562 65 562 450
+sleep 1
+capture material-picker-scrolled
+swipe 65 562 304 562 450
+sleep 1
+capture material-picker-restored
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture material-picker-back-dismissed
@@ -745,6 +762,9 @@ grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
+grep -q 'ElementumUI.*material-shelf=two-rows horizontal-scroll=true' "$evidence/logcat.txt"
+grep -q 'ElementumUI.*material-shelf-horizontal-swipe=true' "$evidence/logcat.txt"
+grep -q 'ElementumUI.*material-picker-horizontal-swipe=true' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*more-sheet=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
 clear_cancel_line=$(grep 'ElementumInput: clear-cancelled before=' "$evidence/logcat.txt" | tail -1)

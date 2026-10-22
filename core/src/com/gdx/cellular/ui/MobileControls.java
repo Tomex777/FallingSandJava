@@ -46,7 +46,7 @@ public class MobileControls {
     private static final float UI_MIN_WIDTH = 360f;
     private static final float UI_MIN_HEIGHT = 640f;
     private static final float DOCK_HEIGHT = 52f;
-    private static final float QUICK_STRIP_HEIGHT = 42f;
+    private static final float QUICK_STRIP_HEIGHT = 90f;
     private static final Color PANEL = Color.valueOf("12161C");
     private static final Color PANEL_ALT = Color.valueOf("1A2028");
     private static final Color CONTROL = Color.valueOf("252C35");
@@ -67,6 +67,7 @@ public class MobileControls {
     private final Table dock;
     private final Table quickStripRoot;
     private final Table quickStrip;
+    private final ScrollPane quickStripScroller;
     private final Table overlayBlocker;
     private final Table materialPanel;
     private final Table materialGrid;
@@ -93,6 +94,8 @@ public class MobileControls {
     private TextButton pendingDeleteButton;
     private long pendingDeleteTimeMs;
 
+    private boolean shelfSwipeVerified;
+    private boolean pickerSwipeVerified;
     private boolean clearSettlementPending;
     private int clearNonEmptyBefore;
     private int clearWidthBefore;
@@ -138,8 +141,11 @@ public class MobileControls {
         ScrollPane.ScrollPaneStyle cleanScrollStyle = new ScrollPane.ScrollPaneStyle();
         materialPicker = new ScrollPane(materialGrid, cleanScrollStyle);
         materialPicker.setFadeScrollBars(true);
-        materialPicker.setScrollingDisabled(true, false);
-        materialPicker.setOverscroll(false, true);
+        // Exactly two rows of materials, browsed sideways instead of a tall grid.
+        materialPicker.setScrollingDisabled(false, true);
+        materialPicker.setOverscroll(false, false);
+        materialPicker.setFlickScroll(true);
+        materialPicker.setCancelTouchFocus(true);
 
         materialPanel = new Table();
         materialPanel.top().left();
@@ -193,10 +199,24 @@ public class MobileControls {
         quickStripRoot.setFillParent(true);
         quickStripRoot.setTouchable(Touchable.childrenOnly);
         quickStrip = new Table();
-        quickStrip.setBackground(skin.newDrawable("white", Color.valueOf("10151A")));
+        quickStrip.top().left();
+        quickStrip.setBackground(opaquePanelBackground);
         buildQuickStrip();
-        quickStripRoot.add(quickStrip).height(QUICK_STRIP_HEIGHT).padBottom(DOCK_HEIGHT);
+        // The bundled skin's "white" drawable has translucent edge pixels.
+        // A fully opaque scroller background stops the simulation checkerboard
+        // from leaking behind the two material rows or exposed padding.
+        ScrollPane.ScrollPaneStyle shelfStyle = new ScrollPane.ScrollPaneStyle();
+        shelfStyle.background = opaquePanelBackground;
+        quickStripScroller = new ScrollPane(quickStrip, shelfStyle);
+        quickStripScroller.setScrollingDisabled(false, true);
+        quickStripScroller.setOverscroll(false, false);
+        quickStripScroller.setFlickScroll(true);
+        quickStripScroller.setCancelTouchFocus(true);
+        quickStripRoot.add(quickStripScroller).growX().height(QUICK_STRIP_HEIGHT).padBottom(DOCK_HEIGHT);
         stage.addActor(quickStripRoot);
+        // Sheets draw ABOVE the shelf's upper row, but the lower row stays
+        // visible and usable. Keep the modal blocker BEHIND the shelf.
+        quickStripRoot.setZIndex(1);
 
         quickBar = new Table();
         quickBar.bottom();
@@ -221,6 +241,26 @@ public class MobileControls {
     }
 
     private void buildQuickStrip() {
+        // The material shelf is two real, finger-sized stacked rows. Both move
+        // together with one horizontal swipe; painting never starts on the shelf.
+        // Keep the original common-material positions on the LOWER row.
+        addQuickMaterial("Stone", ElementType.STONE, 60f);
+        addQuickMaterial("Wood", ElementType.WOOD, 60f);
+        addQuickMaterial("Lava", ElementType.LAVA, 60f);
+        addQuickMaterial("Oil", ElementType.OIL, 60f);
+        addQuickMaterial("Acid", ElementType.ACID, 60f);
+        addQuickMaterial("Copper", ElementType.COPPER, 60f);
+        addQuickMaterial("Ice", ElementType.ICE, 60f);
+        addQuickMaterial("Snow", ElementType.SNOW, 60f);
+        addQuickMaterial("Powder", ElementType.GUNPOWDER, 60f);
+        addQuickMaterial("Smoke", ElementType.SMOKE, 60f);
+        addQuickMaterial("Steam", ElementType.STEAM, 60f);
+        addQuickMaterial("Cement", ElementType.CEMENT, 60f);
+        addQuickMaterial("Molten Cu", ElementType.MOLTENCOPPER, 60f);
+        addQuickMaterial("Titanium", ElementType.TITANIUM, 60f);
+        addQuickMaterial("Spark", ElementType.SPARK, 60f);
+        quickStrip.row();
+
         addQuickMaterial("Sand", ElementType.SAND, 60f);
         addQuickMaterial("Water", ElementType.WATER, 60f);
         addQuickMaterial("Petrol", ElementType.PETROL, 60f);
@@ -235,7 +275,7 @@ public class MobileControls {
                 setEraseMode();
             }
         });
-        quickStrip.add(erase).width(60f).height(40f);
+        quickStrip.add(erase).width(60f).height(44f);
 
         TextButton all = createFlatButton("All", CONTROL, ACCENT);
         all.getLabel().setFontScale(0.75f);
@@ -249,7 +289,18 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickStrip.add(all).width(60f).height(40f);
+        quickStrip.add(all).width(60f).height(44f);
+        addQuickMaterial("Brick", ElementType.BRICK, 60f);
+        addQuickMaterial("Dirt", ElementType.DIRT, 60f);
+        addQuickMaterial("Ember", ElementType.EMBER, 60f);
+        addQuickMaterial("Coal", ElementType.COAL, 60f);
+        addQuickMaterial("Ground", ElementType.GROUND, 60f);
+        addQuickMaterial("Gas", ElementType.FLAMMABLEGAS, 60f);
+        addQuickMaterial("Blood", ElementType.BLOOD, 60f);
+        addQuickMaterial("Slime", ElementType.SLIMEMOLD, 60f);
+        addQuickMaterial("Flash", ElementType.EXPLOSIONSPARK, 60f);
+        quickStrip.pack();
+        Gdx.app.log("ElementumUI", "material-shelf=two-rows horizontal-scroll=true");
     }
 
     private void addQuickMaterial(String label, ElementType type, float width) {
@@ -263,7 +314,8 @@ public class MobileControls {
                 selectMaterial(type);
             }
         });
-        quickStrip.add(button).width(width).height(40f);
+        button.getLabel().setWrap(true);
+        quickStrip.add(button).width(width).height(44f);
     }
 
     private void buildDock() {
@@ -396,12 +448,12 @@ public class MobileControls {
                 break;
         }
 
-        float contentWidth = Math.max(280f, Math.min(510f, stage.getViewport().getWorldWidth() - 24f));
-        int columns = contentWidth >= 470f ? 6 : 4;
-        float tileWidth = Math.max(58f, (contentWidth - 24f - (columns - 1) * 4f) / columns);
-
-        int column = 0;
+        // Two stacked rows; additional columns extend to the right. Packing
+        // the table to its content width makes ScrollPane horizontal drag real.
+        final int firstRowCount = (types.size() + 1) / 2;
+        int index = 0;
         for (ElementType type : types) {
+            if (index == firstRowCount) materialGrid.row();
             TextButton button = pickerButtons.get(type);
             if (button == null) {
                 Color color = materialColor(type);
@@ -419,15 +471,11 @@ public class MobileControls {
                     }
                 });
             }
-            materialGrid.add(button).width(tileWidth).height(43f).pad(2f);
-            column++;
-            if (column == columns) {
-                materialGrid.row();
-                column = 0;
-            }
+            materialGrid.add(button).width(76f).height(44f).pad(2f);
+            index++;
         }
-        if (column != 0) materialGrid.row();
         materialGrid.pack();
+        materialPicker.setScrollX(0f);
         syncMaterialHighlights();
         Gdx.app.log("ElementumInput", "material-category=" + name.toLowerCase(Locale.ROOT));
     }
@@ -590,7 +638,7 @@ public class MobileControls {
         helpSheet.row();
         addHelpLine("Draw", "One finger tap or stroke");
         addHelpLine("Navigate", "Two fingers to pan or pinch");
-        addHelpLine("Materials", "Tap All to choose a material");
+        addHelpLine("Materials", "Two rows. Swipe horizontally.");
         addHelpLine("Tool", "Tap the tool button to cycle Draw, Heat and Cool");
         addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
@@ -1181,10 +1229,16 @@ public class MobileControls {
         float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
         panelWidth = Math.max(300f, panelWidth);
         float x = (width - panelWidth) / 2f;
-        float y = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
+        // The expandable shelf sits above the original dock. The compact
+        // secondary sheets keep their familiar placement; while open, the
+        // shelf is hidden so no material chips are covered or accidentally hit.
+        float y = DOCK_HEIGHT + 42f + 4f;
+        float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
         float available = Math.max(120f, height - y - 14f);
 
-        materialPanel.setBounds(x, y, panelWidth, Math.min(240f, Math.max(180f, height * 0.31f)));
+        // Reserve the complete 2 x 44px tile surface even on compact phones.
+        // This also keeps the four category buttons large and easy to hit.
+        materialPanel.setBounds(x, materialY, panelWidth, Math.min(200f, height - materialY - 14f));
         moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
         sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
         helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
@@ -1216,6 +1270,14 @@ public class MobileControls {
         }
 
         stage.act();
+        if (!shelfSwipeVerified && quickStripScroller.getScrollX() > 55f) {
+            shelfSwipeVerified = true;
+            Gdx.app.log("ElementumUI", "material-shelf-horizontal-swipe=true");
+        }
+        if (!pickerSwipeVerified && materialPanel.isVisible() && materialPicker.getScrollX() > 55f) {
+            pickerSwipeVerified = true;
+            Gdx.app.log("ElementumUI", "material-picker-horizontal-swipe=true");
+        }
         stage.draw();
     }
 
