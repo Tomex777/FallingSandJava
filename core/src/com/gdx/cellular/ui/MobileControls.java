@@ -100,6 +100,8 @@ public class MobileControls {
     private TextButton toolButton;
     private TextButton brushTypeButton;
     private TextButton pauseButton;
+    private TextButton moreButton;
+    private TextButton allButton;
     private TextButton moreCloseButton;
     private TextButton helpCloseButton;
 
@@ -340,9 +342,9 @@ public class MobileControls {
         });
         quickStrip.add(erase).width(60f).height(44f);
 
-        TextButton all = createFlatButton("All", CONTROL, ACCENT);
-        all.getLabel().setFontScale(0.75f);
-        all.addListener(new ClickListener() {
+        allButton = createFlatButton("All", CONTROL, ACCENT);
+        allButton.getLabel().setFontScale(0.75f);
+        allButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (clearSheet.isVisible()) return;
@@ -352,7 +354,7 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickStrip.add(all).width(60f).height(44f);
+        quickStrip.add(allButton).width(60f).height(44f);
         addQuickMaterial("Brick", ElementType.BRICK, 60f);
         addQuickMaterial("Dirt", ElementType.DIRT, 60f);
         addQuickMaterial("Ember", ElementType.EMBER, 60f);
@@ -438,9 +440,9 @@ public class MobileControls {
         });
         dock.add(toolButton).width(50f).height(48f);
 
-        TextButton more = createFlatButton("More", CONTROL, CONTROL_PRESSED);
-        more.getLabel().setFontScale(0.70f);
-        more.addListener(new ClickListener() {
+        moreButton = createFlatButton("More", CONTROL, CONTROL_PRESSED);
+        moreButton.getLabel().setFontScale(0.70f);
+        moreButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (clearSheet.isVisible()) return;
@@ -453,7 +455,7 @@ public class MobileControls {
                 }
             }
         });
-        dock.add(more).width(50f).height(48f);
+        dock.add(moreButton).width(50f).height(48f);
     }
 
     private void buildMaterialPanel() {
@@ -1446,6 +1448,10 @@ public class MobileControls {
         syncToolHighlights();
         syncMaterialHighlights();
         updatePauseButton();
+        // Dismissal via Back, outside-tap or another sheet must also clear
+        // these toggles. Scene2d buttons otherwise remain spuriously checked.
+        allButton.setChecked(materialPanel.isVisible());
+        moreButton.setChecked(moreSheet.isVisible());
         refreshOverlayState();
 
         if (clearSettlementPending) {
