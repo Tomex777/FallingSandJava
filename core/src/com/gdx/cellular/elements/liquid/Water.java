@@ -44,7 +44,11 @@ public class Water extends Liquid {
     @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
         if (heat <= 0 || isDead()) return false;
-        boilResistance -= Math.max(1, heat);
+        int applied = Math.max(1, heat);
+        boilResistance -= applied;
+        // Warmth offsets accumulated freezing. Without recovery, a glass
+        // repeatedly warmed and cooled eventually both boils and freezes.
+        freezeResistance = (int) Math.min(100L, (long) freezeResistance + applied);
         if (boilResistance <= 0) {
             Gdx.app.log("ElementumReaction", "water-to-steam");
             dieAndReplace(matrix, ElementType.STEAM);
@@ -55,7 +59,10 @@ public class Water extends Liquid {
     @Override
     public boolean receiveCooling(CellularMatrix matrix, int cooling) {
         if (cooling <= 0 || isDead()) return false;
-        freezeResistance -= Math.max(1, cooling);
+        int applied = Math.max(1, cooling);
+        freezeResistance -= applied;
+        // Cooling must also undo stored progress towards boiling.
+        boilResistance = (int) Math.min(80L, (long) boilResistance + applied);
         if (freezeResistance <= 0) {
             Gdx.app.log("ElementumReaction", "water-to-ice");
             dieAndReplace(matrix, ElementType.ICE);
