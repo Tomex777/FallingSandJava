@@ -399,7 +399,6 @@ public class InputManager {
                     // mode must not paint ordinary material into the sandbox.
                     return;
                 case SPAWN:
-                    paintSoundListener.accept(currentlySelectedElement);
                     switch (brushType) {
                         case SQUARE:
                         case CIRCLE:
@@ -408,6 +407,7 @@ public class InputManager {
                             } else {
                                 matrix.spawnElementByPixelWithBrush(touchPos.x, touchPos.y, currentlySelectedElement, brushSize, brushType);
                             }
+                            paintSoundListener.accept(currentlySelectedElement);
                             break;
                         case RECTANGLE:
                             if (!touchedLastFrame) {
@@ -443,12 +443,12 @@ public class InputManager {
                     }
                     break;
                 case PARTICLE:
-                    paintSoundListener.accept(currentlySelectedElement);
                     if (touchedLastFrame) {
                         matrix.spawnParticleBetweenTwoPoints(lastTouchPos, touchPos, currentlySelectedElement, brushSize, brushType);
                     } else {
                         matrix.spawnParticleByPixelWithBrush(touchPos.x, touchPos.y, currentlySelectedElement, brushSize, brushType);
                     }
+                    paintSoundListener.accept(currentlySelectedElement);
                     break;
                 case PARTICALIZE:
                     if (touchedLastFrame) {
@@ -527,6 +527,9 @@ public class InputManager {
                 matrix.spawnElementByMatrix(x, y, this.currentlySelectedElement);
             }
         }
+        // Rectangle mode writes only on finger release. Never play its sound
+        // while the user is merely sizing the outline.
+        paintSoundListener.accept(currentlySelectedElement);
     }
 
     private void spawnRandomPolygon(int x, int y, Array<Array<Element>> randomPolygonArray, CellularMatrix matrix) {

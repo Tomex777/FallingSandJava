@@ -1,0 +1,40 @@
+name: Elementum Agent 4 Audio Checks
+
+on:
+  push:
+    branches:
+      - agents/elementum-a4-sound-40m-20261022
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elementum-a4-audio-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audio-core-and-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Verify PCM tests, event-rate tests and Android compilation
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :core:test :android:assembleDebug
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elementum-a4-audio-junit-${{ github.sha }}
+          path: |
+            core/build/test-results/test/
+            core/build/reports/tests/test/
+          if-no-files-found: warn

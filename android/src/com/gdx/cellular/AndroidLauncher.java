@@ -25,6 +25,9 @@ public class AndroidLauncher extends AndroidApplication {
 	protected void onCreate (Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
+        // Four short material clips use a global cooldown; a four-voice
+        // SoundPool ceiling prevents runaway mixing on low-memory phones.
+        config.maxSimultaneousSounds = 4;
 		automaton = new CellularAutomaton();
 		initialize(automaton, config);
 
