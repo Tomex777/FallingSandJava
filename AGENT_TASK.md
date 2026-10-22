@@ -1,6 +1,6 @@
 # Elementum — Agent 1: GPU Water Appearance and Budget GPU
 
-**Session status: STARTED / IN PROGRESS as of 2026-10-22T21:51:24+01:00.** This is a work order and an actual code contribution, not evidence that 40 minutes elapsed. Work must continue to the recorded end before a 40:00 completion claim.
+**Session status: STOPPED with transparent actual timing.** Started 2026-10-22T21:51:24+01:00; stopped 2026-10-22T22:31:45+01:00; elapsed **40m21s**, which exceeded the exactly-40:00 target by 21 seconds. Do not misrepresent this as exactly 40m. Work committed and status recorded in PR #9.
 
 **Branch:** `agents/elementum-a1-gpu-water-40m-20261022`
 **Target integration PR branch:** `feature/elementum-abr-visual-audio-20261022`
@@ -27,10 +27,10 @@ Smooth visible water from an actual APK; no blank or inverted water, no crashing
 
 ## Actual work log (agent fills this while running)
 - START (ISO8601 WAT): **2026-10-22T21:51:24+01:00** (GitHub comment 6351036751)
-- STOP (ISO8601 WAT): **NOT REACHED / DO NOT BACKDATE** (40:00 target 2026-10-22T22:31:24+01:00)
+- STOP (ISO8601 WAT): **2026-10-22T22:31:45+01:00**, actual **40m21s**, 21 seconds later than 40:00 target; no backdating (GitHub comment 6351772435).
 - Claim comment link: https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351036751
-- Commits / child PR: https://github.com/Tomex777/FallingSandJava/pull/15 (draft, not approved); latest implementation commit f25aeae; changed GPU renderer, pure-Java UV/tile helper, JUnit regression test.
-- Tests / API26+36 CI runs: local javac geometry model passed 20,833,250 crop/tile cases; local Python partial/full GPU mask model passed 1,750 random-edit frames with clear transitions; **Android Gradle / API26 and API36 runtime NOT RUN on this branch**.
+- Commits / child PR: https://github.com/Tomex777/FallingSandJava/pull/15 (draft, not approved); latest renderer/test implementation commit **fafdcddb**; managed Pixmap EGL restoration, exact sparse dirty-tile upload, lower-end quality, 5s telemetry, and phase-stable surface-only glints. Tests/helper and branch-local CI included. Report: docs/agent-reports/elementum-agent-1.md.
+- Tests / API26+36 CI runs: matching local Java geometry model 20,833,250 cases PASS; local sparse/full byte-equivalence model 57,600 randomized frames across 24 seeds and 6 grid sizes PASS (not device tests); head-specific build/test CI run 39857155852 was QUEUED at 22:31:45 WAT and **Android Gradle / API26+36 runtime passes are NOT CLAIMED**.
 - Actual screenshot artifact names and source SHA: **NOT CAPTURED. Real GPU water appearance remains unapproved.** Coordinate with Agent 5 integrated smoke and source SHA.
 - Visual defects found/fixed: No runtime visual claim. Retained correct original SpriteBatch UV orientation after independently verifying the library's bottom-v/top-v2 vertex ordering; fixed incorrect proposed UV swap before PR. Verified Pixmap 6-int overload and corrected source/destination argument order. Added dirty upload skip and EGL restore. Current render appearance still requires actual screenshots.
-- Remaining issues and next unclaimed tasks: Confirm Android compile, shader compile, pause/resume under EGL context recreation, still/flowing water screenshot and budget-device logs; then compare water and perf with baseline. Keep PR draft until evidence, do not merge into elementum without user water-visual approval.
+- Remaining issues and next unclaimed tasks: Confirm Android compile and CI; verify shader on API26/API36, lifecycle context recreation and actual paused/flowing water screenshots, low-end FPS frame-time. User approval pending. Keep PR DRAFT and do not merge into elementum until accepted.
