@@ -154,7 +154,13 @@ public class CellularAutomaton extends ApplicationAdapter {
         long simulationNanos = 0L;
         ensureViewportsMatchScreen();
         shapeRenderer.setProjectionMatrix(camera.combined);
-        Gdx.gl.glClearColor(0, 0, 0, 1);
+        // On Android the world is a neutral slate drawing surface, not a
+        // pitch-black rectangle. Empty cells skip drawing their old black fill.
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            Gdx.gl.glClearColor(0.043f, 0.060f, 0.078f, 1f);
+        } else {
+            Gdx.gl.glClearColor(0, 0, 0, 1);
+        }
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         fpsLogger.log();
