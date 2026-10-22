@@ -1,15 +1,25 @@
 package com.gdx.cellular;
 
+import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.android.AndroidApplication;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
+import com.badlogic.gdx.backends.android.AndroidAudio;
+import com.badlogic.gdx.backends.android.AsynchronousAndroidAudio;
 import com.gdx.cellular.CellularAutomaton;
 
 public class AndroidLauncher extends AndroidApplication {
 	private CellularAutomaton automaton;
+
+    // Stock Android SoundPool can block the render thread when sounds fire
+    // rapidly. Keep brush audio asynchronous to protect smooth simulation.
+    @Override
+    public AndroidAudio createAudio(Context context, AndroidApplicationConfiguration config) {
+        return new AsynchronousAndroidAudio(context, config);
+    }
 
 	@Override
 	protected void onCreate (Bundle savedInstanceState) {
