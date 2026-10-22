@@ -111,11 +111,11 @@ public final class MaterialSoundscape {
             pitch *= 0.92f;
         }
         try {
-            // The asynchronous Android backend returns a *queued task token*,
-            // not a SoundPool confirmation of audible output. Never log it
-            // as "played" or count this as a real listening test.
+            // LibGDX's async backend returns an operation index before the
+            // worker handles it. Even Handler.post() failure may go unreported.
+            // This log proves *attempted* playback, not queue admission or sound.
             clips[kind].play(volume, pitch, 0.0f);
-            Gdx.app.log("ElementumAudio", "paint-kind=" + kind + " queued=true");
+            Gdx.app.log("ElementumAudio", "paint-kind=" + kind + " requested=true");
         } catch (RuntimeException audioUnavailable) {
             available = false;
             Gdx.app.error("ElementumAudio", "Playback disabled", audioUnavailable);
