@@ -314,13 +314,13 @@ jobs:
           set -euo pipefail
           mkdir -p qa-evidence
           {
-            printf 'Elementum integrated QA evidence (not an approval)\\n'
-            printf 'source_sha=%s\\nsource_ref=%s\\nrun_id=%s\\n' "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_RUN_ID"
-            printf 'runtime=%s\\nwater=%s\\nbuild=%s\\nrelease_install=%s\\n' "$RUNTIME" "$WATER" "$BUILD" "$INSTALL"
-            printf 'Captured evidence files:\\n'
+            printf 'Elementum integrated QA evidence (not an approval)\n'
+            printf 'source_sha=%s\nsource_ref=%s\nrun_id=%s\n' "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_RUN_ID"
+            printf 'runtime=%s\nwater=%s\nbuild=%s\nrelease_install=%s\n' "$RUNTIME" "$WATER" "$BUILD" "$INSTALL"
+            printf 'Captured evidence files:\n'
             find qa-evidence -type f | sort
-            printf '\\nRead per-API provenance and check failures; existence of screenshots alone is NOT a pass.\\n'
-            printf 'GPU-water rendering still requires USER VISUAL APPROVAL before shader merge.\\n'
+            printf '\nRead per-API provenance and check failures; existence of screenshots alone is NOT a pass.\n'
+            printf 'GPU-water rendering still requires USER VISUAL APPROVAL before shader merge.\n'
           } > qa-evidence/INDEX.txt
           cat qa-evidence/INDEX.txt
       - name: Upload unified evidence set
