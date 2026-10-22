@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - elementum
+      - feature/elementum-abr-visual-audio-20261022
+      - agents/elementum-a5-qa-release-40m-20261022
   pull_request:
     branches:
       - elementum
+      - feature/elementum-abr-visual-audio-20261022
   workflow_dispatch:
 
 permissions:
@@ -18,7 +21,7 @@ concurrency:
 
 jobs:
   announce:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref_name != 'agents/elementum-a5-qa-release-40m-20261022'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,8 +54,9 @@ jobs:
           git commit -m "Track Elementum QA run ${GITHUB_RUN_NUMBER}"
           git push origin HEAD:elementum-ci-state
 
+  # Build/install evidence must still exist when an unrelated UI runtime
+  # assertion fails. Runtime and release should diagnose each other, not gate.
   build-release:
-    needs: runtime
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -224,12 +228,53 @@ jobs:
           path: android/build/runtime-smoke
           if-no-files-found: warn
 
+  # Independent water fixture runs even if the full interaction smoke halts
+  # at Help/More. Never present initialization-only logs as water screenshots.
+  water-visual:
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 36]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build visual QA debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :android:assembleDebug
+      - name: Require emulator acceleration
+        run: |
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm
+      - name: Capture real GPU-water on API ${{ matrix.api-level }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none
+          script: bash .github/scripts/elementum-water-visual-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: elementum-gpu-water-api-${{ matrix.api-level }}
+          path: android/build/gpu-water-qa
+          if-no-files-found: warn
+
   report:
-    if: always() && github.event_name != 'pull_request'
+    if: always() && github.event_name != 'pull_request' && github.ref_name != 'agents/elementum-a5-qa-release-40m-20261022'
     needs:
       - build-release
       - release-install
       - runtime
+      - water-visual
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -239,6 +284,7 @@ jobs:
           BUILD_RESULT: ${{ needs.build-release.result }}
           RELEASE_INSTALL_RESULT: ${{ needs.release-install.result }}
           RUNTIME_RESULT: ${{ needs.runtime.result }}
+          WATER_VISUAL_RESULT: ${{ needs.water-visual.result }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/elementum-ci
@@ -250,6 +296,7 @@ jobs:
           build_release=${BUILD_RESULT}
           release_install=${RELEASE_INSTALL_RESULT}
           runtime_matrix=${RUNTIME_RESULT}
+          water_visual_matrix=${WATER_VISUAL_RESULT}
           workflow=${GITHUB_WORKFLOW}
           EOF
 
