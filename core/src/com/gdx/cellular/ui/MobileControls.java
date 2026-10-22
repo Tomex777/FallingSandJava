@@ -1103,8 +1103,9 @@ public class MobileControls {
             entry.getValue().setChecked(checked);
         }
         if (toolButton != null) {
-            toolButton.setChecked(mode == MouseMode.HEAT || mode == MouseMode.COOL
-                    || (mode == MouseMode.SPAWN && inputManager.currentlySelectedElement == ElementType.EMPTYCELL));
+            // Erase is selected exclusively through its shelf chip. Highlight
+            // this dock control only for Heat/Cool, never for a second Erase.
+            toolButton.setChecked(mode == MouseMode.HEAT || mode == MouseMode.COOL);
             toolButton.setText(toolLabel());
         }
     }
@@ -1112,7 +1113,9 @@ public class MobileControls {
     private String toolLabel() {
         MouseMode mode = inputManager.getMouseMode();
         if (mode == MouseMode.SPAWN) {
-            return inputManager.currentlySelectedElement == ElementType.EMPTYCELL ? "Erase" : "Draw";
+            // The separate Erase chip already conveys the erase selection.
+            // This button switches back to drawing when erase is selected.
+            return "Draw";
         }
         switch (mode) {
             case HEAT:
