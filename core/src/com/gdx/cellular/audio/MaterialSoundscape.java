@@ -1,38 +1,66 @@
 package com.gdx.cellular.audio;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.LifecycleListener;
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.files.FileHandle;
 import com.gdx.cellular.elements.ElementType;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Random;
 
 /**
- * Low-cost, synthesized interaction sounds for the sandbox.
- *
- * This is a first sound pass, NOT recorded naturalistic field audio. Every
- * clip is generated once, stored locally and replayed with a rate limit, so
- * 60-fps brush dragging cannot queue hundreds of overlapping samples.
+ * Bounded, synthesized brush effects. No network access or recorded material
+ * audio is used. Playback runs through Android's asynchronous sound backend.
  */
 public final class MaterialSoundscape {
-    private static final int SAMPLE_RATE = 22050;
-    private static final long MIN_INTERVAL_NS = 155_000_000L;
-    private static final String AUDIO_PREFIX = "elementum-sfx-v1/";
-    private final Sound[] clips = new Sound[4];
-    private long lastPlayNs;
+    private static final String AUDIO_PREFIX = "elementum-sfx-v2/";
+    private static final String SETTINGS_NAME = "elementum-audio";
+    private static final String ENABLED_KEY = "sound-enabled";
+    private static final String[] NAMES = {"water", "grains", "heat", "electric"};
+    private static final float[] SECONDS = {0.30f, 0.16f, 0.24f, 0.18f};
+    private static final float[] LEVELS = {0.16f, 0.10f, 0.11f, 0.095f};
+
+    private final Sound[] clips = new Sound[NAMES.length];
+    private final AudioEventGate rateGate = new AudioEventGate();
+    private final LifecycleListener lifecycleListener = new LifecycleListener() {
+        @Override public void pause() {
+            suspended = true;
+            stopAll();
+        }
+
+        @Override public void resume() {
+            rateGate.reset();
+            suspended = false;
+        }
+
+        @Override public void dispose() {
+            // MobileControls owns soundscape disposal and unregistration.
+        }
+    };
+    private Preferences preferences;
+    private boolean registered;
     private boolean enabled = true;
+    private boolean suspended;
     private boolean available;
+    private boolean disposed;
 
     public MaterialSoundscape() {
         try {
-            clips[0] = load("water", 0, 0.30f);
-            clips[1] = load("grains", 1, 0.16f);
-            clips[2] = load("heat", 2, 0.24f);
-            clips[3] = load("electric", 3, 0.18f);
+            preferences = Gdx.app.getPreferences(SETTINGS_NAME);
+            enabled = preferences.getBoolean(ENABLED_KEY, true);
+        } catch (RuntimeException preferenceUnavailable) {
+            // Non-Android test launchers may not expose preference storage.
+            Gdx.app.error("ElementumAudio", "sound-settings-unavailable", preferenceUnavailable);
+        }
+        try {
+            for (int i = 0; i < clips.length; i++) {
+                clips[i] = load(NAMES[i], i, SECONDS[i]);
+            }
             available = true;
-            Gdx.app.log("ElementumAudio", "sfx-ready clips=4");
+            Gdx.app.addLifecycleListener(lifecycleListener);
+            registered = true;
+            Gdx.app.log("ElementumAudio", "sfx-ready clips=4 enabled=" + enabled);
         } catch (Throwable soundFailure) {
             Gdx.app.error("ElementumAudio", "Sound output unavailable", soundFailure);
             dispose();
@@ -44,22 +72,37 @@ public final class MaterialSoundscape {
     }
 
     public void setEnabled(boolean value) {
+        if (disposed || enabled == value) return;
         enabled = value;
+        if (!enabled) stopAll();
+        rateGate.reset();
+        if (preferences != null) {
+            try {
+                preferences.putBoolean(ENABLED_KEY, enabled).flush();
+            } catch (RuntimeException saveFailure) {
+                Gdx.app.error("ElementumAudio", "sound-settings-save-failed", saveFailure);
+            }
+        }
         Gdx.app.log("ElementumAudio", "enabled=" + enabled + " available=" + available);
     }
 
+    /** Called only for a valid, material-adding brush event. */
     public void onPaint(ElementType type) {
-        if (!enabled || !available || type == null || type == ElementType.EMPTYCELL) return;
-        long now = System.nanoTime();
-        if (now - lastPlayNs < MIN_INTERVAL_NS) return;
-        lastPlayNs = now;
+        if (!enabled || suspended || !available || disposed
+                || type == null || type == ElementType.EMPTYCELL) return;
         int kind = classify(type);
+        long now = System.nanoTime();
+        if (!rateGate.accept(kind, now)) return;
+        // Very subtle pitch changes avoid a robotic repeating sample without
+        // allocating an RNG or rebuilding PCM on the render thread.
+        float pitch = 0.95f + ((now >>> 22) & 15L) * 0.006f;
         try {
-            clips[kind].play(kind == 0 ? 0.20f : kind == 3 ? 0.12f : 0.13f);
+            clips[kind].play(LEVELS[kind], pitch, 0.0f);
             Gdx.app.log("ElementumAudio", "paint-kind=" + kind);
         } catch (RuntimeException audioUnavailable) {
             available = false;
             Gdx.app.error("ElementumAudio", "Playback disabled", audioUnavailable);
+            stopAll();
         }
     }
 
@@ -85,77 +128,54 @@ public final class MaterialSoundscape {
         }
     }
 
-    private Sound load(String name, int type, float duration) throws IOException {
+    private static Sound load(String name, int type, float duration) throws IOException {
         FileHandle file = Gdx.files.local(AUDIO_PREFIX + name + ".wav");
-        if (!file.exists() || file.length() < 44) {
+        byte[] cached = null;
+        if (file.exists()) {
+            try {
+                cached = file.readBytes();
+            } catch (RuntimeException damagedCache) {
+                // Regenerate a corrupt or unreadable short clip.
+            }
+        }
+        if (!SynthesizedWav.isValidPcm(cached, duration)) {
             file.parent().mkdirs();
-            file.writeBytes(wave(type, duration), false);
+            file.writeBytes(SynthesizedWav.generate(type, duration), false);
         }
         return Gdx.audio.newSound(file);
     }
 
-    private static byte[] wave(int type, float duration) throws IOException {
-        int count = (int) (SAMPLE_RATE * duration);
-        ByteArrayOutputStream out = new ByteArrayOutputStream(44 + count * 2);
-        int bytes = count * 2;
-        out.write(new byte[] {'R','I','F','F'});
-        writeIntLE(out, 36 + bytes);
-        out.write(new byte[] {'W','A','V','E','f','m','t',' '});
-        writeIntLE(out, 16);
-        writeShortLE(out, 1); // PCM
-        writeShortLE(out, 1); // mono
-        writeIntLE(out, SAMPLE_RATE);
-        writeIntLE(out, SAMPLE_RATE * 2);
-        writeShortLE(out, 2);
-        writeShortLE(out, 16);
-        out.write(new byte[] {'d','a','t','a'});
-        writeIntLE(out, bytes);
-
-        Random rng = new Random(302 + type);
-        double filtered = 0, prevNoise = 0, phase = 0;
-        for (int i = 0; i < count; i++) {
-            double t = (double) i / SAMPLE_RATE;
-            double position = (double) i / count;
-            double envelope = Math.min(1.0, t * 110.0)
-                    * Math.pow(1.0 - position, type == 3 ? 4 : 1.65);
-            double noise = rng.nextDouble() * 2.0 - 1.0;
-            filtered += (noise - filtered) * (type == 0 ? 0.06 : 0.28);
-            double value;
-            if (type == 0) {
-                // Pitched droplets over a low, filtered rushing texture.
-                double bubbles = Math.sin(2 * Math.PI * (340.0 * t + 250.0 * t * t));
-                value = 0.7 * filtered + 0.18 * bubbles
-                        + 0.1 * (noise - prevNoise);
-            } else if (type == 1) {
-                // Thousands of tiny granular impacts.
-                value = (noise - prevNoise) * 0.44 + filtered * 0.22;
-            } else if (type == 2) {
-                phase += 2 * Math.PI * (68 + 27 * position) / SAMPLE_RATE;
-                value = 0.35 * Math.sin(phase) + 0.6 * (noise - filtered);
-            } else {
-                value = (noise - filtered) * 0.68;
+    private void stopAll() {
+        for (Sound clip : clips) {
+            if (clip != null) {
+                try {
+                    clip.stop();
+                } catch (RuntimeException alreadyReleased) {
+                    // Pausing/stopping audio must never fail the render lifecycle.
+                }
             }
-            prevNoise = noise;
-            int sample = (int) Math.round(Math.max(-1.0, Math.min(1.0, value * envelope * 0.58)) * 32767.0);
-            writeShortLE(out, sample);
         }
-        return out.toByteArray();
-    }
-
-    private static void writeShortLE(ByteArrayOutputStream out, int value) {
-        out.write(value & 0xff);
-        out.write((value >>> 8) & 0xff);
-    }
-
-    private static void writeIntLE(ByteArrayOutputStream out, int value) {
-        writeShortLE(out, value);
-        writeShortLE(out, value >>> 16);
     }
 
     public void dispose() {
+        if (disposed) return;
+        disposed = true;
+        suspended = true;
         available = false;
-        for (Sound clip : clips) {
-            if (clip != null) clip.dispose();
+        if (registered) {
+            Gdx.app.removeLifecycleListener(lifecycleListener);
+            registered = false;
+        }
+        stopAll();
+        for (int i = 0; i < clips.length; i++) {
+            if (clips[i] != null) {
+                try {
+                    clips[i].dispose();
+                } catch (RuntimeException alreadyReleased) {
+                    Gdx.app.error("ElementumAudio", "clip-release-error", alreadyReleased);
+                }
+                clips[i] = null;
+            }
         }
     }
 }
