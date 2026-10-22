@@ -31,6 +31,10 @@ if ! adb logcat -c; then
   adb wait-for-device
 fi
 
+# Use the same logical portrait input space as the runtime smoke.
+# Android 8 may still report a larger physical screencap buffer.
+adb shell wm size 360x800
+adb shell wm density 160
 adb install -r "$apk"
 adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb shell am force-stop "$package_name"
@@ -62,7 +66,29 @@ if [ "$screenshot_bytes" -le 5000 ]; then
 fi
 printf 'screenshot_bytes=%s\n' "$screenshot_bytes" > "$evidence/screenshot-summary.txt"
 
+# ABR means an installed release must ACTUALLY respond to input. A launch
+# screenshot with no brush test is insufficient evidence of a usable APK.
+adb shell input tap 239 765  # Pause real simulation, allow stationary paint.
+adb shell input tap 90 724   # Select Water in lower of two shelf rows.
+adb shell input swipe 112 250 236 310 420
+sleep 2
+adb exec-out screencap -p > "$evidence/elementum-release-water-paused.png"
+python3 .github/scripts/elementum-assert-water-pixels.py \
+  "$evidence/elementum-release-water-paused.png"
+adb shell input tap 239 765
+sleep 0.45
+adb exec-out screencap -p > "$evidence/elementum-release-water-moving.png"
+test -n "$(adb shell pidof "$package_name" | tr -d '\r')"
+
 adb logcat -d > "$evidence/logcat.txt"
+if ! grep -q 'ElementumInput.*material=WATER' "$evidence/logcat.txt"; then
+  echo "CI-signed release did not register the actual Water material tap" >&2
+  exit 1
+fi
+if ! grep -Eq 'ElementumFluid.*water-cells=[1-9][0-9]*' "$evidence/logcat.txt"; then
+  echo "CI-signed release did not render any water cells" >&2
+  exit 1
+fi
 if ! grep -Eq 'ElementumUI.*logical=360x[0-9]+' "$evidence/logcat.txt"; then
   echo "Elementum release did not report the expected 360-unit mobile UI width" >&2
   grep 'ElementumUI' "$evidence/logcat.txt" >&2 || true
