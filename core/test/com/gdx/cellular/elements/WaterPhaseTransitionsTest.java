@@ -5,6 +5,8 @@ import com.badlogic.gdx.Gdx;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.gas.Steam;
 import com.gdx.cellular.elements.liquid.Water;
+import com.gdx.cellular.elements.liquid.Lava;
+import com.gdx.cellular.elements.solid.immoveable.Stone;
 import com.gdx.cellular.elements.solid.immoveable.Ice;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -69,6 +71,25 @@ public class WaterPhaseTransitionsTest {
         } finally {
             Gdx.app = previousApplication;
         }
+    }
+
+    @Test
+    public void lavaSolidificationDoesNotPetrifyAdjacentWater() {
+        CellularMatrix matrix = new CellularMatrix(7, 7, 1, null);
+        matrix.useChunks = false;
+        Lava lava = (Lava) matrix.spawnElementByMatrix(3, 3, ElementType.LAVA);
+        Water water = (Water) matrix.spawnElementByMatrix(3, 4, ElementType.WATER);
+        assertFalse("Zero cooling must not change molten material",
+                lava.receiveCooling(matrix, 0));
+        assertSame(lava, matrix.get(3, 3));
+        assertTrue(lava.receiveCooling(matrix, 10));
+        assertTrue(lava.isDead());
+        assertTrue(matrix.get(3, 3) instanceof Stone);
+        assertSame("Cooling lava must not change a neighboring Water cell",
+                water, matrix.get(3, 4));
+        assertEquals(2, matrix.countNonEmptyCells());
+        assertFalse("Already-solidified lava cannot be cooled twice",
+                lava.receiveCooling(matrix, 10));
     }
 
     @Test
