@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 evidence=android/build/runtime-smoke
 mkdir -p "$evidence"
 trap 'adb logcat -d > "$evidence/logcat.txt" || true' EXIT
+
+# Keep a screenshot and actionable shell failure context when an assertion
+# aborts before the rest of the 900-line interaction suite. This is *extra*
+# evidence, not a suppression of the failure.
+capture_failed_command() {
+  local status="$1" line="$2" command="$3"
+  trap - ERR
+  printf 'exit=%s\nline=%s\ncommand=%s\n' "$status" "$line" "$command" > "$evidence/first-failure.txt"
+  echo "Elementum smoke failed at line $line: $command (status=$status)" >&2
+  adb exec-out screencap -p > "$evidence/elementum-first-failure.png" 2>/dev/null || true
+  adb shell dumpsys gfxinfo com.tomex.elementum > "$evidence/first-failure-gfxinfo.txt" 2>/dev/null || true
+}
+trap 'capture_failed_command "$?" "$LINENO" "$BASH_COMMAND"' ERR
 
 DESIGN_W=360
 DESIGN_H=800
@@ -323,9 +336,17 @@ open_help_sheet
 sleep 1
 capture help-sheet
 adb logcat -d > "$evidence/logcat-help.txt"
-grep -q 'ElementumUI.*help-content-fits=true' "$evidence/logcat-help.txt"
+# Check negative geometry first; the previous bare grep for "true"
+# exited without an explanation even when the app explicitly logged overflow.
 if grep -q 'ElementumUI.*help-content-fits=false' "$evidence/logcat-help.txt"; then
-  echo "Help sheet instructions overflow its available screen height" >&2
+  grep 'ElementumUI.*help-content-fits=' "$evidence/logcat-help.txt" | tail -4 > "$evidence/help-fit-failure.txt"
+  echo "ABR FAILURE: Help instructions overflow the available height (see help-fit-failure.txt and real help-sheet screenshot)" >&2
+  cat "$evidence/help-fit-failure.txt" >&2
+  exit 1
+fi
+if ! grep -q 'ElementumUI.*help-content-fits=true' "$evidence/logcat-help.txt"; then
+  echo "ABR FAILURE: Help UI did not emit successful fit telemetry" >&2
+  grep 'ElementumUI' "$evidence/logcat-help.txt" | tail -15 >&2 || true
   exit 1
 fi
 adb shell input keyevent KEYCODE_BACK
