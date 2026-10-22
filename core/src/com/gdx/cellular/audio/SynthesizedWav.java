@@ -18,7 +18,9 @@ public final class SynthesizedWav {
         if (!Float.isFinite(seconds) || seconds <= 0f || seconds > 2f) {
             throw new IllegalArgumentException("Invalid short audio duration");
         }
-        return Math.round(SAMPLE_RATE * seconds);
+        int count = Math.round(SAMPLE_RATE * seconds);
+        if (count < 2) throw new IllegalArgumentException("Duration too short for PCM");
+        return count;
     }
 
     public static byte[] generate(int type, float duration) throws IOException {
