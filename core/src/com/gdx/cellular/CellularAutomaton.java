@@ -115,7 +115,12 @@ public class CellularAutomaton extends ApplicationAdapter {
 		setUpBasicBodies();
 
 		this.gameManager = new GameManager(this);
-		gameManager.createPlayer(matrix.innerArraySize/2, matrix.outerArraySize/2);
+        // The bright pink legacy debug player isn't part of the mobile
+        // sandbox workflow. Start Android directly in the material world.
+        // Desktop keyboard player mode retains its original test subject.
+        if (Gdx.app.getType() != Application.ApplicationType.Android) {
+            gameManager.createPlayer(matrix.innerArraySize / 2, matrix.outerArraySize / 2);
+        }
 
 		if (Gdx.app.getType() == Application.ApplicationType.Android) {
 			inputManager.setWorldResetHook(() -> {
