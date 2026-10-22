@@ -1,6 +1,6 @@
 # Elementum — Agent D / Agent 4 audio work report
 
-**Updated (WAT):** 2026-10-22T22:24:20+01:00
+**Updated (WAT):** 2026-10-22T22:25:24+01:00
 **Current status:** IN PROGRESS, not complete; **do not count queued CI time as active implementation**.
 **Actual START:** 2026-10-22T21:50:58+01:00, PR #9 comment ID 6351028818.
 **Actual STOP:** NOT RECORDED — the 40:00 uninterrupted-session requirement has NOT yet been satisfied or certified.
@@ -13,7 +13,7 @@
 2. Added `AudioEventGate` with one allocation-free global limiter (110 ms) and distinct material cooldowns (water 175 ms, grains 165 ms, heat 235 ms, electric 285 ms). The event callback is once per brush operation, not per painted cell.
 3. Added `SynthesizedWav`: versioned 22,050 Hz 16-bit little-endian mono WAV generation, deterministic noise, gentle start/end fade to avoid clicks, more subdued water/grain/fire/electric textures, strict cached WAV header verification and file-length gate before reading. No network or third-party clips.
 4. `MaterialSoundscape` now reuses four cached clips, limits event admission, makes small pitch changes, requests stop on toggle-off and Android pause, resumes with a reset event gate, persists the enabled state in libGDX Preferences, and releases/unregisters lifecycle callbacks. Android launcher additionally caps SoundPool streams at 4; actual audio delivery remains unverified. Continuous liquid brush movement is softened relative to the first contact using `LiquidStrokeCadence` (a brush-input heuristic, not true autonomous water flow).
-5. Investigated exact libGDX 1.14.2 AsynchronousSound source: its play() returns a *queued operation token*, not an audible SoundPool stream confirmation. Corrected runtime logs to say `paint-kind=N queued=true` instead of asserting playback success, and avoided queueing asynchronous stop commands immediately before synchronous sound disposal.
+5. Investigated exact libGDX 1.14.2 AsynchronousSound source: its play() returns a local operation index before the Handler processes it, not even proof of actual handler admission or audible SoundPool output. Corrected runtime logs to say `paint-kind=N requested=true` instead of asserting playback success, and avoided queueing asynchronous stop commands immediately before synchronous sound disposal.
 6. Narrow, shared-comment-claimed `InputManager.java` audio change: rectangle brush used to blip while outlining with **zero rectangle cells placed**. Moved its sound emission to finger release, and ordinary paint/particle callbacks after spawn calls. Did not change physics or input selection.
 
 ## Verification completed so far
