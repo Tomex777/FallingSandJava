@@ -33,4 +33,14 @@ public class AudioEventGateTest {
         assertFalse(gate.accept(3, 200_000_001L));
         assertTrue(gate.accept(3, 285_000_001L));
     }
+
+    @Test public void rapidMultimaterialDraggingCannotCreateVoiceStorm() {
+        AudioEventGate gate = new AudioEventGate();
+        int admitted = 0;
+        for (int i = 0; i < 400; i++) {
+            if (gate.accept(i % 4, i * 2_500_000L)) admitted++;
+        }
+        assertTrue("At least one paint sound", admitted > 0);
+        assertTrue("At most ten audio requests in one second", admitted <= 10);
+    }
 }
