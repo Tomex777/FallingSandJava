@@ -322,6 +322,17 @@ capture material-shelf-scrolled
 swipe 58 675 312 675 420
 sleep 1
 capture material-shelf-restored
+# A visible swipe is not sufficient: verify the canvas itself remains bit-for-bit
+# untouched while a finger horizontally navigates either shelf row. This
+# assertion is valid before the fixture adds any live materials.
+if ! same_canvas_pixels "$evidence/elementum-startup.png" "$evidence/elementum-material-shelf-scrolled.png"; then
+  echo "ABR FAILURE: material shelf horizontal swipe painted or disturbed the canvas" >&2
+  exit 1
+fi
+if ! same_canvas_pixels "$evidence/elementum-startup.png" "$evidence/elementum-material-shelf-restored.png"; then
+  echo "ABR FAILURE: restoring the shelf modified the canvas" >&2
+  exit 1
+fi
 
 open_more
 capture more-sheet
