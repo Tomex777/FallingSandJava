@@ -4,6 +4,7 @@ import com.gdx.cellular.CellularAutomaton;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.ElementType;
+import com.gdx.cellular.util.Chunk;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -108,6 +109,35 @@ public class WaterBoundaryPhysicsTest {
             assertSame(water, matrix.get(2, 2));
         }
         assertEquals("80,93", water.getSaveState());
+    }
+
+    @Test
+    public void exposedLiquidEdgeKeepsItsChunkAwake() {
+        CellularMatrix matrix = new CellularMatrix(12, 8, 1, null);
+        Water water = (Water) matrix.spawnElementByMatrix(6, 0, ElementType.WATER);
+        water.vel.set(0f, 0f, 0f);
+        water.stoppedMovingCount = water.stoppedMovingThreshold;
+        Chunk chunk = matrix.getChunkForElement(water);
+        chunk.setShouldStepNextFrame(false);
+        CellularAutomaton.stepped.flip(0);
+        water.step(matrix);
+        assertTrue("Exposed puddle edge must continue spreading", chunk.getShouldStepNextFrame());
+    }
+
+    @Test
+    public void enclosedSettledLiquidMayLetItsChunkSleep() {
+        CellularMatrix matrix = new CellularMatrix(12, 8, 1, null);
+        matrix.spawnElementByMatrix(5, 0, ElementType.WATER);
+        Water water = (Water) matrix.spawnElementByMatrix(6, 0, ElementType.WATER);
+        matrix.spawnElementByMatrix(7, 0, ElementType.WATER);
+        water.vel.set(0f, 0f, 0f);
+        water.stoppedMovingCount = water.stoppedMovingThreshold;
+        Chunk chunk = matrix.getChunkForElement(water);
+        chunk.setShouldStepNextFrame(false);
+        CellularAutomaton.stepped.flip(0);
+        water.step(matrix);
+        assertFalse("Completely enclosed settled water need not spin CPU",
+                chunk.getShouldStepNextFrame());
     }
 
     @Test
