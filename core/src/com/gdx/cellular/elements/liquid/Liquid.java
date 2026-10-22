@@ -206,9 +206,11 @@ public abstract class Liquid extends Element {
 //            if (yHasNotMovedBeyondThreshold()) {
 //                vel.x = Math.random() > 0.5 ? 64 : -64;
 //            }
-            Vector3 normalizedVel = vel.cpy().nor();
-            int additionalX = getAdditional(normalizedVel.x);
-            int additionalY = getAdditional(normalizedVel.y);
+            // Avoid allocating a Vector3 for every blocked-liquid contact.
+            float speedSquared = vel.x * vel.x + vel.y * vel.y;
+            float inverseSpeed = speedSquared > 0f ? 1f / (float) Math.sqrt(speedSquared) : 0f;
+            int additionalX = getAdditional(vel.x * inverseSpeed);
+            int additionalY = getAdditional(vel.y * inverseSpeed);
 
             int distance = additionalX * (Math.random() > 0.5 ? dispersionRate + 2 : dispersionRate - 1);
 
@@ -255,9 +257,11 @@ public abstract class Liquid extends Element {
                 float absY = Math.max(Math.abs(vel.y) / 31, 105);
                 vel.x = vel.x < 0 ? -absY : absY;
             }
-            Vector3 normalizedVel = vel.cpy().nor();
-            int additionalX = getAdditional(normalizedVel.x);
-            int additionalY = getAdditional(normalizedVel.y);
+            // Avoid allocating a Vector3 for every blocked-liquid contact.
+            float speedSquared = vel.x * vel.x + vel.y * vel.y;
+            float inverseSpeed = speedSquared > 0f ? 1f / (float) Math.sqrt(speedSquared) : 0f;
+            int additionalX = getAdditional(vel.x * inverseSpeed);
+            int additionalY = getAdditional(vel.y * inverseSpeed);
 
             int distance = additionalX * (Math.random() > 0.5 ? dispersionRate + 2 : dispersionRate - 1);
 
@@ -324,11 +328,17 @@ public abstract class Liquid extends Element {
                 lastValidLocation.y = startingY;
             } else if (neighbor instanceof Liquid) {
                 Liquid liquidNeighbor = (Liquid) neighbor;
-                if (isFinal) {
-                    if (compareDensities(liquidNeighbor)) {
-                        swapLiquidForDensities(matrix, liquidNeighbor, modifiedX, startingY, lastValidLocation);
-                        return false;
-                    }
+                if (isFinal && compareDensities(liquidNeighbor)) {
+                    swapLiquidForDensities(matrix, liquidNeighbor, modifiedX, startingY, lastValidLocation);
+                    return false;
+                }
+                // A continuous layer of equal/denser liquid blocks a side
+                // traversal just like a solid. Never jump across it into
+                // empty space several cells further away.
+                if (!compareDensities(liquidNeighbor)) {
+                    if (isFirst) return true;
+                    moveToLastValid(matrix, lastValidLocation);
+                    return false;
                 }
             } else if (neighbor instanceof Solid) {
                 if (isFirst) {
