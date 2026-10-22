@@ -200,9 +200,14 @@ public class MobileControls {
         quickStripRoot.setTouchable(Touchable.childrenOnly);
         quickStrip = new Table();
         quickStrip.top().left();
-        quickStrip.setBackground(skin.newDrawable("white", Color.valueOf("10151A")));
+        quickStrip.setBackground(opaquePanelBackground);
         buildQuickStrip();
-        quickStripScroller = new ScrollPane(quickStrip, new ScrollPane.ScrollPaneStyle());
+        // The bundled skin's "white" drawable has translucent edge pixels.
+        // A fully opaque scroller background stops the simulation checkerboard
+        // from leaking behind the two material rows or exposed padding.
+        ScrollPane.ScrollPaneStyle shelfStyle = new ScrollPane.ScrollPaneStyle();
+        shelfStyle.background = opaquePanelBackground;
+        quickStripScroller = new ScrollPane(quickStrip, shelfStyle);
         quickStripScroller.setScrollingDisabled(false, true);
         quickStripScroller.setOverscroll(false, false);
         quickStripScroller.setFlickScroll(true);
