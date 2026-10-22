@@ -762,6 +762,15 @@ grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
+# A green build is insufficient: runtime must actually load smooth-fluid
+# graphics and procedurally generated brush sound effects on both API levels.
+grep -q 'ElementumFluid.*smooth-water-shader=enabled' "$evidence/logcat.txt"
+grep -q 'ElementumAudio.*sfx-ready clips=4' "$evidence/logcat.txt"
+grep -q 'ElementumAudio.*paint-kind=' "$evidence/logcat.txt"
+if grep -E 'ElementumFluid.*(Shader fallback|disabled after error)|ElementumAudio.*(Playback disabled|Sound output unavailable)' "$evidence/logcat.txt"; then
+  echo "The graphics or sound feature silently fell back during runtime" >&2
+  exit 1
+fi
 grep -q 'ElementumUI.*material-shelf=two-rows horizontal-scroll=true' "$evidence/logcat.txt"
 grep -q 'ElementumUI.*material-shelf-horizontal-swipe=true' "$evidence/logcat.txt"
 grep -q 'ElementumUI.*material-picker-horizontal-swipe=true' "$evidence/logcat.txt"
