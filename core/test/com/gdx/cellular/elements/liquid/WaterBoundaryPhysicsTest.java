@@ -4,7 +4,9 @@ import com.gdx.cellular.CellularAutomaton;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.ElementType;
+import com.gdx.cellular.elements.PhysicsTestGdx;
 import com.gdx.cellular.util.Chunk;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -14,6 +16,11 @@ import static org.junit.Assert.*;
  * dependency, so conservation failures can be caught before APK smoke tests.
  */
 public class WaterBoundaryPhysicsTest {
+    @BeforeClass
+    public static void prepareMaterials() {
+        PhysicsTestGdx.installAssetStub();
+    }
+
     private CellularMatrix newWorld(int width, int height) {
         CellularMatrix matrix = new CellularMatrix(width, height, 1, null);
         matrix.useChunks = false;
