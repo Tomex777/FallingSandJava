@@ -7,7 +7,24 @@ package_name="com.tomex.elementum"
 activity="${package_name}/com.gdx.cellular.AndroidLauncher"
 
 mkdir -p "$evidence"
-trap 'adb logcat -d > "$evidence/logcat.txt" 2>/dev/null || true' EXIT
+# On early install/launch failure, retain the actual screen and package state,
+# not just the shell's "exit 1". Release artifacts are validated independently
+# of the (potentially failing) UI interaction suite.
+release_exit() {
+  local code=$?
+  trap - EXIT
+  adb logcat -d > "$evidence/logcat.txt" 2>/dev/null || true
+  adb shell dumpsys package "$package_name" > "$evidence/package-state.txt" 2>/dev/null || true
+  adb shell dumpsys gfxinfo "$package_name" > "$evidence/gfxinfo.txt" 2>/dev/null || true
+  if [ "$code" -ne 0 ]; then
+    adb exec-out screencap -p > "$evidence/elementum-release-failure.png" 2>/dev/null || true
+    echo "Release install smoke FAILED (exit $code); saved package-state, screen and logcat" >&2
+  fi
+  exit "$code"
+}
+trap release_exit EXIT
+printf 'source_sha=%s\\napi_level=%s\\napk=%s\\n' "${GITHUB_SHA:-local-unknown}" \
+  "$(adb shell getprop ro.build.version.sdk | tr -d '\\r')" "$apk" > "$evidence/provenance.txt"
 
 if ! adb logcat -c; then
   echo "Release smoke could not clear logcat; continuing with launch validation" >&2
