@@ -94,6 +94,8 @@ public class MobileControls {
     private TextButton pendingDeleteButton;
     private long pendingDeleteTimeMs;
 
+    private boolean shelfSwipeVerified;
+    private boolean pickerSwipeVerified;
     private boolean clearSettlementPending;
     private int clearNonEmptyBefore;
     private int clearWidthBefore;
@@ -143,6 +145,7 @@ public class MobileControls {
         materialPicker.setScrollingDisabled(false, true);
         materialPicker.setOverscroll(false, false);
         materialPicker.setFlickScroll(true);
+        materialPicker.setCancelTouchFocus(true);
 
         materialPanel = new Table();
         materialPanel.top().left();
@@ -203,6 +206,7 @@ public class MobileControls {
         quickStripScroller.setScrollingDisabled(false, true);
         quickStripScroller.setOverscroll(false, false);
         quickStripScroller.setFlickScroll(true);
+        quickStripScroller.setCancelTouchFocus(true);
         quickStripRoot.add(quickStripScroller).growX().height(QUICK_STRIP_HEIGHT).padBottom(DOCK_HEIGHT);
         stage.addActor(quickStripRoot);
 
@@ -263,7 +267,7 @@ public class MobileControls {
                 setEraseMode();
             }
         });
-        quickStrip.add(erase).width(60f).height(44f).pad(1f);
+        quickStrip.add(erase).width(60f).height(44f);
 
         TextButton all = createFlatButton("All", CONTROL, ACCENT);
         all.getLabel().setFontScale(0.75f);
@@ -277,7 +281,7 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickStrip.add(all).width(60f).height(44f).pad(1f);
+        quickStrip.add(all).width(60f).height(44f);
         addQuickMaterial("Brick", ElementType.BRICK, 60f);
         addQuickMaterial("Dirt", ElementType.DIRT, 60f);
         addQuickMaterial("Ember", ElementType.EMBER, 60f);
@@ -303,7 +307,7 @@ public class MobileControls {
             }
         });
         button.getLabel().setWrap(true);
-        quickStrip.add(button).width(width).height(44f).pad(1f);
+        quickStrip.add(button).width(width).height(44f);
     }
 
     private void buildDock() {
@@ -1258,6 +1262,14 @@ public class MobileControls {
         }
 
         stage.act();
+        if (!shelfSwipeVerified && quickStripScroller.getScrollX() > 55f) {
+            shelfSwipeVerified = true;
+            Gdx.app.log("ElementumUI", "material-shelf-horizontal-swipe=true");
+        }
+        if (!pickerSwipeVerified && materialPanel.isVisible() && materialPicker.getScrollX() > 55f) {
+            pickerSwipeVerified = true;
+            Gdx.app.log("ElementumUI", "material-picker-horizontal-swipe=true");
+        }
         stage.draw();
     }
 
