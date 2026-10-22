@@ -1,6 +1,6 @@
 # Elementum — Agent 2: ABR Visual Redesign and Layout QA
 
-**Session status: NOT STARTED.** This file is a concrete work order, not proof an agent is running. The agent must record actual start/stop timestamps, work uninterrupted for EXACTLY **40:00 real-time wall-clock minutes**, and write its handoff.
+**Session status: IMPLEMENTATION HANDOFF after 40-minute timed Agent B work session.** The actual wall-clock interval was 2026-10-22T21:51:19.580+01:00 to 2026-10-22T22:31:42.817+01:00 (40m 23s). Current-source Android CI and visual acceptance are **not verified**, because emulator jobs remain queued; never interpret static checks as emulator evidence.
 
 **Branch:** `agents/elementum-a2-abr-ui-40m-20261022`
 **Target integration PR branch:** `feature/elementum-abr-visual-audio-20261022`
@@ -26,11 +26,11 @@ No clipped text, no overlapping sheets or touch handlers, consistent flat premiu
 **Never claim** 40 minutes elapsed from file creation or a GitHub CI run. User must see **actual in-app water screenshots** before approving visual shader output. minSdk26, no duplicated controls, exactly two horizontal-swipe rows, real release install/QA remain requirements.
 
 ## Actual work log (agent fills this while running)
-- START (ISO8601 WAT): **NOT STARTED**
-- STOP (ISO8601 WAT): **NOT STARTED**
-- Claim comment link: —
-- Commits / child PR: —
-- Tests / API26+36 CI runs: —
-- Actual screenshot artifact names and source SHA: —
-- Visual defects found/fixed: —
-- Remaining issues and next unclaimed tasks: —
+- START (ISO8601 WAT): **2026-10-22T21:51:19.580+01:00**
+- STOP (ISO8601 WAT): **2026-10-22T22:31:42.817+01:00**
+- Claim comment link: https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351035426
+- Commits / child PR: implementation draft PR #12, current source `2ef1459f5e32663c901630329fbcdfbdde8beb93`; temporary QA-only draft PR #14. Source confined to `MobileControls.java`.
+- Tests / API26+36 CI runs: static geometry/invariant checks PASS (12/12, balanced braces, 15+15 shelf rows; 320x568/360x800 logical geometry). Latest current-code QA test run #39857512859 was QUEUED at handoff; real API26/36 installation, screenshot comparison and shader/audio QA NOT VERIFIED.
+- Actual screenshot artifact names and source SHA: older baseline `elementum-help-sheet.png`/`elementum-more-sheet.png` for API26 and API36 inspected from failed run #39845584911 at `d8261461`, displaying genuine Help overflow (`preferred=332 available=320`). **No current-source screenshot** produced.
+- Visual defects found/fixed: fixed non-scrollable/clipped Help, opaque sheet/shelf overlap and empty band, stale checked state for More/All/Sound/Weather/action buttons, duplicate Spark naming, cramped Save/Load labels, Delete confirmation expiring visually, 320dp/tablet modal geometry; logged Help/More close hitbox bounds.
+- Remaining issues and next unclaimed tasks: Agent E to inspect actual API26/API36 screenshots and install/interaction failures once GitHub Actions runner available; keep PR #12 draft and QA-only PR #14 unmerged. Require user approval of real running GPU-water image separately before integrating PR #9.
