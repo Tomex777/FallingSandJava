@@ -19,7 +19,7 @@ public final class MaterialSoundscape {
     private static final String ENABLED_KEY = "sound-enabled";
     private static final String[] NAMES = {"water", "grains", "heat", "electric"};
     private static final float[] SECONDS = {0.30f, 0.16f, 0.24f, 0.18f};
-    private static final float[] LEVELS = {0.16f, 0.10f, 0.11f, 0.095f};
+    private static final float[] LEVELS = {0.44f, 0.27f, 0.24f, 0.19f};
 
     private final Sound[] clips = new Sound[NAMES.length];
     private final AudioEventGate rateGate = new AudioEventGate();
