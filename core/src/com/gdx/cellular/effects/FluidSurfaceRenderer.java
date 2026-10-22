@@ -143,8 +143,8 @@ public final class FluidSurfaceRenderer implements Disposable {
             // origin. SpriteBatch UV top/bottom follow the reversed Y mapping.
             batch.draw(maskTexture, minX * scale, minY * scale,
                     cellsWide * scale, cellsHigh * scale,
-                    (float) minX / width, (float) (height - 1 - maxY) / height,
-                    (float) (maxX + 1) / width, (float) (height - minY) / height);
+                    (float) minX / width, (float) (height - minY) / height,
+                    (float) (maxX + 1) / width, (float) (height - 1 - maxY) / height);
             batch.end();
 
             long now = System.nanoTime();
