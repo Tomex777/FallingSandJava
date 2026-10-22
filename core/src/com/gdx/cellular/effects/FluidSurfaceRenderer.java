@@ -64,6 +64,11 @@ public final class FluidSurfaceRenderer implements Disposable {
             + "  gl_FragColor = vec4(lit*v_color.rgb, coverage*0.91*v_color.a);\n"
             + "}\n";
 
+    // sin(u_time * 2.1) repeats after four complete ripples. Keeping the
+    // uniform below ~12 seconds avoids mediump-float loss of animation
+    // precision on older mobile fragment shaders during long sessions.
+    private static final float RIPPLE_LOOP_SECONDS =
+            (float) (Math.PI * 2.0 * 4.0 / 2.1);
     private static final int PATCH_SIZE = 32;
     private static final int MAX_PATCH_UPLOADS = 3;
     private static final int WATER_PIXEL = 0xffffffff;
@@ -150,7 +155,10 @@ public final class FluidSurfaceRenderer implements Disposable {
         if (!available) return;
         if (matrix.innerArraySize != width || matrix.outerArraySize != height) return;
         try {
-            if (!paused) time += Math.min(0.05f, Gdx.graphics.getDeltaTime());
+            if (!paused) {
+                time += Math.min(0.05f, Gdx.graphics.getDeltaTime());
+                if (time >= RIPPLE_LOOP_SECONDS) time -= RIPPLE_LOOP_SECONDS;
+            }
             // Only update texels that changed. In particular a paused pool
             // needs no repeated full-mask upload.
             long scanStart = System.nanoTime();
