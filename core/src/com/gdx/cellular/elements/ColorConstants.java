@@ -21,13 +21,13 @@ public class ColorConstants {
     private static final Random random = new Random();
 
     // Movable Solids
-    private static final Color SAND_1 = new Color(255/255f, 255/255f, 0/255f, 1);
-    private static final Color SAND_2 = new Color(178/255f, 201/255f, 6/255f, 1);
-    private static final Color SAND_3 = new Color(233/255f, 252/255f, 90/255f, 1);
+    private static final Color SAND_1 = new Color(212/255f, 191/255f, 145/255f, 1f);
+    private static final Color SAND_2 = new Color(186/255f, 166/255f, 121/255f, 1f);
+    private static final Color SAND_3 = new Color(227/255f, 208/255f, 162/255f, 1f);
 
-    private static final Color DIRT_1 = new Color(96/255f, 47/255f, 18/255f, 1);
-    private static final Color DIRT_2 = new Color(135/255f, 70/255f, 32/255f, 1);
-    private static final Color DIRT_3 = new Color(79/255f, 38/255f, 15/255f, 1);
+    private static final Color DIRT_1 = new Color(103/255f, 76/255f, 56/255f, 1f);
+    private static final Color DIRT_2 = new Color(130/255f, 92/255f, 58/255f, 1f);
+    private static final Color DIRT_3 = new Color(82/255f, 61/255f, 46/255f, 1f);
 
     private static final Color COAL_1 = new Color(53/255f, 53/255f, 53/255f, 1);
     private static final Color COAL_2 = new Color(34/255f, 35/255f, 38/255f, 1);
@@ -35,9 +35,9 @@ public class ColorConstants {
 
     private static final Color EMBER = new Color(102/255f, 59/255f, 0/255f, 1);
 
-    private static final Color GUNPOWDER_1 = new Color(255/255f, 142/255f, 142/255f, 1);
-    private static final Color GUNPOWDER_2 = new Color(255/255f, 91/255f, 91/255f, 1);
-    private static final Color GUNPOWDER_3 = new Color(219/255f, 160/255f, 160/255f, 1);
+    private static final Color GUNPOWDER_1 = new Color(94/255f, 92/255f, 91/255f, 1f);
+    private static final Color GUNPOWDER_2 = new Color(68/255f, 69/255f, 72/255f, 1f);
+    private static final Color GUNPOWDER_3 = new Color(117/255f, 112/255f, 107/255f, 1f);
 
     private static final Color SNOW = new Color(1, 1, 1, 1);
 
@@ -47,44 +47,44 @@ public class ColorConstants {
     private static final Color STONE = new Color(150/255f, 150/255f, 150/255f, 1);
     private static final Color ICE = new Color(176/255f, 224/255f, 246/255f, 0.92f);
 
-    private static final Color BRICK_1 = new Color(188/255f, 3/255f, 0/255f, 1);
-    private static final Color BRICK_2 = new Color(188/255f, 3/255f, 0/255f, 1);
-    private static final Color BRICK_3 = new Color(188/255f, 3/255f, 0/255f, 1);
-    private static final Color BRICK_4 = new Color(188/255f, 3/255f, 0/255f, 1);
-    private static final Color BRICK_5 = new Color(206/255f, 206/255f, 206/255f, 1);
+    private static final Color BRICK_1 = new Color(160/255f, 88/255f, 68/255f, 1f);
+    private static final Color BRICK_2 = new Color(158/255f, 83/255f, 67/255f, 1f);
+    private static final Color BRICK_3 = new Color(176/255f, 92/255f, 70/255f, 1f);
+    private static final Color BRICK_4 = new Color(148/255f, 78/255f, 62/255f, 1f);
+    private static final Color BRICK_5 = new Color(138/255f, 129/255f, 118/255f, 1f);
 
-    private static final Color WOOD_1 = new Color(165/255f, 98/255f, 36/255f, 1);
-    private static final Color WOOD_2 = new Color(61/255f, 33/255f, 7/255f, 1);
-    private static final Color WOOD_3 = new Color(140/255f, 74/255f, 12/255f, 1);
+    private static final Color WOOD_1 = new Color(150/255f, 101/255f, 62/255f, 1f);
+    private static final Color WOOD_2 = new Color(86/255f, 56/255f, 38/255f, 1f);
+    private static final Color WOOD_3 = new Color(125/255f, 78/255f, 49/255f, 1f);
 
     private static final Color TITANIUM = new Color(234/255f, 234/255f, 234/255f, 1);
     private static final Color COPPER_1 = new Color(184/255f, 115/255f, 51/255f, 1);
     private static final Color COPPER_2 = new Color(205/255f, 127/255f, 50/255f, 1);
     private static final Color COPPER_3 = new Color(143/255f, 82/255f, 42/255f, 1);
 
-    private static final Color SLIME_MOLD_1 = new Color(255/255f, 142/255f, 243/255f, 1);
-    private static final Color SLIME_MOLD_2 = new Color(201/255f, 58/255f, 107/255f, 1);
-    private static final Color SLIME_MOLD_3 = new Color(234/255f, 35/255f, 213/255f, 1);
+    private static final Color SLIME_MOLD_1 = new Color(115/255f, 145/255f, 89/255f, 1f);
+    private static final Color SLIME_MOLD_2 = new Color(81/255f, 113/255f, 70/255f, 1f);
+    private static final Color SLIME_MOLD_3 = new Color(133/255f, 157/255f, 103/255f, 1f);
 
 
-    private static final Color GROUND = new Color(68/255f, 37/255f, 37/255f, 1);
+    private static final Color GROUND = new Color(78/255f, 68/255f, 62/255f, 1f);
 
 
     // Liquids
-    private static final Color WATER = new Color(28/255f, 86/255f, 234/255f, .8f);
+    private static final Color WATER = new Color(66/255f, 128/255f, 165/255f, 0.82f);
 
     private static final Color OIL = new Color(55/255f, 60/255f, 73/255f, .8f);
 
-    private static final Color PETROL = new Color(205/255f, 166/255f, 72/255f, .8f);
+    private static final Color PETROL = new Color(138/255f, 131/255f, 99/255f, 0.86f);
 
-    private static final Color ACID = new Color(0/255f, 255/255f, 0/255f, 1);
+    private static final Color ACID = new Color(125/255f, 174/255f, 81/255f, 0.94f);
 
-    private static final Color LAVA = new Color(255/255f, 165/255f, 0/255f, 1);
+    private static final Color LAVA = new Color(236/255f, 105/255f, 41/255f, 1f);
     private static final Color MOLTEN_COPPER_1 = new Color(255/255f, 112/255f, 25/255f, 1);
     private static final Color MOLTEN_COPPER_2 = new Color(255/255f, 177/255f, 46/255f, 1);
     private static final Color MOLTEN_COPPER_3 = new Color(232/255f, 72/255f, 18/255f, 1);
 
-    private static final Color BLOOD = new Color(234/255f, 0 /255f,0/255f, .8f);
+    private static final Color BLOOD = new Color(157/255f, 54/255f, 59/255f, 0.85f);
 
     private static final Color CEMENT = new Color(209/255f, 209/255f,209/255f, 1f);
 
@@ -94,7 +94,7 @@ public class ColorConstants {
 
     private static final Color FLAMMABLE_GAS = new Color(0/255f, 255/255f, 0/255f, 0.5f);
 
-    private static final Color SPARK = new Color(89/255f, 35/255f, 13/255f, 1);
+    private static final Color SPARK = new Color(232/255f, 167/255f, 76/255f, 1f);
 
     private static final Color LIGHTNING_1 = new Color(235/255f, 248/255f, 255/255f, 1);
     private static final Color LIGHTNING_2 = new Color(174/255f, 221/255f, 255/255f, 1);
