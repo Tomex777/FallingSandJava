@@ -153,6 +153,10 @@ public class CellularAutomaton extends ApplicationAdapter {
         long frameStartNanos = System.nanoTime();
         long simulationNanos = 0L;
         ensureViewportsMatchScreen();
+        // The GPU overlay owns water only while its shader is healthy.
+        // If an older phone cannot compile it, draw the original water cells.
+        matrix.setSmoothWaterRendering(fluidSurfaceRenderer != null
+                && fluidSurfaceRenderer.isAvailable());
         shapeRenderer.setProjectionMatrix(camera.combined);
         // On Android the world is a neutral slate drawing surface, not a
         // pitch-black rectangle. Empty cells skip drawing their old black fill.
