@@ -25,6 +25,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gdx.cellular.CellularMatrix;
+import com.gdx.cellular.audio.MaterialSoundscape;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
 import com.gdx.cellular.input.MouseMode;
@@ -66,6 +67,7 @@ public class MobileControls {
     private final Skin skin;
     private final Texture opaquePanelTexture;
     private final Texture flatWhiteTexture;
+    private final MaterialSoundscape soundscape;
     private final BitmapFont mobileFont;
     private final boolean ownsMobileFont;
     private final TextureRegionDrawable opaquePanelBackground;
@@ -164,6 +166,8 @@ public class MobileControls {
         // a 360-unit logical width and extends only the height on tall devices.
         // The 360x800 runtime QA surface therefore retains its exact coordinates.
         this.stage = new Stage(new ExtendViewport(UI_MIN_WIDTH, UI_MIN_HEIGHT));
+        soundscape = new MaterialSoundscape();
+        inputManager.setPaintSoundListener(soundscape::onPaint);
 
         overlayBlocker = new Table();
         overlayBlocker.setFillParent(true);
@@ -629,7 +633,16 @@ public class MobileControls {
             }
         });
         moreSheet.add(body).width(126f).height(38f).colspan(2).pad(2f);
-        moreSheet.add().width(62f);
+        TextButton sound = createFlatButton("Sound on", CONTROL, ACCENT);
+        sound.getLabel().setFontScale(0.66f);
+        sound.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                soundscape.setEnabled(!soundscape.isEnabled());
+                sound.setText(soundscape.isEnabled() ? "Sound on" : "Sound off");
+            }
+        });
+        moreSheet.add(sound).width(62f).height(38f).pad(2f);
     }
 
     private void addModeButton(String label, MouseMode mode) {
@@ -1378,6 +1391,8 @@ public class MobileControls {
         stage.dispose();
         opaquePanelTexture.dispose();
         flatWhiteTexture.dispose();
+        soundscape.dispose();
+        inputManager.setPaintSoundListener(null);
         if (ownsMobileFont) mobileFont.dispose();
     }
 }
