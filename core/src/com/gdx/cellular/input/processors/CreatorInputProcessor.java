@@ -29,7 +29,7 @@ public class CreatorInputProcessor implements InputProcessor {
 
     @Override
     public boolean keyDown(int keycode) {
-        if (keycode == Input.Keys.ENTER) {
+        if (keycode == Input.Keys.ENTER && Gdx.app.getType() != Application.ApplicationType.Android) {
             this.parent.setPlayerProcessor();
         }
         if (keycode == Input.Keys.EQUALS) {
