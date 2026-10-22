@@ -97,12 +97,11 @@ public final class MaterialSoundscape {
         // allocating an RNG or rebuilding PCM on the render thread.
         float pitch = 0.95f + ((now >>> 22) & 15L) * 0.006f;
         try {
-            long voiceId = clips[kind].play(LEVELS[kind], pitch, 0.0f);
-            if (voiceId >= 0L) {
-                Gdx.app.log("ElementumAudio", "paint-kind=" + kind);
-            } else {
-                Gdx.app.log("ElementumAudio", "voice-capacity-limited kind=" + kind);
-            }
+            // The asynchronous Android backend returns a *queued task token*,
+            // not a SoundPool confirmation of audible output. Never log it
+            // as "played" or count this as a real listening test.
+            clips[kind].play(LEVELS[kind], pitch, 0.0f);
+            Gdx.app.log("ElementumAudio", "paint-kind=" + kind + " queued=true");
         } catch (RuntimeException audioUnavailable) {
             available = false;
             Gdx.app.error("ElementumAudio", "Playback disabled", audioUnavailable);
@@ -172,7 +171,8 @@ public final class MaterialSoundscape {
             Gdx.app.removeLifecycleListener(lifecycleListener);
             registered = false;
         }
-        stopAll();
+        // Avoid queueing asynchronous stop commands immediately before
+        // synchronous clip disposal; the SoundPool releases its streams.
         for (int i = 0; i < clips.length; i++) {
             if (clips[i] != null) {
                 try {
