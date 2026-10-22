@@ -172,9 +172,8 @@ public final class FluidSurfaceRenderer implements Disposable {
                         maskPixmap.drawPixel(x, FluidMaskGeometry.pixmapY(y, height),
                                 water ? WATER_PIXEL : EMPTY_PIXEL);
                         changed++;
-                        int dirtyTileIndex =
-                                (FluidMaskGeometry.pixmapY(y, height) / PATCH_SIZE)
-                                * tileColumns + x / PATCH_SIZE;
+                        int dirtyTileIndex = FluidMaskGeometry.tileIndex(
+                                x, y, width, height, PATCH_SIZE);
                         if (!dirtyTiles[dirtyTileIndex]) {
                             dirtyTiles[dirtyTileIndex] = true;
                             dirtyTileCount++;
