@@ -40,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 
 public class InputManager {
@@ -73,6 +74,7 @@ public class InputManager {
     private Runnable worldResetHook = () -> { };
     private Runnable mobileSaveRequest;
     private Runnable mobileLoadRequest;
+    private Consumer<ElementType> paintSoundListener = ignored -> { };
 
     public InputProcessor creatorInputProcessor;
     private final CreatorMenu creatorMenu;
@@ -95,6 +97,10 @@ public class InputManager {
         this.modeStage = new Stage();
         this.modeStage.addActor(new ModeActor(this,0, CellularAutomaton.screenHeight - 23));
         this.weatherSystem = new WeatherSystem(ElementType.GUNPOWDER, 2);
+    }
+
+    public void setPaintSoundListener(Consumer<ElementType> listener) {
+        this.paintSoundListener = listener == null ? ignored -> { } : listener;
     }
 
     public void setCurrentlySelectedElement(ElementType elementType) {
@@ -393,6 +399,7 @@ public class InputManager {
                     // mode must not paint ordinary material into the sandbox.
                     return;
                 case SPAWN:
+                    paintSoundListener.accept(currentlySelectedElement);
                     switch (brushType) {
                         case SQUARE:
                         case CIRCLE:
@@ -436,6 +443,7 @@ public class InputManager {
                     }
                     break;
                 case PARTICLE:
+                    paintSoundListener.accept(currentlySelectedElement);
                     if (touchedLastFrame) {
                         matrix.spawnParticleBetweenTwoPoints(lastTouchPos, touchPos, currentlySelectedElement, brushSize, brushType);
                     } else {

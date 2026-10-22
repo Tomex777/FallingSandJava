@@ -158,7 +158,9 @@ if left[:3] != right[:3]:
 
 width, height, bpp = left[:3]
 top = min(height - 1, max(1, round(height * 40 / 800)))
-bottom = min(height, max(top + 1, round(height * 700 / 800)))
+# The two-row material shelf begins at y≈658 on the 360×800 QA screen.
+# Keep its transient material checks/highlights out of sandbox pixel diffs.
+bottom = min(height, max(top + 1, round(height * 650 / 800)))
 for y in range(top, bottom):
     if left[3][y][:width * bpp] != right[3][y][:width * bpp]:
         raise SystemExit(1)
@@ -300,6 +302,14 @@ PY
   adb shell wm size || true
 } > "$evidence/screen-size.txt"
 
+# The two stacked material rows must scroll sideways without painting.
+swipe 312 675 58 675 420
+sleep 1
+capture material-shelf-scrolled
+swipe 58 675 312 675 420
+sleep 1
+capture material-shelf-restored
+
 open_more
 capture more-sheet
 adb shell input keyevent KEYCODE_BACK
@@ -335,6 +345,13 @@ capture tool-draw
 
 tap 310 715
 capture material-picker-solids
+# The full picker also uses a real two-row horizontally swipeable layout.
+swipe 304 562 65 562 450
+sleep 1
+capture material-picker-scrolled
+swipe 65 562 304 562 450
+sleep 1
+capture material-picker-restored
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 capture material-picker-back-dismissed
@@ -745,6 +762,18 @@ grep -q 'ElementumInput.*material-picker=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=closed' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*help=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*material-picker=back-closed' "$evidence/logcat.txt"
+# A green build is insufficient: runtime must actually load smooth-fluid
+# graphics and procedurally generated brush sound effects on both API levels.
+grep -q 'ElementumFluid.*smooth-water-shader=enabled' "$evidence/logcat.txt"
+grep -q 'ElementumAudio.*sfx-ready clips=4' "$evidence/logcat.txt"
+grep -q 'ElementumAudio.*paint-kind=' "$evidence/logcat.txt"
+if grep -E 'ElementumFluid.*(Shader fallback|disabled after error)|ElementumAudio.*(Playback disabled|Sound output unavailable)' "$evidence/logcat.txt"; then
+  echo "The graphics or sound feature silently fell back during runtime" >&2
+  exit 1
+fi
+grep -q 'ElementumUI.*material-shelf=two-rows horizontal-scroll=true' "$evidence/logcat.txt"
+grep -q 'ElementumUI.*material-shelf-horizontal-swipe=true' "$evidence/logcat.txt"
+grep -q 'ElementumUI.*material-picker-horizontal-swipe=true' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*more-sheet=open' "$evidence/logcat.txt"
 grep -q 'ElementumInput.*back-dismiss=mobile-overlay' "$evidence/logcat.txt"
 clear_cancel_line=$(grep 'ElementumInput: clear-cancelled before=' "$evidence/logcat.txt" | tail -1)
@@ -920,3 +949,32 @@ assert_foreground compact-layout
 test -n "$(adb shell pidof com.tomex.elementum)"
 
 
+
+# Dedicated GPU-water visual acceptance evidence.
+# Reset this TEST installation only, keeping the screenshots above untouched,
+# so the screenshot has clean water instead of unrelated physics fixtures.
+adb shell am force-stop com.tomex.elementum
+adb shell pm clear com.tomex.elementum
+adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
+sleep 5
+tap 240 765 # Pause; build a reproducible water pool without gravity.
+tap 90 715  # Select Water; drawing stays enabled while paused.
+for _ in 1 2 3 4 5 6 7 8; do tap 80 765; done # Increase brush size.
+for y in 240 256 272 288 304 320 336; do
+  swipe 75 "$y" 285 "$y" 180
+done
+sleep 6
+capture gpu-water-detail-paused
+tap 240 765 # Resume: preserve actual fluid movement.
+sleep 2
+capture gpu-water-detail-moving
+adb logcat -d > "$evidence/logcat-water-showcase.txt"
+grep -q 'ElementumFluid.*smooth-water-shader=enabled' "$evidence/logcat-water-showcase.txt"
+grep -Eq 'ElementumFluid.*water-cells=[1-9][0-9]*' "$evidence/logcat-water-showcase.txt"
+! grep -E 'ElementumFluid.*(Shader fallback|disabled after error)' "$evidence/logcat-water-showcase.txt"
+test -n "$(adb shell pidof com.tomex.elementum)"
+adb shell wm size 320x568
+sleep 2
+capture gpu-water-compact-320x568
+adb shell wm size 360x800
+test -n "$(adb shell pidof com.tomex.elementum)"

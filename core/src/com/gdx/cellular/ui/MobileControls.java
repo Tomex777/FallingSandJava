@@ -5,6 +5,9 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef;
@@ -18,9 +21,12 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable;
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gdx.cellular.CellularMatrix;
+import com.gdx.cellular.audio.MaterialSoundscape;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
 import com.gdx.cellular.input.MouseMode;
@@ -46,12 +52,13 @@ public class MobileControls {
     private static final float UI_MIN_WIDTH = 360f;
     private static final float UI_MIN_HEIGHT = 640f;
     private static final float DOCK_HEIGHT = 52f;
-    private static final float QUICK_STRIP_HEIGHT = 42f;
-    private static final Color PANEL = Color.valueOf("12161C");
-    private static final Color PANEL_ALT = Color.valueOf("1A2028");
-    private static final Color CONTROL = Color.valueOf("252C35");
-    private static final Color CONTROL_PRESSED = Color.valueOf("34404D");
-    private static final Color ACCENT = Color.valueOf("55C7E8");
+    private static final float QUICK_STRIP_HEIGHT = 90f;
+    private static final Color PANEL = Color.valueOf("14191F");
+    private static final Color PANEL_ALT = Color.valueOf("212831");
+    private static final Color CARD_ACTIVE = Color.valueOf("33414A");
+    private static final Color CONTROL = Color.valueOf("202832");
+    private static final Color CONTROL_PRESSED = Color.valueOf("33424D");
+    private static final Color ACCENT = Color.valueOf("64D0DC");
     private static final Color DANGER = Color.valueOf("8C353A");
     private static final Color MUTED = Color.valueOf("9AA6B2");
 
@@ -61,12 +68,17 @@ public class MobileControls {
     private final CellularMatrix matrix;
     private final Skin skin;
     private final Texture opaquePanelTexture;
+    private final Texture flatWhiteTexture;
+    private final MaterialSoundscape soundscape;
+    private final BitmapFont mobileFont;
+    private final boolean ownsMobileFont;
     private final TextureRegionDrawable opaquePanelBackground;
 
     private final Table quickBar;
     private final Table dock;
     private final Table quickStripRoot;
     private final Table quickStrip;
+    private final ScrollPane quickStripScroller;
     private final Table overlayBlocker;
     private final Table materialPanel;
     private final Table materialGrid;
@@ -93,6 +105,8 @@ public class MobileControls {
     private TextButton pendingDeleteButton;
     private long pendingDeleteTimeMs;
 
+    private boolean shelfSwipeVerified;
+    private boolean pickerSwipeVerified;
     private boolean clearSettlementPending;
     private int clearNonEmptyBefore;
     private int clearWidthBefore;
@@ -103,6 +117,38 @@ public class MobileControls {
         this.inputManager = inputManager;
         this.matrix = matrix;
         this.skin = Skins.getSkin("uiskin");
+        // Render mobile labels with device anti-aliased vector glyphs rather
+        // than scaling the small aliased legacy bitmap font. This is optional:
+        // missing system fonts still leave every control fully functional.
+        BitmapFont generatedFont = skin.getFont("default-font");
+        boolean generated = false;
+        if (Gdx.app.getType() == com.badlogic.gdx.Application.ApplicationType.Android) {
+            com.badlogic.gdx.files.FileHandle systemFont =
+                    Gdx.files.absolute("/system/fonts/Roboto-Regular.ttf");
+            if (systemFont.exists()) {
+                try {
+                    FreeTypeFontGenerator generator = new FreeTypeFontGenerator(systemFont);
+                    try {
+                        FreeTypeFontGenerator.FreeTypeFontParameter p =
+                                new FreeTypeFontGenerator.FreeTypeFontParameter();
+                        // All labels apply fontScale explicitly; a 40px source
+                        // made the 360-unit dock overflow its cells.
+                        p.size = 20;
+                        p.minFilter = Texture.TextureFilter.Linear;
+                        p.magFilter = Texture.TextureFilter.Linear;
+                        generatedFont = generator.generateFont(p);
+                        // Do not scale here: Label.setFontScale replaces it.
+                        generated = true;
+                    } finally {
+                        generator.dispose();
+                    }
+                } catch (Throwable unavailableFont) {
+                    Gdx.app.error("ElementumUI", "platform-font-fallback", unavailableFont);
+                }
+            }
+        }
+        mobileFont = generatedFont;
+        ownsMobileFont = generated;
         // The atlas "white" region is translucent around its edges; tinted
         // modal panels let busy sand show through instructional text. Use a
         // real opaque 1px texture for each shared sheet background instead.
@@ -113,12 +159,19 @@ public class MobileControls {
         panelPixel.dispose();
         opaquePanelBackground = new TextureRegionDrawable(
                 new TextureRegion(opaquePanelTexture));
+        Pixmap whitePixel = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        whitePixel.setColor(Color.WHITE);
+        whitePixel.fill();
+        flatWhiteTexture = new Texture(whitePixel);
+        whitePixel.dispose();
         // Keep touch controls phone-sized on high-density displays. A ScreenViewport
         // treated the fixed 44-90 unit controls as physical pixels, shrinking the
         // whole dock to roughly one third of a 1080px phone. ExtendViewport keeps
         // a 360-unit logical width and extends only the height on tall devices.
         // The 360x800 runtime QA surface therefore retains its exact coordinates.
         this.stage = new Stage(new ExtendViewport(UI_MIN_WIDTH, UI_MIN_HEIGHT));
+        soundscape = new MaterialSoundscape();
+        inputManager.setPaintSoundListener(soundscape::onPaint);
 
         overlayBlocker = new Table();
         overlayBlocker.setFillParent(true);
@@ -138,8 +191,11 @@ public class MobileControls {
         ScrollPane.ScrollPaneStyle cleanScrollStyle = new ScrollPane.ScrollPaneStyle();
         materialPicker = new ScrollPane(materialGrid, cleanScrollStyle);
         materialPicker.setFadeScrollBars(true);
-        materialPicker.setScrollingDisabled(true, false);
-        materialPicker.setOverscroll(false, true);
+        // Exactly two rows of materials, browsed sideways instead of a tall grid.
+        materialPicker.setScrollingDisabled(false, true);
+        materialPicker.setOverscroll(false, false);
+        materialPicker.setFlickScroll(true);
+        materialPicker.setCancelTouchFocus(true);
 
         materialPanel = new Table();
         materialPanel.top().left();
@@ -193,10 +249,24 @@ public class MobileControls {
         quickStripRoot.setFillParent(true);
         quickStripRoot.setTouchable(Touchable.childrenOnly);
         quickStrip = new Table();
-        quickStrip.setBackground(skin.newDrawable("white", Color.valueOf("10151A")));
+        quickStrip.top().left();
+        quickStrip.setBackground(opaquePanelBackground);
         buildQuickStrip();
-        quickStripRoot.add(quickStrip).height(QUICK_STRIP_HEIGHT).padBottom(DOCK_HEIGHT);
+        // The bundled skin's "white" drawable has translucent edge pixels.
+        // A fully opaque scroller background stops the simulation checkerboard
+        // from leaking behind the two material rows or exposed padding.
+        ScrollPane.ScrollPaneStyle shelfStyle = new ScrollPane.ScrollPaneStyle();
+        shelfStyle.background = opaquePanelBackground;
+        quickStripScroller = new ScrollPane(quickStrip, shelfStyle);
+        quickStripScroller.setScrollingDisabled(false, true);
+        quickStripScroller.setOverscroll(false, false);
+        quickStripScroller.setFlickScroll(true);
+        quickStripScroller.setCancelTouchFocus(true);
+        quickStripRoot.add(quickStripScroller).growX().height(QUICK_STRIP_HEIGHT).padBottom(DOCK_HEIGHT);
         stage.addActor(quickStripRoot);
+        // Sheets draw ABOVE the shelf's upper row, but the lower row stays
+        // visible and usable. Keep the modal blocker BEHIND the shelf.
+        quickStripRoot.setZIndex(1);
 
         quickBar = new Table();
         quickBar.bottom();
@@ -204,7 +274,7 @@ public class MobileControls {
         quickBar.setTouchable(Touchable.childrenOnly);
 
         dock = new Table();
-        dock.setBackground(skin.newDrawable("white", Color.valueOf("0E1217")));
+        dock.setBackground(solidDrawable(Color.valueOf("10151B")));
         buildDock();
         quickBar.add(dock).height(DOCK_HEIGHT);
         stage.addActor(quickBar);
@@ -221,12 +291,32 @@ public class MobileControls {
     }
 
     private void buildQuickStrip() {
+        // The material shelf is two real, finger-sized stacked rows. Both move
+        // together with one horizontal swipe; painting never starts on the shelf.
+        // Keep the original common-material positions on the LOWER row.
+        addQuickMaterial("Stone", ElementType.STONE, 60f);
+        addQuickMaterial("Wood", ElementType.WOOD, 60f);
+        addQuickMaterial("Lava", ElementType.LAVA, 60f);
+        addQuickMaterial("Oil", ElementType.OIL, 60f);
+        addQuickMaterial("Acid", ElementType.ACID, 60f);
+        addQuickMaterial("Copper", ElementType.COPPER, 60f);
+        addQuickMaterial("Ice", ElementType.ICE, 60f);
+        addQuickMaterial("Snow", ElementType.SNOW, 60f);
+        addQuickMaterial("Powder", ElementType.GUNPOWDER, 60f);
+        addQuickMaterial("Smoke", ElementType.SMOKE, 60f);
+        addQuickMaterial("Steam", ElementType.STEAM, 60f);
+        addQuickMaterial("Cement", ElementType.CEMENT, 60f);
+        addQuickMaterial("Molten Cu", ElementType.MOLTENCOPPER, 60f);
+        addQuickMaterial("Titanium", ElementType.TITANIUM, 60f);
+        addQuickMaterial("Spark", ElementType.SPARK, 60f);
+        quickStrip.row();
+
         addQuickMaterial("Sand", ElementType.SAND, 60f);
         addQuickMaterial("Water", ElementType.WATER, 60f);
         addQuickMaterial("Petrol", ElementType.PETROL, 60f);
         addQuickMaterial("Bolt", ElementType.LIGHTNING, 60f);
 
-        TextButton erase = createFlatButton("Erase", DANGER.cpy().lerp(Color.BLACK, 0.24f), DANGER);
+        TextButton erase = createFlatButton("Erase", PANEL_ALT, DANGER);
         erase.getLabel().setFontScale(0.70f);
         quickButtons.put(ElementType.EMPTYCELL, erase);
         erase.addListener(new ClickListener() {
@@ -235,7 +325,7 @@ public class MobileControls {
                 setEraseMode();
             }
         });
-        quickStrip.add(erase).width(60f).height(40f);
+        quickStrip.add(erase).width(60f).height(44f);
 
         TextButton all = createFlatButton("All", CONTROL, ACCENT);
         all.getLabel().setFontScale(0.75f);
@@ -249,13 +339,24 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickStrip.add(all).width(60f).height(40f);
+        quickStrip.add(all).width(60f).height(44f);
+        addQuickMaterial("Brick", ElementType.BRICK, 60f);
+        addQuickMaterial("Dirt", ElementType.DIRT, 60f);
+        addQuickMaterial("Ember", ElementType.EMBER, 60f);
+        addQuickMaterial("Coal", ElementType.COAL, 60f);
+        addQuickMaterial("Ground", ElementType.GROUND, 60f);
+        addQuickMaterial("Gas", ElementType.FLAMMABLEGAS, 60f);
+        addQuickMaterial("Blood", ElementType.BLOOD, 60f);
+        addQuickMaterial("Slime", ElementType.SLIMEMOLD, 60f);
+        addQuickMaterial("Flash", ElementType.EXPLOSIONSPARK, 60f);
+        quickStrip.pack();
+        Gdx.app.log("ElementumUI", "material-shelf=two-rows horizontal-scroll=true");
     }
 
     private void addQuickMaterial(String label, ElementType type, float width) {
         Color color = materialColor(type);
-        TextButton button = createFlatButton(label, color.cpy().lerp(Color.BLACK, 0.32f), color);
-        button.getLabel().setFontScale(0.70f);
+        TextButton button = createMaterialButton(label, color);
+        button.getLabel().setFontScale(0.74f);
         quickButtons.put(type, button);
         button.addListener(new ClickListener() {
             @Override
@@ -263,7 +364,8 @@ public class MobileControls {
                 selectMaterial(type);
             }
         });
-        quickStrip.add(button).width(width).height(40f);
+        button.getLabel().setWrap(true);
+        quickStrip.add(button).width(width).height(44f);
     }
 
     private void buildDock() {
@@ -360,8 +462,8 @@ public class MobileControls {
     }
 
     private void addCategoryButton(String name, Color tint) {
-        TextButton button = createFlatButton(name, tint.cpy().lerp(Color.BLACK, 0.38f), tint);
-        button.getLabel().setFontScale(0.75f);
+        TextButton button = createFlatButton(name, PANEL_ALT, ACCENT);
+        button.getLabel().setFontScale(0.73f);
         categoryButtons.put(name, button);
         button.addListener(new ClickListener() {
             @Override
@@ -396,17 +498,17 @@ public class MobileControls {
                 break;
         }
 
-        float contentWidth = Math.max(280f, Math.min(510f, stage.getViewport().getWorldWidth() - 24f));
-        int columns = contentWidth >= 470f ? 6 : 4;
-        float tileWidth = Math.max(58f, (contentWidth - 24f - (columns - 1) * 4f) / columns);
-
-        int column = 0;
+        // Two stacked rows; additional columns extend to the right. Packing
+        // the table to its content width makes ScrollPane horizontal drag real.
+        final int firstRowCount = (types.size() + 1) / 2;
+        int index = 0;
         for (ElementType type : types) {
+            if (index == firstRowCount) materialGrid.row();
             TextButton button = pickerButtons.get(type);
             if (button == null) {
                 Color color = materialColor(type);
-                button = createFlatButton(displayName(type), color.cpy().lerp(Color.BLACK, 0.32f), color);
-                button.getLabel().setFontScale(0.70f);
+                button = createMaterialButton(displayName(type), color);
+                button.getLabel().setFontScale(0.74f);
                 button.getLabel().setWrap(true);
                 pickerButtons.put(type, button);
                 final ElementType selectedType = type;
@@ -419,15 +521,11 @@ public class MobileControls {
                     }
                 });
             }
-            materialGrid.add(button).width(tileWidth).height(43f).pad(2f);
-            column++;
-            if (column == columns) {
-                materialGrid.row();
-                column = 0;
-            }
+            materialGrid.add(button).width(76f).height(44f).pad(2f);
+            index++;
         }
-        if (column != 0) materialGrid.row();
         materialGrid.pack();
+        materialPicker.setScrollX(0f);
         syncMaterialHighlights();
         Gdx.app.log("ElementumInput", "material-category=" + name.toLowerCase(Locale.ROOT));
     }
@@ -539,7 +637,16 @@ public class MobileControls {
             }
         });
         moreSheet.add(body).width(126f).height(38f).colspan(2).pad(2f);
-        moreSheet.add().width(62f);
+        TextButton sound = createFlatButton("Sound on", CONTROL, ACCENT);
+        sound.getLabel().setFontScale(0.66f);
+        sound.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                soundscape.setEnabled(!soundscape.isEnabled());
+                sound.setText(soundscape.isEnabled() ? "Sound on" : "Sound off");
+            }
+        });
+        moreSheet.add(sound).width(62f).height(38f).pad(2f);
     }
 
     private void addModeButton(String label, MouseMode mode) {
@@ -590,7 +697,7 @@ public class MobileControls {
         helpSheet.row();
         addHelpLine("Draw", "One finger tap or stroke");
         addHelpLine("Navigate", "Two fingers to pan or pinch");
-        addHelpLine("Materials", "Tap All to choose a material");
+        addHelpLine("Materials", "Two rows. Swipe horizontally.");
         addHelpLine("Tool", "Tap the tool button to cycle Draw, Heat and Cool");
         addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
@@ -599,9 +706,9 @@ public class MobileControls {
     }
 
     private void addHelpLine(String title, String detail) {
-        Label titleLabel = new Label(title, skin);
+        Label titleLabel = new Label(title, new Label.LabelStyle(mobileFont, Color.WHITE));
         titleLabel.setFontScale(0.75f);
-        Label detailLabel = new Label(detail, skin);
+        Label detailLabel = new Label(detail, new Label.LabelStyle(mobileFont, Color.WHITE));
         detailLabel.setFontScale(0.70f);
         detailLabel.setColor(MUTED);
         detailLabel.setWrap(true);
@@ -688,9 +795,9 @@ public class MobileControls {
     private void addSceneRow(String display, String name, FileHandle existing, boolean saveMode) {
         Table info = new Table();
         info.left();
-        Label sceneName = new Label(display, skin);
+        Label sceneName = new Label(display, new Label.LabelStyle(mobileFont, Color.WHITE));
         sceneName.setFontScale(0.75f);
-        Label detail = new Label(existing == null ? "Empty" : formatModified(existing), skin);
+        Label detail = new Label(existing == null ? "Empty" : formatModified(existing), new Label.LabelStyle(mobileFont, Color.WHITE));
         detail.setFontScale(0.70f);
         detail.setColor(MUTED);
         info.add(sceneName).left();
@@ -789,7 +896,7 @@ public class MobileControls {
         clearSheet.add(title).colspan(2).left().padBottom(5f);
         clearSheet.row();
 
-        Label message = new Label("Remove the current sandbox? Saved scenes stay untouched.", skin);
+        Label message = new Label("Remove the current sandbox? Saved scenes stay untouched.", new Label.LabelStyle(mobileFont, Color.WHITE));
         message.setFontScale(0.70f);
         message.setColor(MUTED);
         message.setWrap(true);
@@ -1053,13 +1160,77 @@ public class MobileControls {
         return button;
     }
 
+    private TextButton createMaterialButton(String label, Color tint) {
+        TextButtonStyle style = new TextButtonStyle();
+        style.up = new MaterialCardDrawable(tint, false);
+        style.down = new MaterialCardDrawable(tint, true);
+        style.checked = new MaterialCardDrawable(tint, true);
+        style.over = style.up;
+        style.font = mobileFont;
+        style.fontColor = Color.valueOf("EDF2F5");
+        style.checkedFontColor = Color.WHITE;
+        return new TextButton(label, style);
+    }
+
+    private class MaterialCardDrawable extends BaseDrawable {
+        private final Color color;
+        private final boolean active;
+
+        MaterialCardDrawable(Color color, boolean active) {
+            this.color = color;
+            this.active = active;
+        }
+
+        @Override
+        public void draw(Batch batch, float x, float y, float w, float h) {
+            // Never allocate Colors from a per-frame draw callback: even on a
+            // 60Hz phone, that becomes thousands of short-lived objects.
+            Color previous = batch.getColor();
+            float red = previous.r, green = previous.g, blue = previous.b, alpha = previous.a;
+            batch.setColor(active ? CARD_ACTIVE : PANEL_ALT);
+            batch.draw(flatWhiteTexture, x + 1f, y + 1f, Math.max(1f, w - 2f), Math.max(1f, h - 2f));
+            // Every card has its own material tint as a slim, high-contrast
+            // swatch. A selected card gets an additional clear accent outline.
+            batch.setColor(color);
+            batch.draw(flatWhiteTexture, x + 1f, y + h - 4f, Math.max(1f, w - 2f), 3f);
+            if (active) {
+                batch.setColor(ACCENT);
+                batch.draw(flatWhiteTexture, x, y, w, 1.5f);
+            }
+            batch.setColor(red, green, blue, alpha);
+        }
+    }
+
+    /** A small visual gap keeps controls distinct without shrinking their touch areas. */
+    private final class FlatControlDrawable extends BaseDrawable {
+        private final Color fill;
+
+        FlatControlDrawable(Color fill) {
+            this.fill = fill;
+        }
+
+        @Override
+        public void draw(Batch batch, float x, float y, float width, float height) {
+            Color previous = batch.getColor();
+            float red = previous.r, green = previous.g, blue = previous.b, alpha = previous.a;
+            batch.setColor(fill);
+            batch.draw(flatWhiteTexture, x + 2f, y + 2f,
+                    Math.max(1f, width - 4f), Math.max(1f, height - 4f));
+            batch.setColor(red, green, blue, alpha);
+        }
+    }
+
+    private Drawable solidDrawable(Color tint) {
+        return new TextureRegionDrawable(new TextureRegion(flatWhiteTexture)).tint(tint);
+    }
+
     private TextButtonStyle flatStyle(Color base, Color checked, Color fontColor) {
         TextButtonStyle style = new TextButtonStyle();
-        style.up = skin.newDrawable("white", base);
-        style.down = skin.newDrawable("white", base.cpy().lerp(Color.WHITE, 0.10f));
-        style.over = skin.newDrawable("white", base.cpy().lerp(Color.WHITE, 0.06f));
-        style.checked = skin.newDrawable("white", checked);
-        style.font = skin.getFont("default-font");
+        style.up = new FlatControlDrawable(base);
+        style.down = new FlatControlDrawable(base.cpy().lerp(Color.WHITE, 0.08f));
+        style.over = new FlatControlDrawable(base.cpy().lerp(Color.WHITE, 0.04f));
+        style.checked = new FlatControlDrawable(checked);
+        style.font = mobileFont;
         style.fontColor = fontColor;
         // Selected materials/tools use saturated cyan, sand and heat colors.
         // White-on-cyan was hard to read: choose ink on brighter selections.
@@ -1072,8 +1243,8 @@ public class MobileControls {
     }
 
     private Label sectionLabel(String text) {
-        Label label = new Label(text, skin);
-        label.setFontScale(0.72f);
+        Label label = new Label(text, new Label.LabelStyle(mobileFont, Color.WHITE));
+        label.setFontScale(0.79f);
         label.setColor(Color.valueOf("EEF4F8"));
         return label;
     }
@@ -1181,10 +1352,16 @@ public class MobileControls {
         float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
         panelWidth = Math.max(300f, panelWidth);
         float x = (width - panelWidth) / 2f;
-        float y = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
+        // The expandable shelf sits above the original dock. The compact
+        // secondary sheets keep their familiar placement; while open, the
+        // shelf is hidden so no material chips are covered or accidentally hit.
+        float y = DOCK_HEIGHT + 42f + 4f;
+        float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
         float available = Math.max(120f, height - y - 14f);
 
-        materialPanel.setBounds(x, y, panelWidth, Math.min(240f, Math.max(180f, height * 0.31f)));
+        // Reserve the complete 2 x 44px tile surface even on compact phones.
+        // This also keeps the four category buttons large and easy to hit.
+        materialPanel.setBounds(x, materialY, panelWidth, Math.min(200f, height - materialY - 14f));
         moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
         sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
         helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
@@ -1216,6 +1393,14 @@ public class MobileControls {
         }
 
         stage.act();
+        if (!shelfSwipeVerified && quickStripScroller.getScrollX() > 55f) {
+            shelfSwipeVerified = true;
+            Gdx.app.log("ElementumUI", "material-shelf-horizontal-swipe=true");
+        }
+        if (!pickerSwipeVerified && materialPanel.isVisible() && materialPicker.getScrollX() > 55f) {
+            pickerSwipeVerified = true;
+            Gdx.app.log("ElementumUI", "material-picker-horizontal-swipe=true");
+        }
         stage.draw();
     }
 
@@ -1231,5 +1416,9 @@ public class MobileControls {
     public void dispose() {
         stage.dispose();
         opaquePanelTexture.dispose();
+        flatWhiteTexture.dispose();
+        soundscape.dispose();
+        inputManager.setPaintSoundListener(null);
+        if (ownsMobileFont) mobileFont.dispose();
     }
 }
