@@ -3,8 +3,6 @@ package com.gdx.cellular.elements;
 import com.badlogic.gdx.Gdx;
 import com.gdx.cellular.CellularMatrix;
 
-import java.util.EnumMap;
-
 /**
  * Central registry for optional element-to-element reactions.
  *
@@ -19,10 +17,11 @@ public final class ReactionRegistry {
         boolean react(Element first, Element second, CellularMatrix matrix);
     }
 
-    // EnumMap avoids allocating a ReactionKey for every adjacent-cell contact.
-    // Contact checks run in the hot physics loop, including on budget devices.
-    private static final EnumMap<ElementType, EnumMap<ElementType, Reaction>> REACTIONS =
-            new EnumMap<>(ElementType.class);
+    // Array-indexed enum pairs avoid BOTH per-contact key allocations and
+    // repeated Map lookups. ~35x35 references cost only a few KiB once, while
+    // the physics hot loop probes reaction rules millions of times.
+    private static final Reaction[][] REACTIONS = new Reaction
+            [ElementType.values().length][ElementType.values().length];
 
     static {
         registerSymmetric(ElementType.PETROL, ElementType.LAVA, (first, second, matrix) -> {
@@ -114,8 +113,7 @@ public final class ReactionRegistry {
     }
 
     public static void register(ElementType first, ElementType second, Reaction reaction) {
-        REACTIONS.computeIfAbsent(first, type -> new EnumMap<>(ElementType.class))
-                .put(second, reaction);
+        REACTIONS[first.ordinal()][second.ordinal()] = reaction;
     }
 
     public static void registerSymmetric(ElementType first, ElementType second, Reaction reaction) {
@@ -128,9 +126,7 @@ public final class ReactionRegistry {
             return false;
         }
 
-        EnumMap<ElementType, Reaction> reactionsForFirst = REACTIONS.get(first.elementType);
-        if (reactionsForFirst == null) return false;
-        Reaction reaction = reactionsForFirst.get(second.elementType);
+        Reaction reaction = REACTIONS[first.elementType.ordinal()][second.elementType.ordinal()];
         return reaction != null && reaction.react(first, second, matrix);
     }
 }
