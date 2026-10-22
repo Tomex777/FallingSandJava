@@ -13,6 +13,12 @@ import com.gdx.cellular.particles.Particle;
 
 public abstract class Liquid extends Element {
 
+    // Simulation workers call Liquid.step on different threads. Distinct
+    // per-thread scratch vectors avoid thousands of temporary allocations per
+    // tick without sharing mutable motion state across parallel columns.
+    private static final ThreadLocal<Vector3> STEP_PATH = ThreadLocal.withInitial(Vector3::new);
+    private static final ThreadLocal<Vector3> SIDE_PATH = ThreadLocal.withInitial(Vector3::new);
+
     public int density;
     public int dispersionRate;
     public int yDidNotChangeCount = 0;
@@ -74,7 +80,7 @@ public abstract class Liquid extends Element {
         // for every liquid cell on every physics tick.
         final int formerX = getMatrixX();
         final int formerY = getMatrixY();
-        Vector3 lastValidLocation = new Vector3(formerX, formerY, 0);
+        Vector3 lastValidLocation = STEP_PATH.get().set(formerX, formerY, 0f);
         for (int i = 1; i <= upperBound; i++) {
             smallerCount = (int) Math.floor(i * slope);
 
@@ -321,7 +327,7 @@ public abstract class Liquid extends Element {
 
     private boolean iterateToAdditional(CellularMatrix matrix, int startingX, int startingY, int distance, Vector3 lastValid) {
         int distanceModifier = distance > 0 ? 1 : -1;
-        Vector3 lastValidLocation = lastValid.cpy();
+        Vector3 lastValidLocation = SIDE_PATH.get().set(lastValid);
         for (int i = 0; i <= Math.abs(distance); i++) {
             int modifiedX = startingX + i * distanceModifier;
             Element neighbor = matrix.get(modifiedX, startingY);
