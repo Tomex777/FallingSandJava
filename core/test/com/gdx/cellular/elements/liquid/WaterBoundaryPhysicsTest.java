@@ -1,0 +1,90 @@
+package com.gdx.cellular.elements.liquid;
+
+import com.gdx.cellular.CellularAutomaton;
+import com.gdx.cellular.CellularMatrix;
+import com.gdx.cellular.elements.Element;
+import com.gdx.cellular.elements.ElementType;
+import org.junit.Test;
+
+import static org.junit.Assert.*;
+
+/**
+ * Physics regressions are pure JVM tests: there is no shader or Android
+ * dependency, so conservation failures can be caught before APK smoke tests.
+ */
+public class WaterBoundaryPhysicsTest {
+    private CellularMatrix newWorld(int width, int height) {
+        CellularMatrix matrix = new CellularMatrix(width, height, 1, null);
+        matrix.useChunks = false;
+        return matrix;
+    }
+
+    private void tick(CellularMatrix matrix) {
+        CellularAutomaton.stepped.flip(0);
+        matrix.stepProvidedRows(0, matrix.outerArraySize - 1);
+    }
+
+    private int countWater(CellularMatrix matrix) {
+        int total = 0;
+        for (int y = 0; y < matrix.outerArraySize; y++) {
+            for (int x = 0; x < matrix.innerArraySize; x++) {
+                if (matrix.get(x, y) instanceof Water) total++;
+            }
+        }
+        return total;
+    }
+
+    @Test
+    public void floorIsAContainmentBoundaryNotAWaterDrain() {
+        CellularMatrix matrix = newWorld(12, 8);
+        Element water = matrix.spawnElementByMatrix(6, 0, ElementType.WATER);
+        assertNotNull(water);
+        for (int i = 0; i < 120; i++) {
+            tick(matrix);
+            assertEquals("Water disappeared after touching the floor on step " + i, 1, countWater(matrix));
+            assertEquals(1, matrix.countNonEmptyCells());
+            assertEquals("Bottom-pool liquid escaped row zero", 0, water.getMatrixY());
+        }
+    }
+
+    @Test
+    public void fallingWaterReachesFloorWithoutDisappearing() {
+        CellularMatrix matrix = newWorld(15, 12);
+        matrix.spawnElementByMatrix(7, 7, ElementType.WATER);
+        for (int i = 0; i < 90; i++) {
+            tick(matrix);
+            assertEquals("Water disappeared at a simulation edge on step " + i, 1, countWater(matrix));
+        }
+        assertEquals("Water never settled against floor", 1, countWater(matrix));
+    }
+
+    @Test
+    public void poolMassSurvivesRepeatedBoundaryImpacts() {
+        CellularMatrix matrix = newWorld(14, 10);
+        for (int x = 5; x < 9; x++) {
+            for (int y = 0; y < 3; y++) {
+                matrix.spawnElementByMatrix(x, y, ElementType.WATER);
+            }
+        }
+        assertEquals(12, countWater(matrix));
+        for (int i = 0; i < 120; i++) {
+            tick(matrix);
+            assertEquals("Non-reactive water must be conserved on step " + i, 12, countWater(matrix));
+        }
+    }
+
+    @Test
+    public void modestHeatingAndCoolingRemainSerializable() {
+        CellularMatrix matrix = newWorld(4, 4);
+        Water water = (Water) matrix.spawnElementByMatrix(2, 2, ElementType.WATER);
+        assertEquals("80,100", water.getSaveState());
+        assertFalse(water.receiveHeat(matrix, 0));
+        assertFalse(water.receiveCooling(matrix, -1));
+        assertTrue(water.receiveHeat(matrix, 13));
+        assertTrue(water.receiveCooling(matrix, 17));
+        assertEquals("67,83", water.getSaveState());
+        Water restored = new Water(2, 2);
+        restored.restoreSaveState(water.getSaveState());
+        assertEquals(water.getSaveState(), restored.getSaveState());
+    }
+}
