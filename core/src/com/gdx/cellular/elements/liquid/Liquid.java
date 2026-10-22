@@ -133,7 +133,13 @@ public abstract class Liquid extends Element {
             stoppedMovingCount = stoppedMovingThreshold;
         }
         if (matrix.useChunks)  {
-            if (isIgnited || !hasNotMovedBeyondThreshold()) {
+            // A liquid paused next to open horizontal space is not settled.
+            // Let that chunk finish filling the surface before it goes idle;
+            // fully enclosed pools can still sleep to save budget-device CPU.
+            boolean openSide = hasNotMovedBeyondThreshold()
+                    && (matrix.get(getMatrixX() - 1, getMatrixY()) instanceof EmptyCell
+                    || matrix.get(getMatrixX() + 1, getMatrixY()) instanceof EmptyCell);
+            if (isIgnited || !hasNotMovedBeyondThreshold() || openSide) {
                 matrix.reportToChunkActive(this);
                 matrix.reportToChunkActive(formerX, formerY);
             }
