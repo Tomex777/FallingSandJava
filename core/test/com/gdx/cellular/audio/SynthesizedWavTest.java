@@ -25,6 +25,11 @@ public class SynthesizedWavTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
+    public void rejectsSubSampleDuration() throws Exception {
+        SynthesizedWav.generate(0, 0.000001f);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
     public void rejectsUnboundedDuration() throws Exception {
         SynthesizedWav.generate(0, 999);
     }
