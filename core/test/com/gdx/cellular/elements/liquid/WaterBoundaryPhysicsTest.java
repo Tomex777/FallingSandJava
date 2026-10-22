@@ -82,6 +82,39 @@ public class WaterBoundaryPhysicsTest {
     }
 
     @Test
+    public void sealedStoneTankPreservesWaterAndNeverCrossesWalls() {
+        CellularMatrix matrix = newWorld(22, 13);
+        for (int x = 4; x <= 17; x++) {
+            matrix.spawnElementByMatrix(x, 0, ElementType.STONE);
+        }
+        for (int y = 1; y <= 11; y++) {
+            matrix.spawnElementByMatrix(4, y, ElementType.STONE);
+            matrix.spawnElementByMatrix(17, y, ElementType.STONE);
+        }
+        for (int x = 7; x <= 14; x++) {
+            for (int y = 3; y <= 6; y++) {
+                matrix.spawnElementByMatrix(x, y, ElementType.WATER);
+            }
+        }
+        assertEquals(32, countWater(matrix));
+        for (int i = 0; i < 160; i++) {
+            tick(matrix);
+            int count = 0;
+            for (int y = 0; y < matrix.outerArraySize; y++) {
+                for (int x = 0; x < matrix.innerArraySize; x++) {
+                    if (matrix.get(x, y) instanceof Water) {
+                        assertTrue("Water tunneled through the left stone wall", x > 4);
+                        assertTrue("Water tunneled through the right stone wall", x < 17);
+                        assertTrue("Water crossed the stone floor", y > 0);
+                        count++;
+                    }
+                }
+            }
+            assertEquals("Tank lost or duplicated water on step " + i, 32, count);
+        }
+    }
+
+    @Test
     public void sideWallsReflectFastWaterWithoutErasingIt() {
         for (int direction : new int[]{-1, 1}) {
             CellularMatrix matrix = newWorld(15, 10);
