@@ -206,7 +206,11 @@ public abstract class Liquid extends Element {
             }
             if (isFreeFalling) {
                 float absY = Math.max(Math.abs(vel.y) / 31, 105);
-                vel.x = vel.x < 0 ? -absY : absY;
+                // Zero horizontal momentum has no preferred side. The old
+                // sign check always pushed still water right on impact.
+                vel.x = Math.abs(vel.x) < 0.01f
+                        ? (Math.random() < 0.5 ? -absY : absY)
+                        : (vel.x < 0 ? -absY : absY);
             }
 //            if (yHasNotMovedBeyondThreshold()) {
 //                vel.x = Math.random() > 0.5 ? 64 : -64;
@@ -260,7 +264,11 @@ public abstract class Liquid extends Element {
             }
             if (isFreeFalling) {
                 float absY = Math.max(Math.abs(vel.y) / 31, 105);
-                vel.x = vel.x < 0 ? -absY : absY;
+                // Zero horizontal momentum has no preferred side. The old
+                // sign check always pushed still water right on impact.
+                vel.x = Math.abs(vel.x) < 0.01f
+                        ? (Math.random() < 0.5 ? -absY : absY)
+                        : (vel.x < 0 ? -absY : absY);
             }
             // Avoid allocating a Vector3 for every blocked-liquid contact.
             float speedSquared = vel.x * vel.x + vel.y * vel.y;
