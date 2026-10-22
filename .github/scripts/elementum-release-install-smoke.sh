@@ -71,7 +71,10 @@ printf 'screenshot_bytes=%s\n' "$screenshot_bytes" > "$evidence/screenshot-summa
 adb shell input tap 239 765  # Pause real simulation, allow stationary paint.
 adb shell input tap 90 724   # Select Water in lower of two shelf rows.
 adb shell input swipe 112 250 236 310 420
-sleep 2
+# Fluid instrumentation emits every five seconds, not once per brush tap.
+# Keep the paused water stationary long enough to obtain a genuine nonzero
+# water-cells sample before resuming simulation.
+sleep 6
 adb exec-out screencap -p > "$evidence/elementum-release-water-paused.png"
 python3 .github/scripts/elementum-assert-water-pixels.py \
   "$evidence/elementum-release-water-paused.png"
