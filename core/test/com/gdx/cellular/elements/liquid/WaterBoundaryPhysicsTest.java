@@ -115,7 +115,22 @@ public class WaterBoundaryPhysicsTest {
             assertFalse("Water changed phase without net heating or cooling", water.isDead());
             assertSame(water, matrix.get(2, 2));
         }
-        assertEquals("80,93", water.getSaveState());
+        assertEquals("80,100", water.getSaveState());
+    }
+
+    @Test
+    public void partialFreezingMustThawBeforeHeatingTowardsBoiling() {
+        CellularMatrix matrix = newWorld(4, 4);
+        Water water = (Water) matrix.spawnElementByMatrix(2, 2, ElementType.WATER);
+        water.restoreSaveState("80,30");
+        assertTrue(water.receiveHeat(matrix, 40));
+        assertEquals("Heating subzero water should first clear cold debt",
+                "80,70", water.getSaveState());
+        assertTrue(water.receiveHeat(matrix, 40));
+        assertEquals("70,100", water.getSaveState());
+        assertTrue(water.receiveCooling(matrix, 50));
+        assertEquals("80,60", water.getSaveState());
+        assertSame(water, matrix.get(2, 2));
     }
 
     @Test
@@ -156,7 +171,7 @@ public class WaterBoundaryPhysicsTest {
         assertFalse(water.receiveCooling(matrix, -1));
         assertTrue(water.receiveHeat(matrix, 13));
         assertTrue(water.receiveCooling(matrix, 17));
-        assertEquals("80,83", water.getSaveState());
+        assertEquals("80,96", water.getSaveState());
         Water restored = new Water(2, 2);
         restored.restoreSaveState(water.getSaveState());
         assertEquals(water.getSaveState(), restored.getSaveState());
