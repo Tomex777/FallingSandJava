@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.graphics.glutils.PixmapTextureData;
 import com.badlogic.gdx.graphics.GL20;
+import java.util.Arrays;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.gdx.cellular.CellularMatrix;
@@ -72,6 +73,10 @@ public final class FluidSurfaceRenderer implements Disposable {
     // Pause, editing and loading can change pixels without simulating a step.
     private byte[] previousWater;
     private final Pixmap[] uploadPatches = new Pixmap[4];
+    // Sparse tile flags avoid reuploading a whole bounding rectangle when
+    // two distant droplets change in different corners of the mask.
+    private boolean[] dirtyTiles;
+    private int tileColumns;
     private long scanNanosLastFrame;
     private long uploadNanosLastFrame;
     private int textureUploadsLastFrame;
@@ -104,6 +109,9 @@ public final class FluidSurfaceRenderer implements Disposable {
             maskPixmap.setColor(Color.BLACK);
             maskPixmap.fill();
             previousWater = new byte[width * height];
+            tileColumns = (width + PATCH_SIZE - 1) / PATCH_SIZE;
+            int tileRows = (height + PATCH_SIZE - 1) / PATCH_SIZE;
+            dirtyTiles = new boolean[tileColumns * tileRows];
             // A persistently backed managed mask restores itself when Android
             // recreates its GL context, without unsafe stale-handle tests.
             // We retain the Pixmap as the current CPU-side water occupancy.
@@ -148,8 +156,8 @@ public final class FluidSurfaceRenderer implements Disposable {
             long scanStart = System.nanoTime();
             int occupied = 0;
             int minX = width, minY = height, maxX = -1, maxY = -1;
-            int dirtyMinX = width, dirtyMinY = height;
-            int dirtyMaxX = -1, dirtyMaxY = -1;
+            Arrays.fill(dirtyTiles, false);
+            int dirtyTileCount = 0;
             int changed = 0;
             for (int y = 0; y < height; y++) {
                 Array<Element> row = matrix.getRow(y);
@@ -164,10 +172,13 @@ public final class FluidSurfaceRenderer implements Disposable {
                         maskPixmap.drawPixel(x, FluidMaskGeometry.pixmapY(y, height),
                                 water ? WATER_PIXEL : EMPTY_PIXEL);
                         changed++;
-                        if (x < dirtyMinX) dirtyMinX = x;
-                        if (x > dirtyMaxX) dirtyMaxX = x;
-                        if (y < dirtyMinY) dirtyMinY = y;
-                        if (y > dirtyMaxY) dirtyMaxY = y;
+                        int dirtyTileIndex =
+                                (FluidMaskGeometry.pixmapY(y, height) / PATCH_SIZE)
+                                * tileColumns + x / PATCH_SIZE;
+                        if (!dirtyTiles[dirtyTileIndex]) {
+                            dirtyTiles[dirtyTileIndex] = true;
+                            dirtyTileCount++;
+                        }
                     }
                     if (water) {
                         occupied++;
@@ -187,8 +198,7 @@ public final class FluidSurfaceRenderer implements Disposable {
             // islands resurfacing when a later pool overlaps the old area.
             if (changed > 0) {
                 long uploadStart = System.nanoTime();
-                textureUploadsLastFrame = uploadChanges(
-                        dirtyMinX, dirtyMinY, dirtyMaxX, dirtyMaxY);
+                textureUploadsLastFrame = uploadChanges(dirtyTileCount);
                 uploadNanosLastFrame = System.nanoTime() - uploadStart;
             }
             if (occupied == 0) {
@@ -240,40 +250,33 @@ public final class FluidSurfaceRenderer implements Disposable {
     }
 
     /**
-     * Upload up to three changed tiles with reusable 32x32 Pixmaps, or a
-     * single whole-mask upload if the changed region is too scattered.
-     * No per-frame temporary Pixmaps, offscreen passes or GPU readbacks.
+     * Upload actual dirty tiles (not the enclosing rectangle) when sparse.
+     * Three distant droplets can use three bounded updates even if their
+     * combined bounding rectangle is almost the entire world.
      */
-    private int uploadChanges(int minX, int minY, int maxX, int maxY) {
-        int firstCol = minX / PATCH_SIZE;
-        int lastCol = maxX / PATCH_SIZE;
-        int firstRow = FluidMaskGeometry.firstPixmapTileRow(maxY, height, PATCH_SIZE);
-        int lastRow = FluidMaskGeometry.lastPixmapTileRow(minY, height, PATCH_SIZE);
-        int tileCount = (lastCol - firstCol + 1) * (lastRow - firstRow + 1);
-        if (FluidMaskGeometry.useFullUpload(tileCount, PATCH_SIZE,
+    private int uploadChanges(int dirtyCount) {
+        if (FluidMaskGeometry.useFullUpload(dirtyCount, PATCH_SIZE,
                 width, height, MAX_PATCH_UPLOADS)) {
             uploadMask(maskPixmap, 0, 0);
             uploadedPixelsLastFrame = width * height;
             return 1;
         }
+
         int pixels = 0;
-        for (int row = firstRow; row <= lastRow; row++) {
-            int tileY = row * PATCH_SIZE;
+        for (int index = 0; index < dirtyTiles.length; index++) {
+            if (!dirtyTiles[index]) continue;
+            int tileX = (index % tileColumns) * PATCH_SIZE;
+            int tileY = (index / tileColumns) * PATCH_SIZE;
+            int patchWidth = Math.min(PATCH_SIZE, width - tileX);
             int patchHeight = Math.min(PATCH_SIZE, height - tileY);
-            for (int col = firstCol; col <= lastCol; col++) {
-                int tileX = col * PATCH_SIZE;
-                int patchWidth = Math.min(PATCH_SIZE, width - tileX);
-                Pixmap tile = patch(patchWidth, patchHeight);
-                // The 6-int libGDX overload is (destinationX, destinationY,
-                // sourceX, sourceY, sourceWidth, sourceHeight).
-                tile.drawPixmap(maskPixmap, 0, 0,
-                        tileX, tileY, patchWidth, patchHeight);
-                uploadMask(tile, tileX, tileY);
-                pixels += patchWidth * patchHeight;
-            }
+            Pixmap tile = patch(patchWidth, patchHeight);
+            tile.drawPixmap(maskPixmap, 0, 0,
+                    tileX, tileY, patchWidth, patchHeight);
+            uploadMask(tile, tileX, tileY);
+            pixels += patchWidth * patchHeight;
         }
         uploadedPixelsLastFrame = pixels;
-        return tileCount;
+        return dirtyCount;
     }
 
     /**
