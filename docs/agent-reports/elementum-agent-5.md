@@ -1,6 +1,6 @@
 # Elementum Agent E — Android QA, visual proof, release gating
 
-**Status:** ACTIVE. Start: **2026-10-22T21:54:02+01:00**. Stop: **not yet reached**; post actual STOP in coordination PR #9. Never claim 40:00 before elapsed.
+**Status:** SESSION CONCLUDED. Start: **2026-10-22T21:54:02+01:00**. Stop: **2026-10-22T22:34:04+01:00**. Actual elapsed **40m02s** since start; a two-second overrun, not represented as exactly 40m00s. Never claim 40:00 before elapsed.
 
 **Code:** [draft PR #13](https://github.com/Tomex777/FallingSandJava/pull/13) targeting the **integration** branch `feature/elementum-abr-visual-audio-20261022`; do not merge PR #9 or approve GPU-water visuals yet.
 
