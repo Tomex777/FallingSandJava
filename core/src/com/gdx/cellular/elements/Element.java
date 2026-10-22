@@ -91,9 +91,15 @@ public abstract class Element {
     public abstract void step(CellularMatrix matrix);
 
     public final boolean interactWith(Element other, CellularMatrix matrix) {
-        if (other == null) return false;
+        if (other == null || isDead || other.isDead) return other != null;
         if (ReactionRegistry.react(this, other, matrix)) return true;
-        return actOnOther(other, matrix);
+        // A reaction may deliberately return false to allow normal contact
+        // while still changing a phase (e.g. cooling Lava into Stone).
+        // Never keep using the replaced old Java object as a movement target:
+        // swapping it back resurrects molten or corroded materials.
+        if (isDead || other.isDead) return true;
+        boolean handled = actOnOther(other, matrix);
+        return handled || isDead || other.isDead;
     }
 
     public boolean actOnOther(Element other, CellularMatrix matrix) {
