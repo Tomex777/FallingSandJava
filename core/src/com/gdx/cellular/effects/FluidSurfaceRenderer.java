@@ -41,6 +41,7 @@ public final class FluidSurfaceRenderer implements Disposable {
             + "void main(){\n"
             + "  vec2 uv = v_texCoords;\n"
             + "  float c = mask(uv);\n"
+            + "  if(c < 0.045) discard;\n"
             + "  float l = mask(uv - vec2(u_texel.x,0.0));\n"
             + "  float r = mask(uv + vec2(u_texel.x,0.0));\n"
             + "  float up = mask(uv - vec2(0.0,u_texel.y));\n"
