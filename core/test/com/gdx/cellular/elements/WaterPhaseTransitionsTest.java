@@ -6,6 +6,7 @@ import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.gas.Steam;
 import com.gdx.cellular.elements.liquid.Water;
 import com.gdx.cellular.elements.solid.immoveable.Ice;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -14,6 +15,11 @@ import static org.junit.Assert.*;
 
 /** Phase transitions must replace one cell with one cell, never lose water mass. */
 public class WaterPhaseTransitionsTest {
+    @BeforeClass
+    public static void prepareMaterials() {
+        PhysicsTestGdx.installAssetStub();
+    }
+
     private static Application quietApplication() {
         return (Application) Proxy.newProxyInstance(
                 Application.class.getClassLoader(),
