@@ -1376,10 +1376,12 @@ public class MobileControls {
         float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
         panelWidth = Math.max(300f, panelWidth);
         float x = (width - panelWidth) / 2f;
-        // All sheets begin above BOTH stacked material rows. This prevents
-        // the Help/More/Save panels covering the upper row on small phones.
-        float y = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
-        float materialY = y;
+        // Keep sheet controls at their established positions so user muscle
+        // memory and the Android tap smoke tests remain stable. When one of
+        // these sheets opens, the material shelf is hidden entirely instead
+        // of bleeding through and intercepting touches underneath it.
+        float y = DOCK_HEIGHT + 42f + 4f;
+        float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
         float available = Math.max(120f, height - y - 14f);
 
         // Reserve the complete 2 x 44px tile surface even on compact phones.
@@ -1400,7 +1402,12 @@ public class MobileControls {
 
         boolean legacyOverlay = inputManager.drawMenu;
         quickBar.setVisible(!legacyOverlay);
-        quickStripRoot.setVisible(!legacyOverlay);
+        // More/Help/Scenes/Clear cover part of the two-row shelf at their
+        // established y positions. Hide the entire shelf while those sheets
+        // are open; the categorized picker sits above it and can keep it.
+        boolean shelfCovered = moreSheet.isVisible() || helpSheet.isVisible()
+                || sceneSheet.isVisible() || clearSheet.isVisible();
+        quickStripRoot.setVisible(!legacyOverlay && !shelfCovered);
 
         syncToolHighlights();
         syncMaterialHighlights();
