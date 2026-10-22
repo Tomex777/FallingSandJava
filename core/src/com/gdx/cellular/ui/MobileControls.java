@@ -1456,6 +1456,17 @@ public class MobileControls {
                 || sceneSheet.isVisible() || clearSheet.isVisible();
         quickStripRoot.setVisible(!legacyOverlay && !shelfCovered);
 
+        // The two-tap destructive delete confirmation expires after 5s.
+        // Restore its label automatically; otherwise a stale "Sure?" remains
+        // indefinitely despite the click no longer being a confirmation.
+        if (pendingDeleteButton != null
+                && System.currentTimeMillis() - pendingDeleteTimeMs > 5000L) {
+            pendingDeleteButton.setText("Delete");
+            pendingDeleteButton.getLabel().setFontScale(0.70f);
+            pendingDeleteButton = null;
+            pendingSceneDeletion = null;
+        }
+
         syncToolHighlights();
         syncMaterialHighlights();
         updatePauseButton();
