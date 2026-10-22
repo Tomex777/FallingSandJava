@@ -100,6 +100,8 @@ public class MobileControls {
     private TextButton toolButton;
     private TextButton brushTypeButton;
     private TextButton pauseButton;
+    private TextButton moreCloseButton;
+    private TextButton helpCloseButton;
 
     private String currentCategory = "Solids";
     private ElementType lastMaterial = ElementType.SAND;
@@ -446,6 +448,7 @@ public class MobileControls {
                 closeNonDestructiveSheets();
                 moreSheet.setVisible(visible);
                 if (visible) {
+                    reportCloseButtonBounds("more", moreSheet, moreCloseButton);
                     Gdx.app.log("ElementumInput", "more-sheet=open");
                 }
             }
@@ -544,11 +547,11 @@ public class MobileControls {
     private void buildMoreSheet() {
         Label title = sectionLabel("Tools");
         moreSheet.add(title).colspan(4).left().padBottom(6f);
-        TextButton close = createSheetCloseButton(() -> {
+        moreCloseButton = createSheetCloseButton(() -> {
             moreSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "more-sheet=closed");
         });
-        moreSheet.add(close).width(54f).height(44f).right().padBottom(6f);
+        moreSheet.add(moreCloseButton).width(54f).height(44f).right().padBottom(6f);
         moreSheet.row();
 
         addModeButton("Draw", MouseMode.SPAWN);
@@ -702,11 +705,11 @@ public class MobileControls {
         // instruction rows' wider two-column layout on compact devices.
         Table header = new Table();
         header.add(sectionLabel("Elementum")).growX().left();
-        TextButton close = createSheetCloseButton(() -> {
+        helpCloseButton = createSheetCloseButton(() -> {
             helpSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "help=closed");
         });
-        header.add(close).width(54f).height(44f).right();
+        header.add(helpCloseButton).width(54f).height(44f).right();
         helpSheet.add(header).growX().padBottom(6f);
         helpSheet.row();
         helpSheet.add(helpScroller).grow();
@@ -741,6 +744,7 @@ public class MobileControls {
         helpSheet.validate();
         helpScroller.setScrollY(0f);
         helpScroller.layout();
+        reportCloseButtonBounds("help", helpSheet, helpCloseButton);
         // "Fits" means no inaccessible/clipped rows: tall content can scroll.
         boolean helpAccessible = helpScroller.getHeight() >= 32f
                 && helpScroller.getWidth() >= 240f
@@ -751,6 +755,21 @@ public class MobileControls {
                 + " viewport=" + Math.round(helpScroller.getHeight())
                 + " scrollable=" + (helpContent.getPrefHeight() > helpScroller.getHeight() + 0.5f));
         Gdx.app.log("ElementumInput", "help=open");
+    }
+
+    /** Verify the live sheet's close target against the logical viewport. */
+    private void reportCloseButtonBounds(String sheetName, Table sheet, TextButton close) {
+        sheet.invalidateHierarchy();
+        sheet.validate();
+        Vector2 origin = close.localToStageCoordinates(new Vector2(0f, 0f));
+        boolean inBounds = origin.x >= 0f && origin.y >= 0f
+                && origin.x + close.getWidth() <= stage.getViewport().getWorldWidth()
+                && origin.y + close.getHeight() <= stage.getViewport().getWorldHeight();
+        Gdx.app.log("ElementumUI", sheetName + "-close-in-bounds=" + inBounds
+                + " x=" + Math.round(origin.x)
+                + " y=" + Math.round(origin.y)
+                + " width=" + Math.round(close.getWidth())
+                + " height=" + Math.round(close.getHeight()));
     }
 
     private void showSceneSheet(boolean saveMode) {
