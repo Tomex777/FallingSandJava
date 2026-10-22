@@ -949,3 +949,32 @@ assert_foreground compact-layout
 test -n "$(adb shell pidof com.tomex.elementum)"
 
 
+
+# Dedicated GPU-water visual acceptance evidence.
+# Reset this TEST installation only, keeping the screenshots above untouched,
+# so the screenshot has clean water instead of unrelated physics fixtures.
+adb shell am force-stop com.tomex.elementum
+adb shell pm clear com.tomex.elementum
+adb shell am start -W -n com.tomex.elementum/com.gdx.cellular.AndroidLauncher
+sleep 5
+tap 240 765 # Pause; build a reproducible water pool without gravity.
+tap 90 715  # Select Water; drawing stays enabled while paused.
+for _ in 1 2 3 4 5 6 7 8; do tap 80 765; done # Increase brush size.
+for y in 240 256 272 288 304 320 336; do
+  swipe 75 "$y" 285 "$y" 180
+done
+sleep 6
+capture gpu-water-detail-paused
+tap 240 765 # Resume: preserve actual fluid movement.
+sleep 2
+capture gpu-water-detail-moving
+adb logcat -d > "$evidence/logcat-water-showcase.txt"
+grep -q 'ElementumFluid.*smooth-water-shader=enabled' "$evidence/logcat-water-showcase.txt"
+grep -Eq 'ElementumFluid.*water-cells=[1-9][0-9]*' "$evidence/logcat-water-showcase.txt"
+! grep -E 'ElementumFluid.*(Shader fallback|disabled after error)' "$evidence/logcat-water-showcase.txt"
+test -n "$(adb shell pidof com.tomex.elementum)"
+adb shell wm size 320x568
+sleep 2
+capture gpu-water-compact-320x568
+adb shell wm size 360x800
+test -n "$(adb shell pidof com.tomex.elementum)"
