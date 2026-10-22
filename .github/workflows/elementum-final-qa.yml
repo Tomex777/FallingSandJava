@@ -268,6 +268,69 @@ jobs:
           path: android/build/gpu-water-qa
           if-no-files-found: warn
 
+  # One reviewer-friendly QA evidence bundle, from the same canonical APK
+  # commit and CI run. Failures do not suppress crash/help screenshots.
+  # Release APKs remain in their signed-release artifact; this bundle keeps
+  # screenshots, performance, package checks and diagnostic logs together.
+  evidence-collection:
+    if: always()
+    needs:
+      - runtime
+      - water-visual
+      - build-release
+      - release-install
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Collect both API runtime evidence
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: elementum-runtime-api-*
+          path: qa-evidence/runtime
+          merge-multiple: false
+      - name: Collect both API real GPU-water evidence
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: elementum-gpu-water-api-*
+          path: qa-evidence/water
+          merge-multiple: false
+      - name: Collect both API CI-signed release installation evidence
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: elementum-release-install-api-*
+          path: qa-evidence/release-install
+          merge-multiple: false
+      - name: Index exact source provenance and QA failures
+        env:
+          RUNTIME: ${{ needs.runtime.result }}
+          WATER: ${{ needs.water-visual.result }}
+          BUILD: ${{ needs.build-release.result }}
+          INSTALL: ${{ needs.release-install.result }}
+        run: |
+          set -euo pipefail
+          mkdir -p qa-evidence
+          {
+            printf 'Elementum integrated QA evidence (not an approval)\\n'
+            printf 'source_sha=%s\\nsource_ref=%s\\nrun_id=%s\\n' "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_RUN_ID"
+            printf 'runtime=%s\\nwater=%s\\nbuild=%s\\nrelease_install=%s\\n' "$RUNTIME" "$WATER" "$BUILD" "$INSTALL"
+            printf 'Captured evidence files:\\n'
+            find qa-evidence -type f | sort
+            printf '\\nRead per-API provenance and check failures; existence of screenshots alone is NOT a pass.\\n'
+            printf 'GPU-water rendering still requires USER VISUAL APPROVAL before shader merge.\\n'
+          } > qa-evidence/INDEX.txt
+          cat qa-evidence/INDEX.txt
+      - name: Upload unified evidence set
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: elementum-integrated-qa-evidence
+          path: qa-evidence
+          if-no-files-found: warn
+
   report:
     if: always() && github.event_name != 'pull_request' && github.ref_name != 'agents/elementum-a5-qa-release-40m-20261022'
     needs:
