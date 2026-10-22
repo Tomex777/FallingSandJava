@@ -65,6 +65,7 @@ public final class FluidSurfaceRenderer implements Disposable {
     private int height;
     private float time;
     private boolean available;
+    private long lastMetricsNanos;
 
     public FluidSurfaceRenderer(CellularMatrix matrix) {
         try {
@@ -89,6 +90,11 @@ public final class FluidSurfaceRenderer implements Disposable {
         }
     }
 
+    /** Used by the cellular renderer to leave water entirely to the smooth pass. */
+    public boolean isAvailable() {
+        return available;
+    }
+
     public void render(CellularMatrix matrix, OrthographicCamera camera, boolean paused) {
         if (!available) return;
         if (matrix.innerArraySize != width || matrix.outerArraySize != height) return;
@@ -98,6 +104,7 @@ public final class FluidSurfaceRenderer implements Disposable {
             maskPixmap.fill();
             maskPixmap.setColor(Color.WHITE);
             int occupied = 0;
+            int minX = width, minY = height, maxX = -1, maxY = -1;
             for (int y = 0; y < height; y++) {
                 Array<Element> row = matrix.getRow(y);
                 for (int x = 0; x < width; x++) {
@@ -107,18 +114,50 @@ public final class FluidSurfaceRenderer implements Disposable {
                         // bottom-origin Y before uploading to the GPU.
                         maskPixmap.drawPixel(x, height - 1 - y);
                         occupied++;
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
                     }
                 }
             }
             if (occupied == 0) return;
             maskTexture.draw(maskPixmap, 0, 0);
+
+            // Budget Android GPUs should shade only the occupied water bounding
+            // region rather than running a multi-tap shader over the full screen.
+            // A two-cell margin keeps the interpolated boundary intact.
+            minX = Math.max(0, minX - 2);
+            minY = Math.max(0, minY - 2);
+            maxX = Math.min(width - 1, maxX + 2);
+            maxY = Math.min(height - 1, maxY + 2);
+            int cellsWide = maxX - minX + 1;
+            int cellsHigh = maxY - minY + 1;
+            float scale = matrix.pixelSizeModifier;
+
             batch.setProjectionMatrix(camera.combined);
             batch.begin();
             shader.setUniformf("u_texel", 1f/width, 1f/height);
             shader.setUniformf("u_time", time);
-            batch.draw(maskTexture, 0, 0, width * matrix.pixelSizeModifier,
-                    height * matrix.pixelSizeModifier);
+            // The mask Pixmap has a top-left origin, the matrix a bottom-left
+            // origin. SpriteBatch UV top/bottom follow the reversed Y mapping.
+            batch.draw(maskTexture, minX * scale, minY * scale,
+                    cellsWide * scale, cellsHigh * scale,
+                    (float) minX / width, (float) (height - 1 - maxY) / height,
+                    (float) (maxX + 1) / width, (float) (height - minY) / height);
             batch.end();
+
+            long now = System.nanoTime();
+            if (now - lastMetricsNanos >= 5_000_000_000L) {
+                long total = (long) width * height;
+                int shaded = cellsWide * cellsHigh;
+                Gdx.app.log("ElementumFluid", "water-cells=" + occupied
+                        + " shaded-grid-cells=" + shaded
+                        + " grid-cells=" + total
+                        + " shader-region-percent=" + (100 * shaded / Math.max(1L, total))
+                        + " fps=" + Gdx.graphics.getFramesPerSecond());
+                lastMetricsNanos = now;
+            }
         } catch (Throwable failure) {
             available = false;
             Gdx.app.error("ElementumFluid", "Smooth liquid pass disabled after error", failure);
