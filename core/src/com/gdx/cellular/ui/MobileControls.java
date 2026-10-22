@@ -1383,17 +1383,22 @@ public class MobileControls {
         // memory and the Android tap smoke tests remain stable. When one of
         // these sheets opens, the material shelf is hidden entirely instead
         // of bleeding through and intercepting touches underneath it.
-        float y = DOCK_HEIGHT + 42f + 4f;
+        // The material picker sits above the shelf. When a different sheet
+        // opens, the shelf disappears; extend that sheet's opaque surface down
+        // to the dock, avoiding an empty 46-unit band between panel and dock.
+        // Keep the original sheet TOP coordinates so existing tap positions and
+        // compact-screen behavior are unchanged.
+        float previousPanelY = DOCK_HEIGHT + 42f + 4f;
+        float panelY = DOCK_HEIGHT;
+        float extraPanelHeight = previousPanelY - panelY;
         float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
-        float available = Math.max(120f, height - y - 14f);
+        float available = Math.max(120f, height - previousPanelY - 14f);
 
-        // Reserve the complete 2 x 44px tile surface even on compact phones.
-        // This also keeps the four category buttons large and easy to hit.
         materialPanel.setBounds(x, materialY, panelWidth, Math.min(200f, height - materialY - 14f));
-        moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
-        sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
-        helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
-        clearSheet.setBounds(x, y, panelWidth, Math.min(155f, available));
+        moreSheet.setBounds(x, panelY, panelWidth, Math.min(250f, available) + extraPanelHeight);
+        sceneSheet.setBounds(x, panelY, panelWidth, Math.min(300f, available) + extraPanelHeight);
+        helpSheet.setBounds(x, panelY, panelWidth, Math.min(320f, available) + extraPanelHeight);
+        clearSheet.setBounds(x, panelY, panelWidth, Math.min(155f, available) + extraPanelHeight);
     }
 
     public void draw() {
