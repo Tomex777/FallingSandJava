@@ -102,6 +102,7 @@ public class MobileControls {
     private TextButton pauseButton;
     private TextButton moreButton;
     private TextButton allButton;
+    private TextButton weatherButton;
     private TextButton moreCloseButton;
     private TextButton helpCloseButton;
 
@@ -577,6 +578,7 @@ public class MobileControls {
         save.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                save.setChecked(false);
                 inputManager.requestSave();
             }
         });
@@ -586,6 +588,7 @@ public class MobileControls {
         load.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                load.setChecked(false);
                 inputManager.requestLoad();
             }
         });
@@ -595,27 +598,31 @@ public class MobileControls {
         clear.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                clear.setChecked(false);
                 showClearConfirmation();
             }
         });
         moreSheet.add(clear).width(62f).height(42f).pad(2f);
 
-        TextButton weather = createFlatButton("Weather", CONTROL, CONTROL_PRESSED);
-        weather.getLabel().setFontScale(0.70f);
-        weather.addListener(new ClickListener() {
+        weatherButton = createFlatButton("Weather", CONTROL, ACCENT);
+        weatherButton.getLabel().setFontScale(0.70f);
+        weatherButton.setChecked(!inputManager.weatherSystem.disabled);
+        weatherButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 inputManager.weatherSystem.toggle();
+                weatherButton.setChecked(!inputManager.weatherSystem.disabled);
                 moreSheet.setVisible(false);
                 Gdx.app.log("ElementumInput", "weather=toggled");
             }
         });
-        moreSheet.add(weather).width(62f).height(42f).pad(2f);
+        moreSheet.add(weatherButton).width(62f).height(42f).pad(2f);
 
         TextButton help = createFlatButton("Help", CONTROL, CONTROL_PRESSED);
         help.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                help.setChecked(false);
                 showHelpSheet();
             }
         });
@@ -627,6 +634,7 @@ public class MobileControls {
         weatherMaterial.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                weatherMaterial.setChecked(false);
                 inputManager.setCurrentElementOnWeather();
                 moreSheet.setVisible(false);
                 Gdx.app.log("ElementumInput", "weather-material=" + inputManager.currentlySelectedElement.name());
@@ -649,6 +657,7 @@ public class MobileControls {
                 }
                 inputManager.setBodyType(values[next]);
                 body.setText("Body: " + shortBodyType(values[next]));
+                body.setChecked(false);
                 Gdx.app.log("ElementumInput", "body-type=" + values[next].name());
             }
         });
@@ -1201,6 +1210,7 @@ public class MobileControls {
         close.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                close.setChecked(false);
                 action.run();
             }
         });
@@ -1370,7 +1380,8 @@ public class MobileControls {
             case FLAMMABLEGAS:
                 return "Flam Gas";
             case EXPLOSIONSPARK:
-                return "Spark";
+                // Separate this from ordinary SPARK in the energy picker.
+                return "Flash";
             case SLIMEMOLD:
                 return "Slime";
             case GUNPOWDER:
@@ -1452,6 +1463,7 @@ public class MobileControls {
         // these toggles. Scene2d buttons otherwise remain spuriously checked.
         allButton.setChecked(materialPanel.isVisible());
         moreButton.setChecked(moreSheet.isVisible());
+        weatherButton.setChecked(!inputManager.weatherSystem.disabled);
         refreshOverlayState();
 
         if (clearSettlementPending) {
