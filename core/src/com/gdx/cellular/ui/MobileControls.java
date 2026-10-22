@@ -704,9 +704,9 @@ public class MobileControls {
     }
 
     private void addHelpLine(String title, String detail) {
-        Label titleLabel = new Label(title, skin);
+        Label titleLabel = new Label(title, new Label.LabelStyle(mobileFont, Color.WHITE));
         titleLabel.setFontScale(0.75f);
-        Label detailLabel = new Label(detail, skin);
+        Label detailLabel = new Label(detail, new Label.LabelStyle(mobileFont, Color.WHITE));
         detailLabel.setFontScale(0.70f);
         detailLabel.setColor(MUTED);
         detailLabel.setWrap(true);
@@ -793,9 +793,9 @@ public class MobileControls {
     private void addSceneRow(String display, String name, FileHandle existing, boolean saveMode) {
         Table info = new Table();
         info.left();
-        Label sceneName = new Label(display, skin);
+        Label sceneName = new Label(display, new Label.LabelStyle(mobileFont, Color.WHITE));
         sceneName.setFontScale(0.75f);
-        Label detail = new Label(existing == null ? "Empty" : formatModified(existing), skin);
+        Label detail = new Label(existing == null ? "Empty" : formatModified(existing), new Label.LabelStyle(mobileFont, Color.WHITE));
         detail.setFontScale(0.70f);
         detail.setColor(MUTED);
         info.add(sceneName).left();
@@ -894,7 +894,7 @@ public class MobileControls {
         clearSheet.add(title).colspan(2).left().padBottom(5f);
         clearSheet.row();
 
-        Label message = new Label("Remove the current sandbox? Saved scenes stay untouched.", skin);
+        Label message = new Label("Remove the current sandbox? Saved scenes stay untouched.", new Label.LabelStyle(mobileFont, Color.WHITE));
         message.setFontScale(0.70f);
         message.setColor(MUTED);
         message.setWrap(true);
