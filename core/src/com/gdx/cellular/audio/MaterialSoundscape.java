@@ -97,8 +97,12 @@ public final class MaterialSoundscape {
         // allocating an RNG or rebuilding PCM on the render thread.
         float pitch = 0.95f + ((now >>> 22) & 15L) * 0.006f;
         try {
-            clips[kind].play(LEVELS[kind], pitch, 0.0f);
-            Gdx.app.log("ElementumAudio", "paint-kind=" + kind);
+            long voiceId = clips[kind].play(LEVELS[kind], pitch, 0.0f);
+            if (voiceId >= 0L) {
+                Gdx.app.log("ElementumAudio", "paint-kind=" + kind);
+            } else {
+                Gdx.app.log("ElementumAudio", "voice-capacity-limited kind=" + kind);
+            }
         } catch (RuntimeException audioUnavailable) {
             available = false;
             Gdx.app.error("ElementumAudio", "Playback disabled", audioUnavailable);
@@ -131,7 +135,9 @@ public final class MaterialSoundscape {
     private static Sound load(String name, int type, float duration) throws IOException {
         FileHandle file = Gdx.files.local(AUDIO_PREFIX + name + ".wav");
         byte[] cached = null;
-        if (file.exists()) {
+        // Avoid reading unbounded/corrupt local files into memory on low-RAM phones.
+        if (file.exists() && file.length() == 44L
+                + 2L * SynthesizedWav.sampleCount(duration)) {
             try {
                 cached = file.readBytes();
             } catch (RuntimeException damagedCache) {
