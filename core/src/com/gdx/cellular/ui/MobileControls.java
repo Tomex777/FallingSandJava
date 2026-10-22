@@ -1398,8 +1398,10 @@ public class MobileControls {
         float height = stage.getViewport().getWorldHeight();
         if (width <= 0f || height <= 0f) return;
 
-        float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
-        panelWidth = Math.max(300f, panelWidth);
+        // Center a compact phone-sized sheet on larger/tablet viewports.
+        // A 520-unit modal only stretched opaque whitespace while its fixed
+        // 5-column controls remained cramped at the left.
+        float panelWidth = Math.max(300f, Math.min(width - 12f, 360f));
         float x = (width - panelWidth) / 2f;
         // Keep sheet controls at their established positions so user muscle
         // memory and the Android tap smoke tests remain stable. When one of
