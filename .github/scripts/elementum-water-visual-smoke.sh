@@ -104,10 +104,15 @@ done
 adb shell wm size 320x568
 sleep 3
 capture paused-320x568
+# A resize must not erase existing water: a PNG header alone is not visual QA.
+python3 .github/scripts/elementum-assert-water-pixels.py \
+  "$evidence/elementum-water-paused-320x568.png"
 # Compact dock: pause/resume stays the fourth bottom control.
 tap 223 536
 sleep 0.35
 capture moving-320x568
+python3 .github/scripts/elementum-assert-water-pixels.py \
+  "$evidence/elementum-water-moving-320x568.png"
 verify_running
 
 adb logcat -d > "$evidence/logcat-final.txt"
