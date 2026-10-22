@@ -10,12 +10,13 @@ import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.gdx.cellular.CellularMatrix;
+import com.gdx.cellular.effects.fluid.FluidMaskGeometry;
 import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.liquid.Water;
 
 /**
  * A presentation layer, independent of the cellular physics grid.
- * A tiny one-texel-per-cell water mask is uploaded once per rendered frame.
+ * A tiny one-texel-per-cell water mask uploads only when its contents change.
  * The GPU smoothly contours the fluid and adds cheap animated glints.
  * Simulation, collisions, heat and save/load are unchanged.
  */
@@ -101,13 +102,13 @@ public final class FluidSurfaceRenderer implements Disposable {
             // A single bounding quad is drawn per frame. Avoid allocating a
             // 500-sprite vertex buffer on memory-constrained Android devices.
             batch = new SpriteBatch(1, shader);
-            available = true;
             String gpuName = Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_RENDERER);
             if (gpuName != null) {
                 String lower = gpuName.toLowerCase(java.util.Locale.ROOT);
                 lowDetail = lower.contains("swiftshader") || lower.contains("llvmpipe")
                         || lower.contains("mali-400") || lower.contains("adreno (tm) 3");
             }
+            available = true;
             Gdx.app.log("ElementumFluid", "smooth-water-shader=enabled gpu="
                     + gpuName + " detail=" + (lowDetail ? "low" : "full"));
         } catch (Throwable failure) {
@@ -143,7 +144,7 @@ public final class FluidSurfaceRenderer implements Disposable {
                     byte value = (byte) (water ? 1 : 0);
                     if (previousWater[index] != value) {
                         previousWater[index] = value;
-                        maskPixmap.drawPixel(x, height - 1 - y,
+                        maskPixmap.drawPixel(x, FluidMaskGeometry.pixmapY(y, height),
                                 water ? WATER_PIXEL : EMPTY_PIXEL);
                         changed++;
                         if (x < dirtyMinX) dirtyMinX = x;
@@ -204,8 +205,8 @@ public final class FluidSurfaceRenderer implements Disposable {
             // Match the exact outer texel edges (no half-cell shift).
             batch.draw(maskTexture, minX * scale, minY * scale,
                     cellsWide * scale, cellsHigh * scale,
-                    (float) minX / width, (float) (height - minY) / height,
-                    (float) (maxX + 1) / width, (float) (height - 1 - maxY) / height);
+                    (float) minX / width, FluidMaskGeometry.bottomV(minY, height),
+                    (float) (maxX + 1) / width, FluidMaskGeometry.topV(maxY, height));
             batch.end();
 
             long now = System.nanoTime();
@@ -240,12 +241,11 @@ public final class FluidSurfaceRenderer implements Disposable {
     private int uploadChanges(int minX, int minY, int maxX, int maxY) {
         int firstCol = minX / PATCH_SIZE;
         int lastCol = maxX / PATCH_SIZE;
-        int firstRow = (height - 1 - maxY) / PATCH_SIZE;
-        int lastRow = (height - 1 - minY) / PATCH_SIZE;
+        int firstRow = FluidMaskGeometry.firstPixmapTileRow(maxY, height, PATCH_SIZE);
+        int lastRow = FluidMaskGeometry.lastPixmapTileRow(minY, height, PATCH_SIZE);
         int tileCount = (lastCol - firstCol + 1) * (lastRow - firstRow + 1);
-        long uploadedPixels = (long) tileCount * PATCH_SIZE * PATCH_SIZE;
-        if (tileCount > MAX_PATCH_UPLOADS
-                || uploadedPixels >= (long) width * height / 2L) {
+        if (FluidMaskGeometry.useFullUpload(tileCount, PATCH_SIZE,
+                width, height, MAX_PATCH_UPLOADS)) {
             maskTexture.draw(maskPixmap, 0, 0);
             return 1;
         }
@@ -256,8 +256,10 @@ public final class FluidSurfaceRenderer implements Disposable {
                 int tileX = col * PATCH_SIZE;
                 int patchWidth = Math.min(PATCH_SIZE, width - tileX);
                 Pixmap tile = patch(patchWidth, patchHeight);
-                tile.drawPixmap(maskPixmap, tileX, tileY,
-                        patchWidth, patchHeight, 0, 0);
+                // The 6-int libGDX overload is (destinationX, destinationY,
+                // sourceX, sourceY, sourceWidth, sourceHeight).
+                tile.drawPixmap(maskPixmap, 0, 0,
+                        tileX, tileY, patchWidth, patchHeight);
                 maskTexture.draw(tile, tileX, tileY);
             }
         }
