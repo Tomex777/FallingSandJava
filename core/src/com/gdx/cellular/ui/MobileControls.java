@@ -1228,7 +1228,9 @@ public class MobileControls {
         float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
         float available = Math.max(120f, height - y - 14f);
 
-        materialPanel.setBounds(x, materialY, panelWidth, Math.min(205f, Math.max(165f, height * 0.27f)));
+        // Reserve the complete 2 x 44px tile surface even on compact phones.
+        // This also keeps the four category buttons large and easy to hit.
+        materialPanel.setBounds(x, materialY, panelWidth, Math.min(200f, height - materialY - 14f));
         moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
         sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
         helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
