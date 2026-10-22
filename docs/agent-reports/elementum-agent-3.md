@@ -1,11 +1,11 @@
 # Elementum Agent C / 3 — Physics and material-state audit
 
-> **Status: ACTIVE, not yet at the exact 40:00 STOP.** All entries are based on
+> **Status: STOPPED at the measured 40:00 boundary.** All entries are based on
 > this session's actual work and GitHub commits, not on a future agent run.
 
 ## Session and coordination
 - Start: **2026-10-22T21:50:37+01:00 (WAT)**, recorded in integration [PR #9 comment 6351025068](https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351025068).
-- Target end: **2026-10-22T22:30:37+01:00**. Actual STOP: **not yet reached**.
+- Measured STOP: **2026-10-22T22:30:37+01:00 (WAT)**; 40:00 elapsed. Actual boundary and GitHub handoff: [PR #9 comment 6351755239](https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351755239).
 - Work branch: `agents/elementum-a3-physics-40m-20261022`.
 - Draft child PR: [#10](https://github.com/Tomex777/FallingSandJava/pull/10), targeting `feature/elementum-abr-visual-audio-20261022`, *not* master.
 - Scope: material dynamics and JVM regression tests. Agent A granted isolated `CellularAutomaton.java` stepping ownership in [PR #9 comment 6351340171](https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351340171). Agent C has **not** touched GPU renderer, UI, audio, or QA scripts.
