@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.gdx.cellular.box2d.ShapeFactory;
+import com.gdx.cellular.effects.FluidSurfaceRenderer;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
 import com.gdx.cellular.input.InputProcessors;
@@ -40,6 +41,7 @@ public class CellularAutomaton extends ApplicationAdapter {
     public static BitSet stepped = new BitSet(1);
 
     private ShapeRenderer shapeRenderer;
+    private FluidSurfaceRenderer fluidSurfaceRenderer;
     public CellularMatrix matrix;
     private OrthographicCamera camera;
 
@@ -99,6 +101,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 		b2dWorld = new World(new Vector2(0, -100), true);
 
 		matrix = new CellularMatrix(screenWidth, screenHeight, pixelSizeModifier, b2dWorld);
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            fluidSurfaceRenderer = new FluidSurfaceRenderer(matrix);
+        }
 		matrix.generateShuffledIndexesForThreads(numThreads);
 
 		matrixStage = new Stage(viewport);
@@ -160,8 +165,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 		boolean isPaused = inputManager.getIsPaused();
 		if (isPaused) {
-			matrixStage.draw();
-			matrix.drawPhysicsElementActors(shapeRenderer);
+            matrixStage.draw();
+            if (fluidSurfaceRenderer != null) fluidSurfaceRenderer.render(matrix, camera, true);
+            matrix.drawPhysicsElementActors(shapeRenderer);
 			drawPhysicsDebugIfEnabled();
 			inputManager.drawMenu();
 			if (mobileControls != null) {
@@ -208,7 +214,8 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrix.stepPhysicsElementActors();
 
 		matrixStage.draw();
-		matrix.drawPhysicsElementActors(shapeRenderer);
+        if (fluidSurfaceRenderer != null) fluidSurfaceRenderer.render(matrix, camera, false);
+        matrix.drawPhysicsElementActors(shapeRenderer);
 
 		drawPhysicsDebugIfEnabled();
 
@@ -351,7 +358,8 @@ public class CellularAutomaton extends ApplicationAdapter {
 	public void dispose () {
 		if (simulationExecutor != null) simulationExecutor.shutdownNow();
 		shapeRenderer.dispose();
-		debugRenderer.dispose();
+        debugRenderer.dispose();
+        if (fluidSurfaceRenderer != null) fluidSurfaceRenderer.dispose();
 		if (mobileControls != null) {
 			mobileControls.dispose();
 		}
