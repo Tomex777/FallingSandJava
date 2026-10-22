@@ -337,14 +337,13 @@ public abstract class Liquid extends Element {
                     swapLiquidForDensities(matrix, liquidNeighbor, modifiedX, startingY, lastValidLocation);
                     return false;
                 }
-                // A continuous layer of equal/denser liquid blocks a side
-                // traversal just like a solid. Never jump across it into
-                // empty space several cells further away.
-                if (!compareDensities(liquidNeighbor)) {
-                    if (isFirst) return true;
-                    moveToLastValid(matrix, lastValidLocation);
-                    return false;
-                }
+                // A contact liquid, whether lighter or heavier, must be
+                // displaced by an actual cell swap. Without that swap, a
+                // horizontal traversal used to tunnel through multiple
+                // occupied cells and reappear beyond a fluid wall.
+                if (isFirst) return true;
+                moveToLastValid(matrix, lastValidLocation);
+                return false;
             } else if (neighbor instanceof Solid) {
                 if (isFirst) {
                     return true;
