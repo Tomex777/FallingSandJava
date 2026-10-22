@@ -1,6 +1,6 @@
 # Elementum — Agent D / Agent 4 audio work report
 
-**Updated (WAT):** 2026-10-22T22:03:49+01:00
+**Updated (WAT):** 2026-10-22T22:15:15+01:00
 **Current status:** IN PROGRESS, not complete; **do not count queued CI time as active implementation**.
 **Actual START:** 2026-10-22T21:50:58+01:00, PR #9 comment ID 6351028818.
 **Actual STOP:** NOT RECORDED — the 40:00 uninterrupted-session requirement has NOT yet been satisfied or certified.
@@ -12,7 +12,7 @@
 1. The original audio generated four short WAVs, trusted cached files if their lengths were merely >=44 bytes, and used a single shared 155 ms cooldown; no stored Sound preference, stop-on-mute, or Android lifecycle hook existed.
 2. Added `AudioEventGate` with one allocation-free global limiter (110 ms) and distinct material cooldowns (water 175 ms, grains 165 ms, heat 235 ms, electric 285 ms). The event callback is once per brush operation, not per painted cell.
 3. Added `SynthesizedWav`: versioned 22,050 Hz 16-bit little-endian mono WAV generation, deterministic noise, gentle start/end fade to avoid clicks, more subdued water/grain/fire/electric textures, strict cached WAV header verification and file-length gate before reading. No network or third-party clips.
-4. `MaterialSoundscape` now reuses four cached clips, limits event admission, makes small pitch changes, requests stop on toggle-off and Android pause, resumes with a reset event gate, persists the enabled state in libGDX Preferences, and releases/unregisters lifecycle callbacks. Android launcher additionally caps SoundPool streams at 4; actual audio delivery remains unverified.
+4. `MaterialSoundscape` now reuses four cached clips, limits event admission, makes small pitch changes, requests stop on toggle-off and Android pause, resumes with a reset event gate, persists the enabled state in libGDX Preferences, and releases/unregisters lifecycle callbacks. Android launcher additionally caps SoundPool streams at 4; actual audio delivery remains unverified. Continuous liquid brush movement is softened relative to the first contact using `LiquidStrokeCadence` (a brush-input heuristic, not true autonomous water flow).
 5. Investigated exact libGDX 1.14.2 AsynchronousSound source: its play() returns a *queued operation token*, not an audible SoundPool stream confirmation. Corrected runtime logs to say `paint-kind=N queued=true` instead of asserting playback success, and avoided queueing asynchronous stop commands immediately before synchronous sound disposal.
 6. Narrow, shared-comment-claimed `InputManager.java` audio change: rectangle brush used to blip while outlining with **zero rectangle cells placed**. Moved its sound emission to finger release, and ordinary paint/particle callbacks after spawn calls. Did not change physics or input selection.
 
@@ -23,6 +23,12 @@
 - Focused Gradle/JUnit + Android debug compilation runs are queued in GitHub Actions; no success claimed. Runs observed queued include #39853157900 and latest at time of this report #39853842781.
 - **No** Android API26/API36 emulator screenshots, device logs, real-device listening QA or physical-speaker inspection has yet passed for this branch. Agent E owns integrated visual screenshots.
 - Agent B's More-sheet Sound label initially hard-codes “Sound on”, despite preference persistence. Reported compatibility fix directly on PR #12 in comment 6351240821; did **not** modify Agent B's UI file.
+
+## Coordination updates
+
+- Agent B has now applied the source fix initializing the Sound button from `soundscape.isEnabled()` on its owned UI branch, verified by source inspection. Integrate both commits together.
+- Moved the agent-specific work order from top-level `AGENT_TASK.md` into `docs/agent-reports/elementum-agent-4-task.md` to eliminate avoidable PR collisions.
+- Added `LiquidStrokeCadenceTest` and PCM non-silence/non-clipping assertions; recent workflow submissions remain queued rather than green.
 
 ## Necessary real-device listening acceptance
 
