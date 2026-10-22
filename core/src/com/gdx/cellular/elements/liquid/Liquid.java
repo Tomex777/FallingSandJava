@@ -5,13 +5,18 @@ import com.badlogic.gdx.math.Vector3;
 import com.gdx.cellular.CellularAutomaton;
 import com.gdx.cellular.CellularMatrix;
 import com.gdx.cellular.elements.Element;
-import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.elements.EmptyCell;
 import com.gdx.cellular.elements.gas.Gas;
 import com.gdx.cellular.elements.solid.Solid;
 import com.gdx.cellular.particles.Particle;
 
 public abstract class Liquid extends Element {
+
+    // Simulation workers call Liquid.step on different threads. Distinct
+    // per-thread scratch vectors avoid thousands of temporary allocations per
+    // tick without sharing mutable motion state across parallel columns.
+    private static final ThreadLocal<Vector3> STEP_PATH = ThreadLocal.withInitial(Vector3::new);
+    private static final ThreadLocal<Vector3> SIDE_PATH = ThreadLocal.withInitial(Vector3::new);
 
     public int density;
     public int dispersionRate;
@@ -69,8 +74,12 @@ public abstract class Liquid extends Element {
         float slope = (min == 0 || upperBound == 0) ? 0 : ((float) (min + 1) / (upperBound + 1));
 
         int smallerCount;
-        Vector3 formerLocation = new Vector3(getMatrixX(), getMatrixY(), 0);
-        Vector3 lastValidLocation = new Vector3(getMatrixX(), getMatrixY(), 0);
+        // These two coordinates are needed only for the wake/sleep check.
+        // Retain a single movement-path scratch vector, not two allocations
+        // for every liquid cell on every physics tick.
+        final int formerX = getMatrixX();
+        final int formerY = getMatrixY();
+        Vector3 lastValidLocation = STEP_PATH.get().set(formerX, formerY, 0f);
         for (int i = 1; i <= upperBound; i++) {
             smallerCount = (int) Math.floor(i * slope);
 
@@ -96,8 +105,21 @@ public abstract class Liquid extends Element {
                 lastValidLocation.y = modifiedMatrixY;
 
             } else {
-                matrix.setElementAtIndex(getMatrixX(), getMatrixY(), ElementType.EMPTYCELL.createElementByMatrix(getMatrixX(), getMatrixY()));
-                return;
+                // An impermeable world boundary is not a drain. Previously
+                // each liquid (including Water) was silently deleted as soon
+                // as a falling particle touched row zero or a side wall.
+                // Settle at the last reachable cell and preserve the material.
+                moveToLastValid(matrix, lastValidLocation);
+                if (!matrix.isWithinYBounds(modifiedMatrixY)) {
+                    vel.y = 0f;
+                    if (modifiedMatrixY < 0) {
+                        spreadAlongFloor(matrix);
+                    }
+                }
+                if (!matrix.isWithinXBounds(modifiedMatrixX)) {
+                    vel.x *= -0.3f;
+                }
+                break;
             }
         }
         applyHeatToNeighborsIfIgnited(matrix);
@@ -105,14 +127,21 @@ public abstract class Liquid extends Element {
         spawnSparkIfIgnited(matrix);
         checkLifeSpan(matrix);
         takeEffectsDamage(matrix);
-        stoppedMovingCount = didNotMove(formerLocation) ? stoppedMovingCount + 1 : 0;
+        stoppedMovingCount = (formerX == getMatrixX() && formerY == getMatrixY())
+                ? stoppedMovingCount + 1 : 0;
         if (stoppedMovingCount > stoppedMovingThreshold) {
             stoppedMovingCount = stoppedMovingThreshold;
         }
         if (matrix.useChunks)  {
-            if (isIgnited || !hasNotMovedBeyondThreshold()) {
+            // A liquid paused next to open horizontal space is not settled.
+            // Let that chunk finish filling the surface before it goes idle;
+            // fully enclosed pools can still sleep to save budget-device CPU.
+            boolean openSide = hasNotMovedBeyondThreshold()
+                    && (matrix.get(getMatrixX() - 1, getMatrixY()) instanceof EmptyCell
+                    || matrix.get(getMatrixX() + 1, getMatrixY()) instanceof EmptyCell);
+            if (isIgnited || !hasNotMovedBeyondThreshold() || openSide) {
                 matrix.reportToChunkActive(this);
-                matrix.reportToChunkActive((int) formerLocation.x, (int) formerLocation.y);
+                matrix.reportToChunkActive(formerX, formerY);
             }
         }
 //        yDidNotChangeCount = yDidNotChange(formerLocation) ? yDidNotChangeCount + 1 : 0;
@@ -122,6 +151,29 @@ public abstract class Liquid extends Element {
 //        if (yHasNotMovedBeyondThreshold()) {
 //            this.vel.x = 0;
 //        }
+    }
+
+    /**
+     * World edges behave like solid walls: water can settle and redistribute,
+     * but may not disappear or tunnel through an occupied neighbor.
+     * A single side-step prevents a floor-bound puddle from pinning itself
+     * against the first cell while keeping the per-step cost bounded.
+     */
+    private void spreadAlongFloor(CellularMatrix matrix) {
+        if (getMatrixY() != 0) return;
+        int previousX = getMatrixX();
+        int direction = Math.random() < 0.5 ? -1 : 1;
+        Element neighbor = matrix.get(previousX + direction, 0);
+        if (!(neighbor instanceof EmptyCell)) {
+            direction = -direction;
+            neighbor = matrix.get(previousX + direction, 0);
+        }
+        if (neighbor instanceof EmptyCell) {
+            swapPositions(matrix, neighbor, previousX + direction, 0);
+            vel.x = direction * 60f;
+            matrix.reportToChunkActive(previousX, 0);
+            matrix.reportToChunkActive(this);
+        }
     }
 
     private boolean yHasNotMovedBeyondThreshold() {
@@ -165,14 +217,20 @@ public abstract class Liquid extends Element {
             }
             if (isFreeFalling) {
                 float absY = Math.max(Math.abs(vel.y) / 31, 105);
-                vel.x = vel.x < 0 ? -absY : absY;
+                // Zero horizontal momentum has no preferred side. The old
+                // sign check always pushed still water right on impact.
+                vel.x = Math.abs(vel.x) < 0.01f
+                        ? (Math.random() < 0.5 ? -absY : absY)
+                        : (vel.x < 0 ? -absY : absY);
             }
 //            if (yHasNotMovedBeyondThreshold()) {
 //                vel.x = Math.random() > 0.5 ? 64 : -64;
 //            }
-            Vector3 normalizedVel = vel.cpy().nor();
-            int additionalX = getAdditional(normalizedVel.x);
-            int additionalY = getAdditional(normalizedVel.y);
+            // Avoid allocating a Vector3 for every blocked-liquid contact.
+            float speedSquared = vel.x * vel.x + vel.y * vel.y;
+            float inverseSpeed = speedSquared > 0f ? 1f / (float) Math.sqrt(speedSquared) : 0f;
+            int additionalX = getAdditional(vel.x * inverseSpeed);
+            int additionalY = getAdditional(vel.y * inverseSpeed);
 
             int distance = additionalX * (Math.random() > 0.5 ? dispersionRate + 2 : dispersionRate - 1);
 
@@ -217,11 +275,17 @@ public abstract class Liquid extends Element {
             }
             if (isFreeFalling) {
                 float absY = Math.max(Math.abs(vel.y) / 31, 105);
-                vel.x = vel.x < 0 ? -absY : absY;
+                // Zero horizontal momentum has no preferred side. The old
+                // sign check always pushed still water right on impact.
+                vel.x = Math.abs(vel.x) < 0.01f
+                        ? (Math.random() < 0.5 ? -absY : absY)
+                        : (vel.x < 0 ? -absY : absY);
             }
-            Vector3 normalizedVel = vel.cpy().nor();
-            int additionalX = getAdditional(normalizedVel.x);
-            int additionalY = getAdditional(normalizedVel.y);
+            // Avoid allocating a Vector3 for every blocked-liquid contact.
+            float speedSquared = vel.x * vel.x + vel.y * vel.y;
+            float inverseSpeed = speedSquared > 0f ? 1f / (float) Math.sqrt(speedSquared) : 0f;
+            int additionalX = getAdditional(vel.x * inverseSpeed);
+            int additionalY = getAdditional(vel.y * inverseSpeed);
 
             int distance = additionalX * (Math.random() > 0.5 ? dispersionRate + 2 : dispersionRate - 1);
 
@@ -268,7 +332,7 @@ public abstract class Liquid extends Element {
 
     private boolean iterateToAdditional(CellularMatrix matrix, int startingX, int startingY, int distance, Vector3 lastValid) {
         int distanceModifier = distance > 0 ? 1 : -1;
-        Vector3 lastValidLocation = lastValid.cpy();
+        Vector3 lastValidLocation = SIDE_PATH.get().set(lastValid);
         for (int i = 0; i <= Math.abs(distance); i++) {
             int modifiedX = startingX + i * distanceModifier;
             Element neighbor = matrix.get(modifiedX, startingY);
@@ -288,12 +352,17 @@ public abstract class Liquid extends Element {
                 lastValidLocation.y = startingY;
             } else if (neighbor instanceof Liquid) {
                 Liquid liquidNeighbor = (Liquid) neighbor;
-                if (isFinal) {
-                    if (compareDensities(liquidNeighbor)) {
-                        swapLiquidForDensities(matrix, liquidNeighbor, modifiedX, startingY, lastValidLocation);
-                        return false;
-                    }
+                if (isFinal && compareDensities(liquidNeighbor)) {
+                    swapLiquidForDensities(matrix, liquidNeighbor, modifiedX, startingY, lastValidLocation);
+                    return false;
                 }
+                // A contact liquid, whether lighter or heavier, must be
+                // displaced by an actual cell swap. Without that swap, a
+                // horizontal traversal used to tunnel through multiple
+                // occupied cells and reappear beyond a fluid wall.
+                if (isFirst) return true;
+                moveToLastValid(matrix, lastValidLocation);
+                return false;
             } else if (neighbor instanceof Solid) {
                 if (isFirst) {
                     return true;

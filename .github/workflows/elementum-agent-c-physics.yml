@@ -1,0 +1,45 @@
+name: Elementum Agent C physics regressions
+
+on:
+  pull_request:
+    branches:
+      - feature/elementum-abr-visual-audio-20261022
+    paths:
+      - "core/src/com/gdx/cellular/elements/**"
+      - "core/src/com/gdx/cellular/CellularMatrix.java"
+      - "core/test/**"
+      - ".github/workflows/elementum-agent-c-physics.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Keep only current-source QA queued when the physics PR advances.
+concurrency:
+  group: agent-c-physics-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  physics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run JVM material physics regressions
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :core:cleanTest :core:test
+      - name: Preserve physics test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: elementum-agent-c-physics-junit
+          path: |
+            core/build/test-results/test/
+            core/build/reports/tests/test/
+          if-no-files-found: warn

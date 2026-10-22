@@ -3,9 +3,6 @@ package com.gdx.cellular.elements;
 import com.badlogic.gdx.Gdx;
 import com.gdx.cellular.CellularMatrix;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Central registry for optional element-to-element reactions.
  *
@@ -20,7 +17,11 @@ public final class ReactionRegistry {
         boolean react(Element first, Element second, CellularMatrix matrix);
     }
 
-    private static final Map<ReactionKey, Reaction> REACTIONS = new HashMap<>();
+    // Array-indexed enum pairs avoid BOTH per-contact key allocations and
+    // repeated Map lookups. ~35x35 references cost only a few KiB once, while
+    // the physics hot loop probes reaction rules millions of times.
+    private static final Reaction[][] REACTIONS = new Reaction
+            [ElementType.values().length][ElementType.values().length];
 
     static {
         registerSymmetric(ElementType.PETROL, ElementType.LAVA, (first, second, matrix) -> {
@@ -112,7 +113,7 @@ public final class ReactionRegistry {
     }
 
     public static void register(ElementType first, ElementType second, Reaction reaction) {
-        REACTIONS.put(new ReactionKey(first, second), reaction);
+        REACTIONS[first.ordinal()][second.ordinal()] = reaction;
     }
 
     public static void registerSymmetric(ElementType first, ElementType second, Reaction reaction) {
@@ -125,30 +126,7 @@ public final class ReactionRegistry {
             return false;
         }
 
-        Reaction reaction = REACTIONS.get(new ReactionKey(first.elementType, second.elementType));
+        Reaction reaction = REACTIONS[first.elementType.ordinal()][second.elementType.ordinal()];
         return reaction != null && reaction.react(first, second, matrix);
-    }
-
-    private static final class ReactionKey {
-        private final ElementType first;
-        private final ElementType second;
-
-        private ReactionKey(ElementType first, ElementType second) {
-            this.first = first;
-            this.second = second;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (this == other) return true;
-            if (!(other instanceof ReactionKey)) return false;
-            ReactionKey key = (ReactionKey) other;
-            return first == key.first && second == key.second;
-        }
-
-        @Override
-        public int hashCode() {
-            return 31 * first.hashCode() + second.hashCode();
-        }
     }
 }

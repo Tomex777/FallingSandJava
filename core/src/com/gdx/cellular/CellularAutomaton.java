@@ -21,6 +21,7 @@ import com.gdx.cellular.ui.MatrixActor;
 import com.gdx.cellular.ui.MobileControls;
 import com.gdx.cellular.util.ElementColumnStepper;
 import com.gdx.cellular.util.GameManager;
+import com.gdx.cellular.util.SimulationPartitions;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -48,6 +49,10 @@ public class CellularAutomaton extends ApplicationAdapter {
     private int numThreads = 12;
     private boolean useMultiThreading = true;
     private static final int MAX_SIMULATION_WORKERS = 6;
+    // Petrol disperses by up to 6+2 cells sideways; two active stripes may
+    // both reach an idle stripe. SimulationPartitions tests this threshold.
+    private static final int MAX_ORDINARY_SPREAD_RADIUS = 8;
+    private boolean warnedAboutSerialGrid;
     private ExecutorService simulationExecutor;
     private int simulationColumnCount;
     private final AtomicInteger simulationWorkerSerial = new AtomicInteger();
@@ -203,9 +208,19 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrix.useChunks = useChunks;
 
 		long simulationStartNanos = System.nanoTime();
-		if (!useMultiThreading) {
+		boolean overlappingWorkerStripes = !SimulationPartitions.hasOrdinarySpreadClearance(
+				matrix.innerArraySize, numThreads, MAX_ORDINARY_SPREAD_RADIUS);
+		boolean runParallel = useMultiThreading && !overlappingWorkerStripes;
+		if (useMultiThreading && overlappingWorkerStripes && !warnedAboutSerialGrid) {
+			Gdx.app.log("ElementumWorker", "safe-single-thread gridColumns="
+					+ matrix.innerArraySize + " requestedPartitions=" + numThreads
+					+ " reason=overlapping-physics-stripes");
+			warnedAboutSerialGrid = true;
+		}
+		if (!runParallel) {
 			matrix.reshuffleXIndexes();
-			matrix.stepAndDrawAll(shapeRenderer);
+			// MatrixActor draws the world only once after the simulation step.
+			matrix.stepAllWithoutDrawing();
 		} else {
 			matrix.reshuffleThreadXIndexes(numThreads);
 			matrix.calculateAndSetThreadedXIndexOffset();

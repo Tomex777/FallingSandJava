@@ -44,7 +44,13 @@ public class Water extends Liquid {
     @Override
     public boolean receiveHeat(CellularMatrix matrix, int heat) {
         if (heat <= 0 || isDead()) return false;
-        boilResistance -= Math.max(1, heat);
+        int remaining = Math.max(1, heat);
+        // Clear stored cold first. A water cell cannot approach both phase
+        // boundaries simultaneously just because the player alternates tools.
+        int thaw = Math.min(remaining, 100 - freezeResistance);
+        freezeResistance += thaw;
+        remaining -= thaw;
+        if (remaining > 0) boilResistance -= remaining;
         if (boilResistance <= 0) {
             Gdx.app.log("ElementumReaction", "water-to-steam");
             dieAndReplace(matrix, ElementType.STEAM);
@@ -55,7 +61,13 @@ public class Water extends Liquid {
     @Override
     public boolean receiveCooling(CellularMatrix matrix, int cooling) {
         if (cooling <= 0 || isDead()) return false;
-        freezeResistance -= Math.max(1, cooling);
+        int remaining = Math.max(1, cooling);
+        // Cancel accumulated warmth first, then progress to freezing only
+        // with the remaining cold. Keeps equal heat/cool cycles reversible.
+        int quench = Math.min(remaining, 80 - boilResistance);
+        boilResistance += quench;
+        remaining -= quench;
+        if (remaining > 0) freezeResistance -= remaining;
         if (freezeResistance <= 0) {
             Gdx.app.log("ElementumReaction", "water-to-ice");
             dieAndReplace(matrix, ElementType.ICE);

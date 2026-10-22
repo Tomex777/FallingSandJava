@@ -113,6 +113,15 @@ public class CellularMatrix {
         drawAll(sr);
     }
 
+    /**
+     * Step on the render thread when worker partitions cannot be isolated.
+     * Rendering remains owned by MatrixActor, avoiding a second full world
+     * draw that the old unthreaded path accidentally performed every frame.
+     */
+    public void stepAllWithoutDrawing() {
+        stepAll();
+    }
+
     private void stepAll() {
         for (int y = 0; y < outerArraySize; y++) {
             Array<Element> row = getRow(y);
