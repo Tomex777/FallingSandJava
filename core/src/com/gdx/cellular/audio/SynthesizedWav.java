@@ -19,7 +19,10 @@ public final class SynthesizedWav {
             throw new IllegalArgumentException("Invalid short audio duration");
         }
         int count = Math.round(SAMPLE_RATE * seconds);
-        if (count < 2) throw new IllegalArgumentException("Duration too short for PCM");
+        // A two-sample clip has a zero attack and release, therefore silence.
+        if (count < SAMPLE_RATE / 50) {
+            throw new IllegalArgumentException("Short sound must be at least 20ms");
+        }
         return count;
     }
 
@@ -102,7 +105,16 @@ public final class SynthesizedWav {
                 && int32(bytes, 28) == SAMPLE_RATE * 2
                 && int16(bytes, 32) == 2 && int16(bytes, 34) == 16
                 && ascii(bytes, 36, "data") && int32(bytes, 40) == count * 2
-                && int32(bytes, 4) == 36 + count * 2;
+                && int32(bytes, 4) == 36 + count * 2
+                && containsSignal(bytes);
+    }
+
+    /** A cached all-zero payload is not a valid material sound for this app. */
+    private static boolean containsSignal(byte[] data) {
+        for (int p = HEADER_SIZE; p < data.length; p++) {
+            if (data[p] != 0) return true;
+        }
+        return false;
     }
 
     private static boolean ascii(byte[] data, int offset, String text) {
