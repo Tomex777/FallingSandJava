@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.gdx.cellular.box2d.ShapeFactory;
+import com.gdx.cellular.effects.FluidSurfaceRenderer;
 import com.gdx.cellular.elements.ElementType;
 import com.gdx.cellular.input.InputManager;
 import com.gdx.cellular.input.InputProcessors;
@@ -40,6 +41,7 @@ public class CellularAutomaton extends ApplicationAdapter {
     public static BitSet stepped = new BitSet(1);
 
     private ShapeRenderer shapeRenderer;
+    private FluidSurfaceRenderer fluidSurfaceRenderer;
     public CellularMatrix matrix;
     private OrthographicCamera camera;
 
@@ -99,6 +101,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 		b2dWorld = new World(new Vector2(0, -100), true);
 
 		matrix = new CellularMatrix(screenWidth, screenHeight, pixelSizeModifier, b2dWorld);
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            fluidSurfaceRenderer = new FluidSurfaceRenderer(matrix);
+        }
 		matrix.generateShuffledIndexesForThreads(numThreads);
 
 		matrixStage = new Stage(viewport);
@@ -110,7 +115,12 @@ public class CellularAutomaton extends ApplicationAdapter {
 		setUpBasicBodies();
 
 		this.gameManager = new GameManager(this);
-		gameManager.createPlayer(matrix.innerArraySize/2, matrix.outerArraySize/2);
+        // The bright pink legacy debug player isn't part of the mobile
+        // sandbox workflow. Start Android directly in the material world.
+        // Desktop keyboard player mode retains its original test subject.
+        if (Gdx.app.getType() != Application.ApplicationType.Android) {
+            gameManager.createPlayer(matrix.innerArraySize / 2, matrix.outerArraySize / 2);
+        }
 
 		if (Gdx.app.getType() == Application.ApplicationType.Android) {
 			inputManager.setWorldResetHook(() -> {
@@ -143,8 +153,18 @@ public class CellularAutomaton extends ApplicationAdapter {
         long frameStartNanos = System.nanoTime();
         long simulationNanos = 0L;
         ensureViewportsMatchScreen();
+        // The GPU overlay owns water only while its shader is healthy.
+        // If an older phone cannot compile it, draw the original water cells.
+        matrix.setSmoothWaterRendering(fluidSurfaceRenderer != null
+                && fluidSurfaceRenderer.isAvailable());
         shapeRenderer.setProjectionMatrix(camera.combined);
-        Gdx.gl.glClearColor(0, 0, 0, 1);
+        // On Android the world is a neutral slate drawing surface, not a
+        // pitch-black rectangle. Empty cells skip drawing their old black fill.
+        if (Gdx.app.getType() == Application.ApplicationType.Android) {
+            Gdx.gl.glClearColor(0.043f, 0.060f, 0.078f, 1f);
+        } else {
+            Gdx.gl.glClearColor(0, 0, 0, 1);
+        }
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         fpsLogger.log();
@@ -160,8 +180,9 @@ public class CellularAutomaton extends ApplicationAdapter {
 
 		boolean isPaused = inputManager.getIsPaused();
 		if (isPaused) {
-			matrixStage.draw();
-			matrix.drawPhysicsElementActors(shapeRenderer);
+            matrixStage.draw();
+            if (fluidSurfaceRenderer != null) fluidSurfaceRenderer.render(matrix, camera, true);
+            matrix.drawPhysicsElementActors(shapeRenderer);
 			drawPhysicsDebugIfEnabled();
 			inputManager.drawMenu();
 			if (mobileControls != null) {
@@ -208,7 +229,8 @@ public class CellularAutomaton extends ApplicationAdapter {
 		matrix.stepPhysicsElementActors();
 
 		matrixStage.draw();
-		matrix.drawPhysicsElementActors(shapeRenderer);
+        if (fluidSurfaceRenderer != null) fluidSurfaceRenderer.render(matrix, camera, false);
+        matrix.drawPhysicsElementActors(shapeRenderer);
 
 		drawPhysicsDebugIfEnabled();
 
@@ -351,7 +373,8 @@ public class CellularAutomaton extends ApplicationAdapter {
 	public void dispose () {
 		if (simulationExecutor != null) simulationExecutor.shutdownNow();
 		shapeRenderer.dispose();
-		debugRenderer.dispose();
+        debugRenderer.dispose();
+        if (fluidSurfaceRenderer != null) fluidSurfaceRenderer.dispose();
 		if (mobileControls != null) {
 			mobileControls.dispose();
 		}

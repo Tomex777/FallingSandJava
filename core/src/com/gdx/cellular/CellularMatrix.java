@@ -13,7 +13,9 @@ import com.gdx.cellular.box2d.ShapeFactory;
 import com.gdx.cellular.elements.ColorConstants;
 import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.ElementType;
+
 import com.gdx.cellular.elements.EmptyCell;
+import com.gdx.cellular.elements.liquid.Water;
 import com.gdx.cellular.elements.liquid.Liquid;
 import com.gdx.cellular.elements.player.PlayerMeat;
 import com.gdx.cellular.elements.solid.movable.MovableSolid;
@@ -41,6 +43,7 @@ public class CellularMatrix {
     public int pixelSizeModifier;
     private final List<Integer> shuffledXIndexes;
     public boolean useChunks = true;
+    private boolean smoothWaterRendering;
     public int drawThreadCount = 6;
     private List<List<Integer>> shuffledXIndexesForThreads;
     private List<List<Integer>> shuffledYIndexesForThreads;
@@ -122,6 +125,10 @@ public class CellularMatrix {
         }
     }
 
+    public void setSmoothWaterRendering(boolean smoothWaterRendering) {
+        this.smoothWaterRendering = smoothWaterRendering;
+    }
+
     public void drawAll(ShapeRenderer sr) {
         drawElements(sr);
 //        drawChunks(sr);
@@ -137,12 +144,22 @@ public class CellularMatrix {
                 if (element.owningBody != null) {
                     continue;
                 }
+                // Empty cells are the clear color. Avoid rendering solid
+                // black rectangles over the upgraded matte sandbox surface.
+                if (element instanceof EmptyCell) {
+                    while (x + 1 < row.size && row.get(x + 1) instanceof EmptyCell) x++;
+                    continue;
+                }
+                if (smoothWaterRendering && element instanceof Water) {
+                    continue;
+                }
                 Color currentColor = element.color;
                 int toIndex = x;
                 for (int following = x; following < row.size; following++) {
                     Element followingElement = row.get(following);
                     if (followingElement.owningBody != null
-                            || !followingElement.color.equals(currentColor)) {
+                            || !followingElement.color.equals(currentColor)
+                            || (smoothWaterRendering && followingElement instanceof Water)) {
                         break;
                     }
                     toIndex = following;
@@ -259,12 +276,22 @@ public class CellularMatrix {
                 if (element.owningBody != null) {
                     continue;
                 }
+                // Empty cells are the clear color. Avoid rendering solid
+                // black rectangles over the upgraded matte sandbox surface.
+                if (element instanceof EmptyCell) {
+                    while (x + 1 < row.size && row.get(x + 1) instanceof EmptyCell) x++;
+                    continue;
+                }
+                if (smoothWaterRendering && element instanceof Water) {
+                    continue;
+                }
                 Color currentColor = element.color;
                 int toIndex = x;
                 for (int following = x; following < row.size; following++) {
                     Element followingElement = row.get(following);
                     if (followingElement.owningBody != null
-                            || !followingElement.color.equals(currentColor)) {
+                            || !followingElement.color.equals(currentColor)
+                            || (smoothWaterRendering && followingElement instanceof Water)) {
                         break;
                     }
                     toIndex = following;
