@@ -13,7 +13,7 @@ import com.gdx.cellular.box2d.ShapeFactory;
 import com.gdx.cellular.elements.ColorConstants;
 import com.gdx.cellular.elements.Element;
 import com.gdx.cellular.elements.ElementType;
-import com.gdx.cellular.elements.EmptyCell;
+
 import com.gdx.cellular.elements.EmptyCell;
 import com.gdx.cellular.elements.liquid.Liquid;
 import com.gdx.cellular.elements.player.PlayerMeat;
