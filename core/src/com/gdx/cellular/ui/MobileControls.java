@@ -1199,16 +1199,35 @@ public class MobileControls {
         }
     }
 
+    /** A small visual gap keeps controls distinct without shrinking their touch areas. */
+    private final class FlatControlDrawable extends BaseDrawable {
+        private final Color fill;
+
+        FlatControlDrawable(Color fill) {
+            this.fill = fill;
+        }
+
+        @Override
+        public void draw(Batch batch, float x, float y, float width, float height) {
+            Color previous = batch.getColor();
+            float red = previous.r, green = previous.g, blue = previous.b, alpha = previous.a;
+            batch.setColor(fill);
+            batch.draw(flatWhiteTexture, x + 2f, y + 2f,
+                    Math.max(1f, width - 4f), Math.max(1f, height - 4f));
+            batch.setColor(red, green, blue, alpha);
+        }
+    }
+
     private Drawable solidDrawable(Color tint) {
         return new TextureRegionDrawable(new TextureRegion(flatWhiteTexture)).tint(tint);
     }
 
     private TextButtonStyle flatStyle(Color base, Color checked, Color fontColor) {
         TextButtonStyle style = new TextButtonStyle();
-        style.up = solidDrawable(base);
-        style.down = solidDrawable(base.cpy().lerp(Color.WHITE, 0.08f));
-        style.over = solidDrawable(base.cpy().lerp(Color.WHITE, 0.04f));
-        style.checked = solidDrawable(checked);
+        style.up = new FlatControlDrawable(base);
+        style.down = new FlatControlDrawable(base.cpy().lerp(Color.WHITE, 0.08f));
+        style.over = new FlatControlDrawable(base.cpy().lerp(Color.WHITE, 0.04f));
+        style.checked = new FlatControlDrawable(checked);
         style.font = mobileFont;
         style.fontColor = fontColor;
         // Selected materials/tools use saturated cyan, sand and heat colors.
