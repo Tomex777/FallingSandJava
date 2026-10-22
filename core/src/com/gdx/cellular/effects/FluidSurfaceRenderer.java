@@ -82,7 +82,9 @@ public final class FluidSurfaceRenderer implements Disposable {
                 Gdx.app.error("ElementumFluid", "Shader fallback: " + shader.getLog());
                 return;
             }
-            batch = new SpriteBatch(500, shader);
+            // A single bounding quad is drawn per frame. Avoid allocating a
+            // 500-sprite vertex buffer on memory-constrained Android devices.
+            batch = new SpriteBatch(1, shader);
             available = true;
             Gdx.app.log("ElementumFluid", "smooth-water-shader=enabled");
         } catch (Throwable failure) {
