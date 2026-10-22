@@ -78,4 +78,33 @@ public class FluidMaskGeometryTest {
         }
     }
 
+    @Test public void distantDropletsTouchExactlyTheirOwnTiles() {
+        int width = 120, height = 266, tileSize = 32;
+        java.util.Set<Integer> flagged = new java.util.HashSet<>();
+        flagged.add(FluidMaskGeometry.tileIndex(2, 260, width, height, tileSize));
+        flagged.add(FluidMaskGeometry.tileIndex(117, 6, width, height, tileSize));
+        assertEquals("distant water droplets need only two tile uploads", 2, flagged.size());
+        assertFalse(FluidMaskGeometry.useFullUpload(flagged.size(), tileSize,
+                width, height, 3));
+        assertTrue(FluidMaskGeometry.tileIndex(2, 260, width, height, tileSize)
+                < FluidMaskGeometry.tileIndex(117, 6, width, height, tileSize));
+    }
+
+    @Test public void sparseDirtyTileIndicesRemainInBoundsAndStable() {
+        for (int[] size : new int[][]{{1,1}, {53,94}, {60,133}, {120,266}}) {
+            int w = size[0], h = size[1];
+            int columns = (w + 31) / 32;
+            int rows = (h + 31) / 32;
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    int index = FluidMaskGeometry.tileIndex(x, y, w, h, 32);
+                    assertTrue(index >= 0 && index < columns * rows);
+                    assertEquals(x / 32, index % columns);
+                    assertEquals(FluidMaskGeometry.pixmapY(y,h) / 32,
+                            index / columns);
+                }
+            }
+        }
+    }
+
 }
