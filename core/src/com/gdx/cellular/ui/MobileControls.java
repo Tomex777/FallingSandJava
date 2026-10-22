@@ -131,11 +131,13 @@ public class MobileControls {
                     try {
                         FreeTypeFontGenerator.FreeTypeFontParameter p =
                                 new FreeTypeFontGenerator.FreeTypeFontParameter();
-                        p.size = 40;
+                        // All labels apply fontScale explicitly; a 40px source
+                        // made the 360-unit dock overflow its cells.
+                        p.size = 20;
                         p.minFilter = Texture.TextureFilter.Linear;
                         p.magFilter = Texture.TextureFilter.Linear;
                         generatedFont = generator.generateFont(p);
-                        generatedFont.getData().setScale(0.52f);
+                        // Do not scale here: Label.setFontScale replaces it.
                         generated = true;
                     } finally {
                         generator.dispose();
