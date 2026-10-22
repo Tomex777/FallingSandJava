@@ -338,6 +338,7 @@ jobs:
       - release-install
       - runtime
       - water-visual
+      - evidence-collection
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
