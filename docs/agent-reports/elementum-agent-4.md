@@ -1,6 +1,6 @@
 # Elementum — Agent D / Agent 4 audio work report
 
-**Updated (WAT):** 2026-10-22T22:15:15+01:00
+**Updated (WAT):** 2026-10-22T22:24:20+01:00
 **Current status:** IN PROGRESS, not complete; **do not count queued CI time as active implementation**.
 **Actual START:** 2026-10-22T21:50:58+01:00, PR #9 comment ID 6351028818.
 **Actual STOP:** NOT RECORDED — the 40:00 uninterrupted-session requirement has NOT yet been satisfied or certified.
@@ -28,7 +28,9 @@
 
 - Agent B has now applied the source fix initializing the Sound button from `soundscape.isEnabled()` on its owned UI branch, verified by source inspection. Integrate both commits together.
 - Moved the agent-specific work order from top-level `AGENT_TASK.md` into `docs/agent-reports/elementum-agent-4-task.md` to eliminate avoidable PR collisions.
-- Added `LiquidStrokeCadenceTest` and PCM non-silence/non-clipping assertions; recent workflow submissions remain queued rather than green.
+- Added `LiquidStrokeCadenceTest`, 400Hz multimaterial voice-storm regression and PCM non-silence/non-clipping assertions; recent workflow submissions remain queued rather than green.
+- Audited generated sound's frequency spectrum. Initial grains sound was excessively hissy (~7,607 Hz energy-weighted spectral centroid, ~64% power >7kHz). Rebalanced granular noise to filtered low-pass + tiny transients; local regenerated signal now ~3,855 Hz centroid and ~23% power >7kHz at RMS 0.0545, still verified non-clipped. These metrics are frequency analysis, **not** a human listening test.
+- Rebuilt 12.55-second audition WAV from the four current generated sample types (water, grains, heat, electric) at `/mnt/data/elementum-agent-d-audio-samples/elementum-audio-preview.wav` in the chat environment. It is a raw synthesized preview, not proof of on-device playback or final mixer gain.
 
 ## Necessary real-device listening acceptance
 
