@@ -1,6 +1,6 @@
 # Elementum — Agent 5: Android CI, Runtime Screenshots and Release Acceptance
 
-**Session status: NOT STARTED.** This file is a concrete work order, not proof an agent is running. The agent must record actual start/stop timestamps, work uninterrupted for EXACTLY **40:00 real-time wall-clock minutes**, and write its handoff.
+**Session status: IN PROGRESS.** Actual START 2026-10-22T21:54:02+01:00, shared PR #9 comment 6351087723. Required full 40:00 wall-clock session ends at 22:34:02 WAT; do not report completed early. This file is a concrete work order, not proof an agent is running. The agent must record actual start/stop timestamps, work uninterrupted for EXACTLY **40:00 real-time wall-clock minutes**, and write its handoff.
 
 **Branch:** `agents/elementum-a5-qa-release-40m-20261022`
 **Target integration PR branch:** `feature/elementum-abr-visual-audio-20261022`
@@ -26,11 +26,11 @@ Real screenshots on current head, robust smoke, install evidence on Android8/16,
 **Never claim** 40 minutes elapsed from file creation or a GitHub CI run. User must see **actual in-app water screenshots** before approving visual shader output. minSdk26, no duplicated controls, exactly two horizontal-swipe rows, real release install/QA remain requirements.
 
 ## Actual work log (agent fills this while running)
-- START (ISO8601 WAT): **NOT STARTED**
-- STOP (ISO8601 WAT): **NOT STARTED**
-- Claim comment link: —
-- Commits / child PR: —
-- Tests / API26+36 CI runs: —
-- Actual screenshot artifact names and source SHA: —
-- Visual defects found/fixed: —
-- Remaining issues and next unclaimed tasks: —
+- START (ISO8601 WAT): **2026-10-22T21:54:02+01:00**
+- STOP (ISO8601 WAT): **NOT YET REACHED; target 2026-10-22T22:34:02+01:00**
+- Claim comment link: https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351087723
+- Commits / child PR: https://github.com/Tomex777/FallingSandJava/pull/13 (draft); isolated GPU-water visual QA, independent release build/install, strict Help/interaction failure captures, PNG pixel verification.
+- Tests / API26+36 CI runs: confirmed historical real #39845584911 API26+36 debug build/install launches; both FULL smoke FAIL Help preferred=332 available=320. Current-head #13 API26+36 matrix queued; no green passes claimed.
+- Actual screenshot artifact names and source SHA: baseline `elementum-startup.png`, `elementum-material-shelf-scrolled.png`, `elementum-help-sheet.png` from artifact 12456308042/API26 and 12457076206/API36, actual source `d8261461`; these are NOT water. New `elementum-water-{paused,moving}*.png` captures CI yet to complete.
+- Visual defects found/fixed: actual Help overflow in both Android emulator screenshots, documented and forwarded to Agent B. Shelf swipe visibly moves two rows and locally bit-for-bit preserves canvas; negative/positive water PNG checker smoke validated locally.
+- Remaining issues and next unclaimed tasks: obtain real GPU-water screenshots/current-head PASS from workflow, inspect FPS and shader, get B Help patch integrated, verify CI release install across API26/36, human device/listening/signing and user visual approval; never mark accomplished prematurely.
