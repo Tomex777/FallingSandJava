@@ -651,13 +651,15 @@ public class MobileControls {
             }
         });
         moreSheet.add(body).width(126f).height(38f).colspan(2).pad(2f);
-        TextButton sound = createFlatButton("Sound on", CONTROL, ACCENT);
+        TextButton sound = createFlatButton(soundscape.isEnabled() ? "Sound on" : "Sound off", CONTROL, ACCENT);
         sound.getLabel().setFontScale(0.66f);
+        sound.setChecked(soundscape.isEnabled());
         sound.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 soundscape.setEnabled(!soundscape.isEnabled());
                 sound.setText(soundscape.isEnabled() ? "Sound on" : "Sound off");
+                sound.setChecked(soundscape.isEnabled());
             }
         });
         moreSheet.add(sound).width(62f).height(38f).pad(2f);
