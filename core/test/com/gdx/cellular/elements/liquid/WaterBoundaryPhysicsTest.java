@@ -74,6 +74,30 @@ public class WaterBoundaryPhysicsTest {
     }
 
     @Test
+    public void sideWallsReflectFastWaterWithoutErasingIt() {
+        for (int direction : new int[]{-1, 1}) {
+            CellularMatrix matrix = newWorld(15, 10);
+            int startingX = direction < 0 ? 1 : 13;
+            Water water = (Water) matrix.spawnElementByMatrix(startingX, 5, ElementType.WATER);
+            water.vel.set(420f * direction, 0f, 0f);
+            tick(matrix);
+            assertEquals("Fast sideways splash leaked through x boundary", 1, countWater(matrix));
+            assertTrue(matrix.isWithinBounds(water.getMatrixX(), water.getMatrixY()));
+        }
+    }
+
+    @Test
+    public void oilAlsoRespectsWorldFloorBoundary() {
+        CellularMatrix matrix = newWorld(8, 8);
+        Element oil = matrix.spawnElementByMatrix(4, 0, ElementType.OIL);
+        for (int i = 0; i < 48; i++) {
+            tick(matrix);
+            assertEquals("Shared liquid movement deleted Oil", 1, matrix.countNonEmptyCells());
+            assertEquals(ElementType.OIL, oil.elementType);
+        }
+    }
+
+    @Test
     public void modestHeatingAndCoolingRemainSerializable() {
         CellularMatrix matrix = newWorld(4, 4);
         Water water = (Water) matrix.spawnElementByMatrix(2, 2, ElementType.WATER);
