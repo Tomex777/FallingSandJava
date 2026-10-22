@@ -1,6 +1,7 @@
 package com.gdx.cellular.effects;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.LifecycleListener;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
@@ -74,6 +75,8 @@ public final class FluidSurfaceRenderer implements Disposable {
     private int changedCellsLastFrame;
     private boolean lowDetail;
     private int slowFrames;
+    private volatile boolean checkTextureAfterResume;
+    private LifecycleListener lifecycleListener;
     private Texture maskTexture;
     private SpriteBatch batch;
     private ShaderProgram shader;
@@ -109,6 +112,16 @@ public final class FluidSurfaceRenderer implements Disposable {
                         || lower.contains("mali-400") || lower.contains("adreno (tm) 3");
             }
             available = true;
+            // This mask texture is intentionally unmanaged: Texture.draw()
+            // requires an unmanaged texture. On Android EGL recreation only
+            // managed textures reload automatically, so check our GL handle
+            // after each resume and restore the mask if it was invalidated.
+            lifecycleListener = new LifecycleListener() {
+                @Override public void pause() { }
+                @Override public void resume() { checkTextureAfterResume = true; }
+                @Override public void dispose() { }
+            };
+            Gdx.app.addLifecycleListener(lifecycleListener);
             Gdx.app.log("ElementumFluid", "smooth-water-shader=enabled gpu="
                     + gpuName + " detail=" + (lowDetail ? "low" : "full"));
         } catch (Throwable failure) {
@@ -125,6 +138,22 @@ public final class FluidSurfaceRenderer implements Disposable {
         if (!available) return;
         if (matrix.innerArraySize != width || matrix.outerArraySize != height) return;
         try {
+            if (checkTextureAfterResume) {
+                if (!Gdx.gl.glIsTexture(maskTexture.getTextureObjectHandle())) {
+                    // Do NOT dispose the old texture handle after EGL loss:
+                    // GL names can be reused and disposing it could delete
+                    // a new unrelated GPU texture.
+                    maskTexture = new Texture(maskPixmap);
+                    maskTexture.setFilter(Texture.TextureFilter.Linear,
+                            Texture.TextureFilter.Linear);
+                    Gdx.app.log("ElementumFluid", "mask-texture-restored after EGL loss");
+                } else {
+                    // Also cover pause/resume without EGL destruction and
+                    // edits made while the renderer was not drawing.
+                    maskTexture.draw(maskPixmap, 0, 0);
+                }
+                checkTextureAfterResume = false;
+            }
             if (!paused) time += Math.min(0.05f, Gdx.graphics.getDeltaTime());
             // Only update texels that changed. In particular a paused pool
             // needs no repeated full-mask upload.
@@ -280,6 +309,10 @@ public final class FluidSurfaceRenderer implements Disposable {
 
     @Override
     public void dispose() {
+        if (lifecycleListener != null && Gdx.app != null) {
+            Gdx.app.removeLifecycleListener(lifecycleListener);
+            lifecycleListener = null;
+        }
         if (batch != null) batch.dispose();
         if (shader != null) shader.dispose();
         if (maskTexture != null) maskTexture.dispose();
