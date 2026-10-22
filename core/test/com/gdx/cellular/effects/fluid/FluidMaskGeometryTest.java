@@ -39,4 +39,43 @@ public class FluidMaskGeometryTest {
         assertTrue(FluidMaskGeometry.useFullUpload(4, 32, 60, height, 3));
         assertTrue(FluidMaskGeometry.useFullUpload(1, 32, 20, 20, 3));
     }
+    @Test public void dirtyBoxAlwaysIncludesEveryChangedTexelAcrossPhoneSizes() {
+        java.util.Random random = new java.util.Random(20261022L);
+        for (int[] size : new int[][]{
+                {1, 1}, {20, 18}, {53, 94}, {60, 133},
+                {120, 266}, {320, 568}
+        }) {
+            int width = size[0], height = size[1];
+            for (int run = 0; run < 1500; run++) {
+                int n = 1 + random.nextInt(22);
+                int minX = width, minY = height, maxX = -1, maxY = -1;
+                int[] xs = new int[n], ys = new int[n];
+                for (int i = 0; i < n; i++) {
+                    int x = random.nextInt(width);
+                    int y = random.nextInt(height);
+                    xs[i] = x;
+                    ys[i] = y;
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+                }
+                int firstCol = minX / 32;
+                int lastCol = maxX / 32;
+                int firstRow = FluidMaskGeometry.firstPixmapTileRow(maxY, height, 32);
+                int lastRow = FluidMaskGeometry.lastPixmapTileRow(minY, height, 32);
+                int tileCount = (lastCol - firstCol + 1) * (lastRow - firstRow + 1);
+                if (FluidMaskGeometry.useFullUpload(tileCount, 32, width, height, 3)) {
+                    continue; // Entire texture is covered.
+                }
+                for (int i = 0; i < n; i++) {
+                    int texelColumn = xs[i] / 32;
+                    int texelRow = FluidMaskGeometry.pixmapY(ys[i], height) / 32;
+                    assertTrue(texelColumn >= firstCol && texelColumn <= lastCol);
+                    assertTrue(texelRow >= firstRow && texelRow <= lastRow);
+                }
+            }
+        }
+    }
+
 }
