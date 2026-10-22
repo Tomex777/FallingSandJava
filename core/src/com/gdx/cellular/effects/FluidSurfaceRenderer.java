@@ -199,13 +199,13 @@ public final class FluidSurfaceRenderer implements Disposable {
             shader.setUniformf("u_texel", 1f / width, 1f / height);
             shader.setUniformf("u_time", time);
             shader.setUniformf("u_detail", lowDetail ? 0f : 1f);
-            // SpriteBatch takes v at the top edge and v2 at the bottom.
-            // The matrix is bottom-origin; the Pixmap is top-origin.
-            // Reversing these (as in the old code) mirrors water vertically.
+            // SpriteBatch draws the bottom-left vertex with v and the
+            // top-left with v2; matrix Y=0 maps to bottom Pixmap row.
+            // Match the exact outer texel edges (no half-cell shift).
             batch.draw(maskTexture, minX * scale, minY * scale,
                     cellsWide * scale, cellsHigh * scale,
-                    (float) minX / width, (float) (height - maxY - 1) / height,
-                    (float) (maxX + 1) / width, (float) (height - minY) / height);
+                    (float) minX / width, (float) (height - minY) / height,
+                    (float) (maxX + 1) / width, (float) (height - 1 - maxY) / height);
             batch.end();
 
             long now = System.nanoTime();
