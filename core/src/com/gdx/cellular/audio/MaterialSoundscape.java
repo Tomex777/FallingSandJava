@@ -29,12 +29,14 @@ public final class MaterialSoundscape {
             suspended = true;
             liquidCadence.reset();
             stopAll();
+            Gdx.app.log("ElementumAudio", "lifecycle=paused");
         }
 
         @Override public void resume() {
             rateGate.reset();
             liquidCadence.reset();
             suspended = false;
+            Gdx.app.log("ElementumAudio", "lifecycle=resumed");
         }
 
         @Override public void dispose() {
