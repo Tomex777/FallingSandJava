@@ -23,8 +23,8 @@ release_exit() {
   exit "$code"
 }
 trap release_exit EXIT
-printf 'source_sha=%s\\napi_level=%s\\napk=%s\\n' "${GITHUB_SHA:-local-unknown}" \
-  "$(adb shell getprop ro.build.version.sdk | tr -d '\\r')" "$apk" > "$evidence/provenance.txt"
+printf 'source_sha=%s\napi_level=%s\napk=%s\n' "${GITHUB_SHA:-local-unknown}" \
+  "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" "$apk" > "$evidence/provenance.txt"
 
 if ! adb logcat -c; then
   echo "Release smoke could not clear logcat; continuing with launch validation" >&2
