@@ -92,7 +92,7 @@ public final class MaterialSoundscape {
         Gdx.app.log("ElementumAudio", "enabled=" + enabled + " available=" + available);
     }
 
-    /** Called only for a valid, material-adding brush event. */
+    /** Called for an in-world paint attempt; a blocked cell may be unchanged. */
     public void onPaint(ElementType type) {
         if (!enabled || suspended || !available || disposed
                 || type == null || type == ElementType.EMPTYCELL) return;
