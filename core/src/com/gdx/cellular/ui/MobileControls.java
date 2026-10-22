@@ -1122,9 +1122,10 @@ public class MobileControls {
             entry.getValue().setChecked(checked);
         }
         if (toolButton != null) {
-            // Erase is selected exclusively through its shelf chip. Highlight
-            // this dock control only for Heat/Cool, never for a second Erase.
-            toolButton.setChecked(mode == MouseMode.HEAT || mode == MouseMode.COOL);
+            // Erase is selected exclusively through its shelf chip; the dock
+            // tool highlights every active non-draw mode (including Source,
+            // Dust, Spray etc.), so users can see the current painting mode.
+            toolButton.setChecked(mode != MouseMode.SPAWN);
             toolButton.setText(toolLabel());
         }
     }
