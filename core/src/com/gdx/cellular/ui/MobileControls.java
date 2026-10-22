@@ -1217,10 +1217,14 @@ public class MobileControls {
         float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
         panelWidth = Math.max(300f, panelWidth);
         float x = (width - panelWidth) / 2f;
-        float y = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
+        // The expandable shelf sits above the original dock. The compact
+        // secondary sheets keep their familiar placement; while open, the
+        // shelf is hidden so no material chips are covered or accidentally hit.
+        float y = DOCK_HEIGHT + 42f + 4f;
+        float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
         float available = Math.max(120f, height - y - 14f);
 
-        materialPanel.setBounds(x, y, panelWidth, Math.min(205f, Math.max(165f, height * 0.27f)));
+        materialPanel.setBounds(x, materialY, panelWidth, Math.min(205f, Math.max(165f, height * 0.27f)));
         moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
         sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
         helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
@@ -1236,7 +1240,9 @@ public class MobileControls {
 
         boolean legacyOverlay = inputManager.drawMenu;
         quickBar.setVisible(!legacyOverlay);
-        quickStripRoot.setVisible(!legacyOverlay);
+        quickStripRoot.setVisible(!legacyOverlay && !moreSheet.isVisible()
+                && !sceneSheet.isVisible() && !helpSheet.isVisible()
+                && !clearSheet.isVisible());
 
         syncToolHighlights();
         syncMaterialHighlights();
