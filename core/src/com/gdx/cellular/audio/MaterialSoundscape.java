@@ -32,6 +32,7 @@ public final class MaterialSoundscape {
             clips[2] = load("heat", 2, 0.24f);
             clips[3] = load("electric", 3, 0.18f);
             available = true;
+            Gdx.app.log("ElementumAudio", "sfx-ready clips=4");
         } catch (Throwable soundFailure) {
             Gdx.app.error("ElementumAudio", "Sound output unavailable", soundFailure);
             dispose();
@@ -55,6 +56,7 @@ public final class MaterialSoundscape {
         int kind = classify(type);
         try {
             clips[kind].play(kind == 0 ? 0.20f : kind == 3 ? 0.12f : 0.13f);
+            Gdx.app.log("ElementumAudio", "paint-kind=" + kind);
         } catch (RuntimeException audioUnavailable) {
             available = false;
             Gdx.app.error("ElementumAudio", "Playback disabled", audioUnavailable);
