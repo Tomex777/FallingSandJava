@@ -98,6 +98,19 @@ public class WaterBoundaryPhysicsTest {
     }
 
     @Test
+    public void alternatingHeatAndCoolingDoNotSpontaneouslyBoilOrFreeze() {
+        CellularMatrix matrix = newWorld(5, 5);
+        Water water = (Water) matrix.spawnElementByMatrix(2, 2, ElementType.WATER);
+        for (int cycle = 0; cycle < 90; cycle++) {
+            assertTrue(water.receiveHeat(matrix, 7));
+            assertTrue(water.receiveCooling(matrix, 7));
+            assertFalse("Water changed phase without net heating or cooling", water.isDead());
+            assertSame(water, matrix.get(2, 2));
+        }
+        assertEquals("80,93", water.getSaveState());
+    }
+
+    @Test
     public void modestHeatingAndCoolingRemainSerializable() {
         CellularMatrix matrix = newWorld(4, 4);
         Water water = (Water) matrix.spawnElementByMatrix(2, 2, ElementType.WATER);
@@ -106,7 +119,7 @@ public class WaterBoundaryPhysicsTest {
         assertFalse(water.receiveCooling(matrix, -1));
         assertTrue(water.receiveHeat(matrix, 13));
         assertTrue(water.receiveCooling(matrix, 17));
-        assertEquals("67,83", water.getSaveState());
+        assertEquals("80,83", water.getSaveState());
         Water restored = new Water(2, 2);
         restored.restoreSaveState(water.getSaveState());
         assertEquals(water.getSaveState(), restored.getSaveState());
