@@ -1,6 +1,6 @@
 # Elementum — Agent 3: Material Physics and Smooth Simulations
 
-**Session status: NOT STARTED.** This file is a concrete work order, not proof an agent is running. The agent must record actual start/stop timestamps, work uninterrupted for EXACTLY **40:00 real-time wall-clock minutes**, and write its handoff.
+**Session status: IN PROGRESS as of 2026-10-22T21:50:37+01:00.** Actual start is recorded in PR #9 comment 6351025068; the full 40:00 session cannot be claimed until its end at 22:30:37 WAT. Do not claim a complete 40-minute session prematurely.
 
 **Branch:** `agents/elementum-a3-physics-40m-20261022`
 **Target integration PR branch:** `feature/elementum-abr-visual-audio-20261022`
@@ -26,11 +26,11 @@ No regression to materials, water movement coherent, physics unit suite green, s
 **Never claim** 40 minutes elapsed from file creation or a GitHub CI run. User must see **actual in-app water screenshots** before approving visual shader output. minSdk26, no duplicated controls, exactly two horizontal-swipe rows, real release install/QA remain requirements.
 
 ## Actual work log (agent fills this while running)
-- START (ISO8601 WAT): **NOT STARTED**
-- STOP (ISO8601 WAT): **NOT STARTED**
-- Claim comment link: —
-- Commits / child PR: —
-- Tests / API26+36 CI runs: —
-- Actual screenshot artifact names and source SHA: —
+- START (ISO8601 WAT): **2026-10-22T21:50:37+01:00**
+- STOP (ISO8601 WAT): **NOT YET REACHED**
+- Claim comment link: https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351025068
+- Commits / child PR: https://github.com/Tomex777/FallingSandJava/pull/10 (draft). Water boundary conservation, fluid-layer collision, CPU hot-loop allocation, opposing thermal state; JUnit tests and dedicated physics workflow.
+- Tests / API26+36 CI runs: Dedicated :core:test run(s) queued; results **unverified**. Main PR #9 Android API26/API36 acceptance belongs to integrated QA and is not yet proven by Agent C.
+- Actual screenshot artifact names and source SHA: **NONE YET**. Do not claim screenshots or visual approval.
 - Visual defects found/fixed: —
-- Remaining issues and next unclaimed tasks: —
+- Remaining issues and next unclaimed tasks: Verify latest test run on actual head; examine Android 26/36 runtime screenshots and frame-time; identify cross-column worker races without changing Agent 1 owned renderer.
