@@ -209,6 +209,9 @@ public class MobileControls {
         quickStripScroller.setCancelTouchFocus(true);
         quickStripRoot.add(quickStripScroller).growX().height(QUICK_STRIP_HEIGHT).padBottom(DOCK_HEIGHT);
         stage.addActor(quickStripRoot);
+        // Sheets draw ABOVE the shelf's upper row, but the lower row stays
+        // visible and usable. Keep the modal blocker BEHIND the shelf.
+        quickStripRoot.setZIndex(1);
 
         quickBar = new Table();
         quickBar.bottom();
@@ -630,7 +633,7 @@ public class MobileControls {
         helpSheet.row();
         addHelpLine("Draw", "One finger tap or stroke");
         addHelpLine("Navigate", "Two fingers to pan or pinch");
-        addHelpLine("Materials", "Swipe the two-row shelf sideways; tap to draw");
+        addHelpLine("Materials", "Two rows. Swipe horizontally.");
         addHelpLine("Tool", "Tap the tool button to cycle Draw, Heat and Cool");
         addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
         addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
@@ -1246,9 +1249,7 @@ public class MobileControls {
 
         boolean legacyOverlay = inputManager.drawMenu;
         quickBar.setVisible(!legacyOverlay);
-        quickStripRoot.setVisible(!legacyOverlay && !moreSheet.isVisible()
-                && !sceneSheet.isVisible() && !helpSheet.isVisible()
-                && !clearSheet.isVisible());
+        quickStripRoot.setVisible(!legacyOverlay);
 
         syncToolHighlights();
         syncMaterialHighlights();
