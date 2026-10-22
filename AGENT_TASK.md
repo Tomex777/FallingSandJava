@@ -1,6 +1,6 @@
 # Elementum — Agent 3: Material Physics and Smooth Simulations
 
-**Session status: IN PROGRESS as of 2026-10-22T21:50:37+01:00.** Actual start is recorded in PR #9 comment 6351025068; the full 40:00 session cannot be claimed until its end at 22:30:37 WAT. Do not claim a complete 40-minute session prematurely.
+**Session status: STOPPED after actual 40:00 at 2026-10-22T22:30:37+01:00.** Start and finish were timestamped and independently recorded in PR #9 comments 6351025068 and 6351755239. Release QA remains unverified.
 
 **Branch:** `agents/elementum-a3-physics-40m-20261022`
 **Target integration PR branch:** `feature/elementum-abr-visual-audio-20261022`
@@ -27,7 +27,7 @@ No regression to materials, water movement coherent, physics unit suite green, s
 
 ## Actual work log (agent fills this while running)
 - START (ISO8601 WAT): **2026-10-22T21:50:37+01:00**
-- STOP (ISO8601 WAT): **NOT YET REACHED**
+- STOP (ISO8601 WAT): **2026-10-22T22:30:37+01:00**; 40:00 measured elapsed. https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351755239
 - Claim comment link: https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351025068
 - Commits / child PR: https://github.com/Tomex777/FallingSandJava/pull/10 (draft). Water boundary conservation, fluid-layer collision, CPU hot-loop allocation, opposing thermal state; JUnit tests and dedicated physics workflow.
 - Tests / API26+36 CI runs: Dedicated :core:test run(s) queued; results **unverified**. Main PR #9 Android API26/API36 acceptance belongs to integrated QA and is not yet proven by Agent C.
