@@ -12,6 +12,15 @@ public class SynthesizedWavTest {
             assertTrue("type=" + type, SynthesizedWav.isValidPcm(wav, duration));
             assertEquals(0, wav[44]); assertEquals(0, wav[45]);
             assertEquals(0, wav[wav.length - 2]); assertEquals(0, wav[wav.length - 1]);
+            int peak = 0;
+            long totalAbsolute = 0;
+            for (int p = 44; p < wav.length; p += 2) {
+                int sample = (short) ((wav[p] & 255) | ((wav[p + 1] & 255) << 8));
+                peak = Math.max(peak, Math.abs(sample));
+                totalAbsolute += Math.abs((long) sample);
+            }
+            assertTrue("Generated clip must not be silent: " + type, totalAbsolute > 1000);
+            assertTrue("No clipped/distorted samples: " + type, peak < 31000);
         }
     }
 
