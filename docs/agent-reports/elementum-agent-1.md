@@ -4,7 +4,7 @@
 
 ## Recorded actual session
 - START: 2026-10-22T21:51:24+01:00 WAT, PR #9 coordination comment https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351036751.
-- Intended 40:00 STOP: 2026-10-22T22:31:24+01:00 WAT. **NOT YET REACHED** as of this report update. Do not invent a STOP or mark 40:00 complete merely on a CI result.
+- STOP actually recorded: **2026-10-22T22:31:45+01:00 WAT** in PR #9 comment https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351772435. Elapsed **40 minutes 21 seconds** after START, exceeding the exact 40:00 target by **21 seconds**. This was not backdated and should **not** be called exactly 40 minutes.
 - Work branch: `agents/elementum-a1-gpu-water-40m-20261022`.
 - Draft integration child PR: https://github.com/Tomex777/FallingSandJava/pull/15.
 
@@ -20,7 +20,7 @@
 ## Source-independent tests actually performed
 - Java-only matching geometry verifier on 20,833,250 cropped-world-row/tile-coordinate combinations: PASS. No Android/GPU used.
 - Earlier randomized full-vs-partial texture-byte model: 1,750 frames across multiple sizes including complete clear: PASS.
-- Expanded sparse-tile upload model (2026-10-22T22:22 WAT): **2,400 frames across 6 grid sizes; 65,534 changed texels; 819 full and 1,389 partial uploads; exact CPU source/GPU target byte equivalence every frame; simulated 292.132 MiB avoided transfer relative to indiscriminate full uploads.** These are workload model results, **not real device upload bandwidth, GPU time or memory allocation proof**.
+- Expanded sparse-tile upload model (2026-10-22): **2,400 frames across 6 grid sizes; 65,534 changed texels; 819 full and 1,389 partial uploads; exact CPU source/GPU target byte equivalence every frame; simulated 292.132 MiB avoided transfer relative to indiscriminate full uploads.** Extended the same model to **24 distinct randomized seeds = 57,600 verified frames** with different edit positions. These are workload model results, **not real device upload bandwidth, GPU time or memory allocation proof**.
 - New project JUnit tests validate geometry, reverse UV mapping, 32px edge tiles, dirty region coverage, distant droplets and sparse tile IDs. **Current-head CI result pending at report writing.**
 
 ## Historical real runtime QA inspected
