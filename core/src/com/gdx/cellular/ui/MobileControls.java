@@ -88,6 +88,8 @@ public class MobileControls {
     private final Table sceneList;
     private final ScrollPane scenePicker;
     private final Table helpSheet;
+    private final Table helpContent;
+    private final ScrollPane helpScroller;
     private final Table clearSheet;
 
     private final Map<ElementType, TextButton> pickerButtons = new EnumMap<>(ElementType.class);
@@ -98,6 +100,11 @@ public class MobileControls {
     private TextButton toolButton;
     private TextButton brushTypeButton;
     private TextButton pauseButton;
+    private TextButton moreButton;
+    private TextButton allButton;
+    private TextButton weatherButton;
+    private TextButton moreCloseButton;
+    private TextButton helpCloseButton;
 
     private String currentCategory = "Solids";
     private ElementType lastMaterial = ElementType.SAND;
@@ -233,6 +240,15 @@ public class MobileControls {
         helpSheet.top().left();
         helpSheet.pad(10f);
         helpSheet.setBackground(opaquePanelBackground);
+        // Header/Close remain fixed as instructions scroll on small screens.
+        helpContent = new Table();
+        helpContent.top().left();
+        helpScroller = new ScrollPane(helpContent, new ScrollPane.ScrollPaneStyle());
+        helpScroller.setScrollingDisabled(true, false);
+        helpScroller.setOverscroll(false, false);
+        helpScroller.setFlickScroll(true);
+        helpScroller.setFadeScrollBars(false);
+        helpScroller.setCancelTouchFocus(true);
         buildHelpSheet();
         helpSheet.setVisible(false);
         stage.addActor(helpSheet);
@@ -327,9 +343,9 @@ public class MobileControls {
         });
         quickStrip.add(erase).width(60f).height(44f);
 
-        TextButton all = createFlatButton("All", CONTROL, ACCENT);
-        all.getLabel().setFontScale(0.75f);
-        all.addListener(new ClickListener() {
+        allButton = createFlatButton("All", CONTROL, ACCENT);
+        allButton.getLabel().setFontScale(0.75f);
+        allButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (clearSheet.isVisible()) return;
@@ -339,7 +355,7 @@ public class MobileControls {
                 Gdx.app.log("ElementumInput", "material-picker=" + (visible ? "open" : "closed"));
             }
         });
-        quickStrip.add(all).width(60f).height(44f);
+        quickStrip.add(allButton).width(60f).height(44f);
         addQuickMaterial("Brick", ElementType.BRICK, 60f);
         addQuickMaterial("Dirt", ElementType.DIRT, 60f);
         addQuickMaterial("Ember", ElementType.EMBER, 60f);
@@ -425,9 +441,9 @@ public class MobileControls {
         });
         dock.add(toolButton).width(50f).height(48f);
 
-        TextButton more = createFlatButton("More", CONTROL, CONTROL_PRESSED);
-        more.getLabel().setFontScale(0.70f);
-        more.addListener(new ClickListener() {
+        moreButton = createFlatButton("More", CONTROL, CONTROL_PRESSED);
+        moreButton.getLabel().setFontScale(0.70f);
+        moreButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (clearSheet.isVisible()) return;
@@ -435,11 +451,12 @@ public class MobileControls {
                 closeNonDestructiveSheets();
                 moreSheet.setVisible(visible);
                 if (visible) {
+                    reportCloseButtonBounds("more", moreSheet, moreCloseButton);
                     Gdx.app.log("ElementumInput", "more-sheet=open");
                 }
             }
         });
-        dock.add(more).width(50f).height(48f);
+        dock.add(moreButton).width(50f).height(48f);
     }
 
     private void buildMaterialPanel() {
@@ -533,11 +550,11 @@ public class MobileControls {
     private void buildMoreSheet() {
         Label title = sectionLabel("Tools");
         moreSheet.add(title).colspan(4).left().padBottom(6f);
-        TextButton close = createSheetCloseButton(() -> {
+        moreCloseButton = createSheetCloseButton(() -> {
             moreSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "more-sheet=closed");
         });
-        moreSheet.add(close).width(54f).height(44f).right().padBottom(6f);
+        moreSheet.add(moreCloseButton).width(54f).height(44f).right().padBottom(6f);
         moreSheet.row();
 
         addModeButton("Draw", MouseMode.SPAWN);
@@ -561,6 +578,7 @@ public class MobileControls {
         save.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                save.setChecked(false);
                 inputManager.requestSave();
             }
         });
@@ -570,6 +588,7 @@ public class MobileControls {
         load.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                load.setChecked(false);
                 inputManager.requestLoad();
             }
         });
@@ -579,27 +598,31 @@ public class MobileControls {
         clear.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                clear.setChecked(false);
                 showClearConfirmation();
             }
         });
         moreSheet.add(clear).width(62f).height(42f).pad(2f);
 
-        TextButton weather = createFlatButton("Weather", CONTROL, CONTROL_PRESSED);
-        weather.getLabel().setFontScale(0.70f);
-        weather.addListener(new ClickListener() {
+        weatherButton = createFlatButton("Weather", CONTROL, ACCENT);
+        weatherButton.getLabel().setFontScale(0.70f);
+        weatherButton.setChecked(!inputManager.weatherSystem.disabled);
+        weatherButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 inputManager.weatherSystem.toggle();
+                weatherButton.setChecked(!inputManager.weatherSystem.disabled);
                 moreSheet.setVisible(false);
                 Gdx.app.log("ElementumInput", "weather=toggled");
             }
         });
-        moreSheet.add(weather).width(62f).height(42f).pad(2f);
+        moreSheet.add(weatherButton).width(62f).height(42f).pad(2f);
 
         TextButton help = createFlatButton("Help", CONTROL, CONTROL_PRESSED);
         help.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                help.setChecked(false);
                 showHelpSheet();
             }
         });
@@ -611,6 +634,7 @@ public class MobileControls {
         weatherMaterial.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                weatherMaterial.setChecked(false);
                 inputManager.setCurrentElementOnWeather();
                 moreSheet.setVisible(false);
                 Gdx.app.log("ElementumInput", "weather-material=" + inputManager.currentlySelectedElement.name());
@@ -633,17 +657,20 @@ public class MobileControls {
                 }
                 inputManager.setBodyType(values[next]);
                 body.setText("Body: " + shortBodyType(values[next]));
+                body.setChecked(false);
                 Gdx.app.log("ElementumInput", "body-type=" + values[next].name());
             }
         });
         moreSheet.add(body).width(126f).height(38f).colspan(2).pad(2f);
-        TextButton sound = createFlatButton("Sound on", CONTROL, ACCENT);
+        TextButton sound = createFlatButton(soundscape.isEnabled() ? "Sound on" : "Sound off", CONTROL, ACCENT);
         sound.getLabel().setFontScale(0.66f);
+        sound.setChecked(soundscape.isEnabled());
         sound.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 soundscape.setEnabled(!soundscape.isEnabled());
                 sound.setText(soundscape.isEnabled() ? "Sound on" : "Sound off");
+                sound.setChecked(soundscape.isEnabled());
             }
         });
         moreSheet.add(sound).width(62f).height(38f).pad(2f);
@@ -687,22 +714,28 @@ public class MobileControls {
     }
 
     private void buildHelpSheet() {
-        Label title = sectionLabel("Elementum");
-        helpSheet.add(title).left().padBottom(8f);
-        TextButton close = createSheetCloseButton(() -> {
+        // A single-column sheet avoids the Help Close button inheriting the
+        // instruction rows' wider two-column layout on compact devices.
+        Table header = new Table();
+        header.add(sectionLabel("Elementum")).growX().left();
+        helpCloseButton = createSheetCloseButton(() -> {
             helpSheet.setVisible(false);
             Gdx.app.log("ElementumInput", "help=closed");
         });
-        helpSheet.add(close).width(54f).height(44f).right().padBottom(8f);
+        header.add(helpCloseButton).width(54f).height(44f).right();
+        helpSheet.add(header).growX().padBottom(6f);
         helpSheet.row();
-        addHelpLine("Draw", "One finger tap or stroke");
-        addHelpLine("Navigate", "Two fingers to pan or pinch");
-        addHelpLine("Materials", "Two rows. Swipe horizontally.");
-        addHelpLine("Tool", "Tap the tool button to cycle Draw, Heat and Cool");
-        addHelpLine("Source", "Open More, tap Source, then tap the sandbox");
-        addHelpLine("Brush", "Minus/plus changes size; brush chip changes shape");
-        addHelpLine("Scenes", "Open More, then Save or Load");
-        addHelpLine("Pause", "Drawing and tools still work while paused");
+        helpSheet.add(helpScroller).grow();
+
+        addHelpLine("Draw", "Tap or drag one finger");
+        addHelpLine("Navigate", "Pinch or pan with two fingers");
+        addHelpLine("Materials", "Swipe the two-row material shelf");
+        addHelpLine("Tool", "Cycle Draw, Heat and Cool");
+        addHelpLine("Source", "More > Source, then tap the sandbox");
+        addHelpLine("Brush", "-/+ changes size; tap shape to switch");
+        addHelpLine("Scenes", "More > Save or Load");
+        addHelpLine("Pause", "You can still draw while paused");
+        helpContent.pack();
     }
 
     private void addHelpLine(String title, String detail) {
@@ -712,9 +745,9 @@ public class MobileControls {
         detailLabel.setFontScale(0.70f);
         detailLabel.setColor(MUTED);
         detailLabel.setWrap(true);
-        helpSheet.add(titleLabel).width(72f).left().padBottom(6f);
-        helpSheet.add(detailLabel).width(220f).left().padBottom(6f);
-        helpSheet.row();
+        helpContent.add(titleLabel).width(72f).left().padBottom(7f);
+        helpContent.add(detailLabel).width(220f).left().padBottom(7f);
+        helpContent.row();
     }
 
     private void showHelpSheet() {
@@ -722,11 +755,34 @@ public class MobileControls {
         helpSheet.setVisible(true);
         helpSheet.invalidateHierarchy();
         helpSheet.validate();
-        Gdx.app.log("ElementumUI", "help-content-fits="
-                + (helpSheet.getPrefHeight() <= helpSheet.getHeight() + 0.5f)
-                + " preferred=" + Math.round(helpSheet.getPrefHeight())
-                + " available=" + Math.round(helpSheet.getHeight()));
+        helpScroller.setScrollY(0f);
+        helpScroller.layout();
+        reportCloseButtonBounds("help", helpSheet, helpCloseButton);
+        // "Fits" means no inaccessible/clipped rows: tall content can scroll.
+        boolean helpAccessible = helpScroller.getHeight() >= 32f
+                && helpScroller.getWidth() >= 240f
+                && (helpContent.getPrefHeight() <= helpScroller.getHeight() + 0.5f
+                    || !helpScroller.isScrollingDisabledY());
+        Gdx.app.log("ElementumUI", "help-content-fits=" + helpAccessible
+                + " preferred=" + Math.round(helpContent.getPrefHeight())
+                + " viewport=" + Math.round(helpScroller.getHeight())
+                + " scrollable=" + (helpContent.getPrefHeight() > helpScroller.getHeight() + 0.5f));
         Gdx.app.log("ElementumInput", "help=open");
+    }
+
+    /** Verify the live sheet's close target against the logical viewport. */
+    private void reportCloseButtonBounds(String sheetName, Table sheet, TextButton close) {
+        sheet.invalidateHierarchy();
+        sheet.validate();
+        Vector2 origin = close.localToStageCoordinates(new Vector2(0f, 0f));
+        boolean inBounds = origin.x >= 0f && origin.y >= 0f
+                && origin.x + close.getWidth() <= stage.getViewport().getWorldWidth()
+                && origin.y + close.getHeight() <= stage.getViewport().getWorldHeight();
+        Gdx.app.log("ElementumUI", sheetName + "-close-in-bounds=" + inBounds
+                + " x=" + Math.round(origin.x)
+                + " y=" + Math.round(origin.y)
+                + " width=" + Math.round(close.getWidth())
+                + " height=" + Math.round(close.getHeight()));
     }
 
     private void showSceneSheet(boolean saveMode) {
@@ -813,7 +869,9 @@ public class MobileControls {
             actionLabel = existing == null ? "--" : "Load";
         }
         TextButton action = createFlatButton(actionLabel, CONTROL, saveMode ? ACCENT : Color.valueOf("4C86C6"));
-        action.getLabel().setFontScale(actionLabel.length() > 6 ? 0.50f : 0.58f);
+        // At source font size 20 a 0.50 scale renders below 10px on compact
+        // Android screens. 0.65 keeps Overwrite readable within its 82px cell.
+        action.getLabel().setFontScale(actionLabel.length() > 6 ? 0.65f : 0.68f);
         if (!saveMode && existing == null) {
             action.setTouchable(Touchable.disabled);
             action.setColor(Color.valueOf("666666"));
@@ -1079,8 +1137,10 @@ public class MobileControls {
             entry.getValue().setChecked(checked);
         }
         if (toolButton != null) {
-            toolButton.setChecked(mode == MouseMode.HEAT || mode == MouseMode.COOL
-                    || (mode == MouseMode.SPAWN && inputManager.currentlySelectedElement == ElementType.EMPTYCELL));
+            // Erase is selected exclusively through its shelf chip; the dock
+            // tool highlights every active non-draw mode (including Source,
+            // Dust, Spray etc.), so users can see the current painting mode.
+            toolButton.setChecked(mode != MouseMode.SPAWN);
             toolButton.setText(toolLabel());
         }
     }
@@ -1088,7 +1148,9 @@ public class MobileControls {
     private String toolLabel() {
         MouseMode mode = inputManager.getMouseMode();
         if (mode == MouseMode.SPAWN) {
-            return inputManager.currentlySelectedElement == ElementType.EMPTYCELL ? "Erase" : "Draw";
+            // The separate Erase chip already conveys the erase selection.
+            // This button switches back to drawing when erase is selected.
+            return "Draw";
         }
         switch (mode) {
             case HEAT:
@@ -1148,6 +1210,7 @@ public class MobileControls {
         close.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                close.setChecked(false);
                 action.run();
             }
         });
@@ -1317,7 +1380,8 @@ public class MobileControls {
             case FLAMMABLEGAS:
                 return "Flam Gas";
             case EXPLOSIONSPARK:
-                return "Spark";
+                // Separate this from ordinary SPARK in the energy picker.
+                return "Flash";
             case SLIMEMOLD:
                 return "Slime";
             case GUNPOWDER:
@@ -1349,23 +1413,31 @@ public class MobileControls {
         float height = stage.getViewport().getWorldHeight();
         if (width <= 0f || height <= 0f) return;
 
-        float panelWidth = Math.min(width - 12f, width > 600f ? 520f : width - 12f);
-        panelWidth = Math.max(300f, panelWidth);
+        // Center a compact phone-sized sheet on larger/tablet viewports.
+        // A 520-unit modal only stretched opaque whitespace while its fixed
+        // 5-column controls remained cramped at the left.
+        float panelWidth = Math.max(300f, Math.min(width - 12f, 360f));
         float x = (width - panelWidth) / 2f;
-        // The expandable shelf sits above the original dock. The compact
-        // secondary sheets keep their familiar placement; while open, the
-        // shelf is hidden so no material chips are covered or accidentally hit.
-        float y = DOCK_HEIGHT + 42f + 4f;
+        // Keep sheet controls at their established positions so user muscle
+        // memory and the Android tap smoke tests remain stable. When one of
+        // these sheets opens, the material shelf is hidden entirely instead
+        // of bleeding through and intercepting touches underneath it.
+        // The material picker sits above the shelf. When a different sheet
+        // opens, the shelf disappears; extend that sheet's opaque surface down
+        // to the dock, avoiding an empty 46-unit band between panel and dock.
+        // Keep the original sheet TOP coordinates so existing tap positions and
+        // compact-screen behavior are unchanged.
+        float previousPanelY = DOCK_HEIGHT + 42f + 4f;
+        float panelY = DOCK_HEIGHT;
+        float extraPanelHeight = previousPanelY - panelY;
         float materialY = DOCK_HEIGHT + QUICK_STRIP_HEIGHT + 4f;
-        float available = Math.max(120f, height - y - 14f);
+        float available = Math.max(120f, height - previousPanelY - 14f);
 
-        // Reserve the complete 2 x 44px tile surface even on compact phones.
-        // This also keeps the four category buttons large and easy to hit.
         materialPanel.setBounds(x, materialY, panelWidth, Math.min(200f, height - materialY - 14f));
-        moreSheet.setBounds(x, y, panelWidth, Math.min(250f, available));
-        sceneSheet.setBounds(x, y, panelWidth, Math.min(300f, available));
-        helpSheet.setBounds(x, y, panelWidth, Math.min(320f, available));
-        clearSheet.setBounds(x, y, panelWidth, Math.min(155f, available));
+        moreSheet.setBounds(x, panelY, panelWidth, Math.min(250f, available) + extraPanelHeight);
+        sceneSheet.setBounds(x, panelY, panelWidth, Math.min(300f, available) + extraPanelHeight);
+        helpSheet.setBounds(x, panelY, panelWidth, Math.min(320f, available) + extraPanelHeight);
+        clearSheet.setBounds(x, panelY, panelWidth, Math.min(155f, available) + extraPanelHeight);
     }
 
     public void draw() {
@@ -1377,11 +1449,32 @@ public class MobileControls {
 
         boolean legacyOverlay = inputManager.drawMenu;
         quickBar.setVisible(!legacyOverlay);
-        quickStripRoot.setVisible(!legacyOverlay);
+        // More/Help/Scenes/Clear cover part of the two-row shelf at their
+        // established y positions. Hide the entire shelf while those sheets
+        // are open; the categorized picker sits above it and can keep it.
+        boolean shelfCovered = moreSheet.isVisible() || helpSheet.isVisible()
+                || sceneSheet.isVisible() || clearSheet.isVisible();
+        quickStripRoot.setVisible(!legacyOverlay && !shelfCovered);
+
+        // The two-tap destructive delete confirmation expires after 5s.
+        // Restore its label automatically; otherwise a stale "Sure?" remains
+        // indefinitely despite the click no longer being a confirmation.
+        if (pendingDeleteButton != null
+                && System.currentTimeMillis() - pendingDeleteTimeMs > 5000L) {
+            pendingDeleteButton.setText("Delete");
+            pendingDeleteButton.getLabel().setFontScale(0.70f);
+            pendingDeleteButton = null;
+            pendingSceneDeletion = null;
+        }
 
         syncToolHighlights();
         syncMaterialHighlights();
         updatePauseButton();
+        // Dismissal via Back, outside-tap or another sheet must also clear
+        // these toggles. Scene2d buttons otherwise remain spuriously checked.
+        allButton.setChecked(materialPanel.isVisible());
+        moreButton.setChecked(moreSheet.isVisible());
+        weatherButton.setChecked(!inputManager.weatherSystem.disabled);
         refreshOverlayState();
 
         if (clearSettlementPending) {
