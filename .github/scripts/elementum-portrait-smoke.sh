@@ -983,6 +983,30 @@ if grep -q 'ElementumUI.*scene-close-in-bounds=false' "$evidence/logcat-compact.
   exit 1
 fi
 adb shell input keyevent KEYCODE_BACK
+
+# Help's former 12-unit text overflow must also be fixed at the minimum
+# 320x568 portrait viewport. Open the REAL compact modal, exercise vertical
+# touch scrolling (whether needed or not), capture both states, and verify
+# fresh fit telemetry rather than relying on an earlier 360x800 log.
+compact_help_before=$(adb logcat -d | grep -c 'ElementumUI.*help-content-fits=true' || true)
+tap 298 536  # More button at physical 320x568.
+tap 277 412  # Help item, last column on third row.
+capture compact-help
+adb shell input swipe 175 440 175 315 380
+sleep 1
+capture compact-help-after-scroll
+adb logcat -d > "$evidence/logcat-compact-help.txt"
+compact_help_after=$(grep -c 'ElementumUI.*help-content-fits=true' "$evidence/logcat-compact-help.txt" || true)
+if [ "$compact_help_after" -le "$compact_help_before" ]; then
+  echo "ABR FAILURE: compact Help sheet cannot fit/scroll instructions" >&2
+  grep 'ElementumUI.*help-content-fits=' "$evidence/logcat-compact-help.txt" | tail -4 >&2 || true
+  exit 1
+fi
+if grep -q 'ElementumUI.*help-close-in-bounds=false' "$evidence/logcat-compact-help.txt"; then
+  echo "ABR FAILURE: compact Help Close button is out of bounds" >&2
+  exit 1
+fi
+adb shell input keyevent KEYCODE_BACK
 adb shell wm size 360x800
 assert_foreground compact-layout
 test -n "$(adb shell pidof com.tomex.elementum)"
