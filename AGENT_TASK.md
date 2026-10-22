@@ -1,6 +1,6 @@
 # Elementum — Agent 4: Naturalistic Sound, Latency and Lifecycle
 
-**Session status: NOT STARTED.** This file is a concrete work order, not proof an agent is running. The agent must record actual start/stop timestamps, work uninterrupted for EXACTLY **40:00 real-time wall-clock minutes**, and write its handoff.
+**Session status: ACTIVE (not yet verified as a full 40-minute run).** Actual START is recorded in PR #9. No STOP has been recorded; this document does not certify exact session duration.
 
 **Branch:** `agents/elementum-a4-sound-40m-20261022`
 **Target integration PR branch:** `feature/elementum-abr-visual-audio-20261022`
@@ -15,10 +15,10 @@
 - 35:00–40:00: refine, test, create PR to integration branch, and publish evidence/handoff. If primary work ends sooner than 40:00, claim **unowned/idle** work in PR comments and keep actively working to 40:00.
 
 ## Specific implementation checklist
-- [ ] Audit procedural WAV initialization/playback (not yet recorded natural audio); add appropriate water impact vs continuous movement, grain and fire with restrained volume.
-- [ ] Ensure toggle/lifecycle works and no overlapping audio storm, click/pops, per-cell playback or render-thread blocks; maintain async audio.
-- [ ] Validate PCM/WAV formatting and audio rate limiting; use Android emulator logs for callback correctness, clearly state -noaudio can't validate listening.
-- [ ] Provide an actual real-device audio listening QA checklist and disclose any unattainable evidence.
+- [x] Audit procedural WAV initialization/playback (not yet recorded natural audio); add appropriate water impact vs continuous movement, grain and fire with restrained volume.
+- [x] Implement toggle/lifecycle, bound voice requests and no overlapping audio storm, click/pops, per-cell playback or render-thread blocks; maintain async audio.
+- [x] Add PCM/WAV and limiter tests and local JVM validation; Android logs still pending; use Android emulator logs for callback correctness, clearly state -noaudio can't validate listening.
+- [x] Provide a real-device audio listening QA checklist and disclose any unattainable evidence.
 
 ## Release/acceptance gate
 Audible control behavior not fabricated; deterministic automated audio tests and safe lifecycle with no frame stalls.
@@ -26,11 +26,11 @@ Audible control behavior not fabricated; deterministic automated audio tests and
 **Never claim** 40 minutes elapsed from file creation or a GitHub CI run. User must see **actual in-app water screenshots** before approving visual shader output. minSdk26, no duplicated controls, exactly two horizontal-swipe rows, real release install/QA remain requirements.
 
 ## Actual work log (agent fills this while running)
-- START (ISO8601 WAT): **NOT STARTED**
-- STOP (ISO8601 WAT): **NOT STARTED**
-- Claim comment link: —
-- Commits / child PR: —
-- Tests / API26+36 CI runs: —
-- Actual screenshot artifact names and source SHA: —
-- Visual defects found/fixed: —
-- Remaining issues and next unclaimed tasks: —
+- START (ISO8601 WAT): **2026-10-22T21:50:58+01:00** (PR #9 comment 6351028818)
+- STOP (ISO8601 WAT): **NOT RECORDED / NOT COMPLETE**
+- Claim comment link: https://github.com/Tomex777/FallingSandJava/pull/9#issuecomment-6351028818
+- Commits / child PR: https://github.com/Tomex777/FallingSandJava/pull/11
+- Tests / API26+36 CI runs: local JVM smoke PASS (not Android); agent audio GitHub Actions currently queued; release/emulator API 26+36 unverified
+- Actual screenshot artifact names and source SHA: none from this audio-only branch; user GPU water visual approval pending Agent 1/E
+- Visual defects found/fixed: UI Sound label does not reflect saved off state on restart; coordination comment on Agent B PR #12
+- Remaining issues and next unclaimed tasks: Android JUnit/compile queued; require audio listening and lifecycle on physical phone; see docs/agent-reports/elementum-agent-4.md.
