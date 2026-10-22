@@ -22,6 +22,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.BaseDrawable;
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.gdx.cellular.CellularMatrix;
@@ -1194,7 +1195,7 @@ public class MobileControls {
         }
     }
 
-    private TextureRegionDrawable solidDrawable(Color tint) {
+    private Drawable solidDrawable(Color tint) {
         return new TextureRegionDrawable(new TextureRegion(flatWhiteTexture)).tint(tint);
     }
 
